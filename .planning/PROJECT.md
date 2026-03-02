@@ -23,6 +23,10 @@ Sailors can see apparent wind angles and speeds along their planned routes, enab
 - [ ] Calculate and display apparent wind speed (AWS) for each route leg
 - [ ] Allow individual speed settings for each route leg instead of global average
 - [ ] Integrate weather layer switching (Wind, Gusts, Waves, Current, Thunderstorm)
+- [ ] Display hourly weather evolution at boat's predicted position along route
+- [ ] Implement time scrubbing interface to show boat position and weather at any forecast hour
+- [ ] Integrate real-time GPS position via TCP NMEA bridge, SignalK, or PredictWind DataHub
+- [ ] Display current GPS position on map (updated every minute)
 
 ### Out of Scope
 
@@ -56,12 +60,16 @@ Deferred to future release after v1 validation complete.
 - Leaflet 1.4.x mapping library with full weather data API access
 - Client-side execution using user's Windy account/subscription
 - Access to all weather models based on user's subscription level (GFS free, ECMWF with premium)
+- Real-time boat position integration via NMEA, SignalK, or PredictWind DataHub
+- Time-based weather interpolation along route with hourly precision
 
 **User Experience:**
 - Boat typically does "half wind speed" as rule of thumb
 - Downwind legs: 7-8 knots, upwind motoring: 4 knots
 - Speed estimates based on sailor experience and forecasted conditions
 - AWA/AWS critical for sail selection decisions along each leg
+- Need to see weather evolution hourly along route, not just per leg
+- Current boat position should be visible on map for real-world navigation
 
 ## Constraints
 
@@ -71,6 +79,8 @@ Deferred to future release after v1 validation complete.
 - **Performance**: Complex calculations must run efficiently in browser
 - **Platform**: Web-first implementation (mobile compatibility via same codebase)
 - **Validation First**: Prove core calculations work before building advanced UI features
+- **Real-time Data**: Must handle NMEA/SignalK data streams without blocking UI
+- **Time Interpolation**: Weather calculations needed for every hour along route timeline
 
 ## Key Decisions
 
@@ -80,6 +90,8 @@ Deferred to future release after v1 validation complete.
 | Custom route planner interface | Full control over sailing-specific features vs integration complexity | — Pending |
 | Manual speed input per leg | User experience beats theoretical polars for real-world sailing | — Pending |
 | Right pane with vertical scrolling | Better for detailed route data than bottom timeline | — Pending |
+| Hourly weather interpolation | More accurate than per-leg averages for route planning | — Pending |
+| Multiple GPS data sources | NMEA/SignalK/PredictWind for flexibility with different boat setups | — Pending |
 
 ---
 *Last updated: 2026-03-01 after initialization*

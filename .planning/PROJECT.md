@@ -2,11 +2,11 @@
 
 ## What This Is
 
-A Windy.com plugin that provides sailing route planning with apparent wind calculations and sailing-specific analysis. Built for sailors doing passage planning from short Caribbean island hops to major ocean crossings, displayed in a right-pane interface. Focuses on validating core sailing calculations before building advanced analysis features.
+A Windy.com plugin that provides sailing route planning with apparent wind calculations and sailing-specific analysis. Extends Windy's existing Measure&Plan functionality with real-time GPS integration, multi-route comparison, and sailing-optimized weather forecasting for passage planning from short Caribbean island hops to major ocean crossings.
 
 ## Core Value
 
-Sailors can see apparent wind angles and speeds along their planned routes, enabling proper sail selection and departure timing decisions based on accurate sailing-specific weather data.
+Sailors can see accurate apparent wind angles and speeds along their planned routes, enabling proper sail selection and departure timing decisions based on sailing-specific weather analysis.
 
 ## Requirements
 
@@ -16,82 +16,78 @@ Sailors can see apparent wind angles and speeds along their planned routes, enab
 
 ### Active
 
-- [ ] Validate AWS/AWA calculations work correctly with real weather data
-- [ ] Validate weather data access for given route/time combinations
-- [ ] Create basic routing tool (similar to Windy's current measure&plan interface)
-- [ ] Calculate and display apparent wind angle (AWA) for each route leg
-- [ ] Calculate and display apparent wind speed (AWS) for each route leg
-- [ ] Allow individual speed settings for each route leg instead of global average
-- [ ] Integrate weather layer switching (Wind, Gusts, Waves, Current, Thunderstorm)
-- [ ] Display hourly weather evolution at boat's predicted position along route
-- [ ] Implement time scrubbing interface to show boat position and weather at any forecast hour
-- [ ] Integrate real-time GPS position via TCP NMEA bridge, SignalK, or PredictWind DataHub
-- [ ] Display current GPS position on map (updated every minute)
+- [ ] Create basic routing tool extending Windy's Measure&Plan interface
+- [ ] Calculate and display apparent wind angle (AWA) ranges for each route hour
+- [ ] Calculate and display apparent wind speed (AWS) ranges for each route hour
+- [ ] Implement forecast table with hourly weather at predicted boat position
+- [ ] Add sailing-specific safety warnings (cape index, gusts, wave conditions)
+- [ ] Support individual speed settings per route leg (default 5 knots)
+- [ ] Implement time scrubbing with boat position updates on map
+- [ ] Integrate departure time control with user timezone
+- [ ] Enable weather layer switching via forecast table row clicks
+- [ ] Support multiple routes and departure times simultaneously
+- [ ] Show real-time GPS position (white dot) from PredictWind/SignalK/TCP sources
+- [ ] Display predicted boat positions (boat icons) for all routes during time scrub
+- [ ] Implement route persistence (favorites) via local storage
+- [ ] Add settings panel for default speeds and GPS source configuration
 
 ### Out of Scope
 
 - Automatic weather routing optimization — manual route plotting preferred for control
 - Boat polar integration — user speed input more practical than theoretical polars
-- Tidal data integration — focus on wind and wave data available in Windy
-- Integration with existing Windy route planner — build standalone interface instead
-
-## v2 Requirements
-
-Deferred to future release after v1 validation complete.
-
-### Analysis Features
-
-- **ANAL-01**: Display sailing angle percentages (upwind/reaching/downwind time) per route
-- **ANAL-02**: Add "motoring" detection when boat speed forecasted below user-defined threshold
-- **ANAL-03**: Track total forecasted motoring time across entire route
-- **ANAL-04**: Enable comparison of multiple routes and/or departure times
-- **ANAL-05**: Support route optimization suggestions based on departure timing
+- Multiple timezone support — user timezone only, defer to V2
+- Historical GPS tracks — requires server-side work, defer to future
+- OAuth authentication — local APIs only, no auth storage
+- Mobile-specific features — web-first implementation
+- Complex DST/leap second handling — pragmatic time approach sufficient
 
 ## Context
 
 **Sailing Background:**
-- Used for passage planning on a liveaboard sailing vessel
+- Used for passage planning on liveaboard sailing vessel
 - Routes range from short Caribbean island hops (few hours) to major ocean passages (weeks)
-- Current workflow uses Windy's measure&plan tool plus manual AWA estimation
-- Need to validate core apparent wind calculations before building complex features
+- Current workflow uses Windy's Measure&Plan plus manual AWA estimation
+- AWS/AWA calculations are accurate but complex (dependent on sea state, current, sails, heel)
+- Performance realistic for 10-15 waypoints per route, 4-5 simultaneous routes maximum
 
 **Technical Environment:**
 - Windy.com plugin system using Svelte + TypeScript
 - Leaflet 1.4.x mapping library with full weather data API access
 - Client-side execution using user's Windy account/subscription
-- Access to all weather models based on user's subscription level (GFS free, ECMWF with premium)
-- Real-time boat position integration via NMEA, SignalK, or PredictWind DataHub
+- Access to weather models based on user's subscription level (GFS free, ECMWF premium)
+- Real-time boat position integration via local APIs (no authentication required)
 - Time-based weather interpolation along route with hourly precision
 
 **User Experience:**
-- Boat typically does "half wind speed" as rule of thumb
-- Downwind legs: 7-8 knots, upwind motoring: 4 knots
-- Speed estimates based on sailor experience and forecasted conditions
+- Boat speed estimates: downwind 7-8 knots, upwind motoring 4 knots, default 5 knots
 - AWA/AWS critical for sail selection decisions along each leg
-- Need to see weather evolution hourly along route, not just per leg
-- Current boat position should be visible on map for real-world navigation
+- Need weather evolution hourly along route with 6h before/after departure coverage
+- Time scrubbing shows boat position and weather layer sync across all routes
+- Update frequency: 1 minute sufficient for real-time position
 
 ## Constraints
 
 - **Tech Stack**: Must use Windy's Svelte + TypeScript plugin framework
-- **UI Layout**: Right pane interface with vertical scrolling design
+- **Code Style**: Tab indentation (not 2-space), established conventions
 - **Data Access**: Limited to user's Windy subscription level and available weather layers
 - **Performance**: Complex calculations must run efficiently in browser
-- **Platform**: Web-first implementation (mobile compatibility via same codebase)
-- **Validation First**: Prove core calculations work before building advanced UI features
-- **Real-time Data**: Must handle NMEA/SignalK data streams without blocking UI
-- **Time Interpolation**: Weather calculations needed for every hour along route timeline
+- **API Usage**: Windy plugin APIs only, no direct server calls
+- **Real-time Data**: Local APIs only (PredictWind DataHub, SignalK, TCP) - no auth
+- **UI Layout**: Decision pending between right pane vs bottom panel for forecast table
+- **Route Limits**: Realistic performance for 10-15 waypoints, 4-5 routes maximum
+- **Time Handling**: User timezone only, pragmatic approach to DST/transitions
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Validation-first approach | Prove AWS/AWA calculations and data access before building complex features | — Pending |
-| Custom route planner interface | Full control over sailing-specific features vs integration complexity | — Pending |
-| Manual speed input per leg | User experience beats theoretical polars for real-world sailing | — Pending |
-| Right pane with vertical scrolling | Better for detailed route data than bottom timeline | — Pending |
-| Hourly weather interpolation | More accurate than per-leg averages for route planning | — Pending |
-| Multiple GPS data sources | NMEA/SignalK/PredictWind for flexibility with different boat setups | — Pending |
+| Accurate AWS/AWA calculation | Complex sailing physics possible, provide ranges for uncertainty | — Pending |
+| No authentication storage | Local APIs sufficient, plugin runs in Windy environment | — Pending |
+| Tab indentation | Established code style requirement | — Pending |
+| Performance limits | Realistic sailing usage (4-5 routes, 10-15 waypoints) | — Pending |
+| User timezone only | Multi-timezone complexity unnecessary for sailing | — Pending |
+| Local storage persistence | Simple route favorites without server complexity | — Pending |
+| 1-minute GPS updates | Sufficient frequency for sailing navigation | — Pending |
 
 ---
-*Last updated: 2026-03-01 after initialization*
+*Last updated: 2026-03-02 after initialization*

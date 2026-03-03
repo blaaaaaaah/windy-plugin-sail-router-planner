@@ -4,6 +4,43 @@
 
 A Windy.com plugin that provides sailing route planning with apparent wind calculations and sailing-specific analysis. The plugin extends Windy's existing Measure&Plan functionality with sailing-specific features and real-time GPS integration.
 
+## V1 Requirements
+
+### Weather Data & Calculations (WEATHER)
+- **WEATHER-01**: Implement forecast table with hourly weather at predicted boat position
+- **WEATHER-02**: Display standard Measure&Plan data (wind, gusts, waves, current, rain)
+
+### Sailing Calculations (CALC)
+- **CALC-01**: Calculate and display apparent wind angle (AWA) ranges for each route hour
+- **CALC-02**: Calculate and display apparent wind speed (AWS) ranges for each route hour
+- **CALC-03**: Calculate distance/bearing for route geometry and timing
+
+### Route Management (ROUTE)
+- **ROUTE-01**: Create basic routing tool extending Windy's Measure&Plan interface
+- **ROUTE-02**: Support individual speed settings per route leg (default 5 knots)
+- **ROUTE-03**: Enable route editing with waypoint management (2-15 points)
+
+### Time Controls (TIME)
+- **TIME-01**: Integrate departure time control with user timezone
+- **TIME-02**: Implement time scrubbing with boat position updates on map
+
+### Multi-Route Support (MULTI)
+- **MULTI-01**: Support multiple routes and departure times simultaneously (4-5 maximum)
+- **MULTI-02**: Display predicted boat positions (boat icons) for all routes during time scrub
+
+### GPS Integration (GPS)
+- **GPS-01**: Show real-time GPS position (white dot) from PredictWind/SignalK/TCP sources
+
+### User Interface (UI)
+- **UI-01**: Enable weather layer switching via forecast table row clicks
+
+### Safety Features (SAFETY)
+- **SAFETY-01**: Add sailing-specific safety warnings (cape index, gusts, wave conditions)
+
+### Persistence & Configuration (PERSIST/CONFIG)
+- **PERSIST-01**: Implement route persistence (favorites) via local storage
+- **CONFIG-01**: Add settings panel for default speeds and GPS source configuration
+
 ## User Workflow
 
 ### Initial State
@@ -199,6 +236,28 @@ Following PredictWind's passage planning model:
 5. **UI responsiveness**: No lag during route manipulation or time scrubbing
 6. **Multi-route support**: Clear visualization of multiple routes and predicted positions
 
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| WEATHER-01 | Phase 1 | Pending |
+| WEATHER-02 | Phase 1 | Pending |
+| CALC-01 | Phase 1 | Pending |
+| CALC-02 | Phase 1 | Pending |
+| CALC-03 | Phase 1 | Pending |
+| ROUTE-01 | Phase 2 | Pending |
+| ROUTE-02 | Phase 2 | Pending |
+| ROUTE-03 | Phase 2 | Pending |
+| TIME-01 | Phase 2 | Pending |
+| TIME-02 | Phase 3 | Pending |
+| MULTI-01 | Phase 3 | Pending |
+| MULTI-02 | Phase 3 | Pending |
+| GPS-01 | Phase 3 | Pending |
+| UI-01 | Phase 3 | Pending |
+| SAFETY-01 | Phase 3 | Pending |
+| PERSIST-01 | Phase 4 | Pending |
+| CONFIG-01 | Phase 4 | Pending |
+
 ---
 
-*Requirements document v1.0 - Created: 2026-03-02*
+*Requirements document v1.1 - Updated: 2026-03-02 with structured requirements and phase mapping*

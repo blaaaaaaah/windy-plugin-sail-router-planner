@@ -1,0 +1,55 @@
+import type { LatLng } from './Coordinates';
+import type { RouteLeg, RouteDefinition } from './RouteTypes';
+
+export interface WeatherData {
+	windSpeed: number; // knots
+	windDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
+	gustsSpeed: number; // knots
+	gustsDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
+	currentSpeed: number; // knots
+	currentDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
+	wavesHeight: number; // meters
+	wavesPeriod: number; // seconds
+	wavesDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
+}
+
+export interface PointForecast {
+	point: LatLng; // interpolated point at that time, using the "distances" API response
+	timestamp: number; // from windyAPI, one for each hour
+	bearing: number; // from windyAPI bearings array, degrees 0-359
+	leg: RouteLeg; // reference to the current Leg
+	warnings: string[]; // from windy api
+	northUp: WeatherData; // data from windy's API
+	apparent: WeatherData; // northUp data, but with computed AWS, AWA, relative wave direction to course, relative current direction to course
+	precipitations: number; // millimeters
+	weather: number; // mapping to "icon" API response, will switch to ENUM later (SUN, OVERCAST, RAIN, ...)
+}
+
+export interface RouteForecast {
+	route: RouteDefinition; // reference to access legs, distances, times, etc
+	pointForecasts: PointForecast[];
+}
+
+// Raw API response types
+export interface WindyAPIResponse {
+	data: {
+		gust: number[];
+		wind: number[];
+		windDir: number[];
+		temp: number[];
+		precip: number[];
+		vis: number[];
+		convprecip: number[];
+		rh: number[];
+		waves: number[];
+		wavesDir: number[];
+		wavesPeriod: number[];
+		warn: (string | null)[];
+		icon: number[];
+	}
+	
+	distances: number[];
+	bearings: number[];
+	timestamps: number[];
+	firstClampedIndex: number | null;
+}

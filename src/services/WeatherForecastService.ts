@@ -46,9 +46,10 @@ export class WeatherForecastService {
 		// Build time parameters (dst, dst2, dst3, ...)
 		const timeParams = this.buildTimeParameters(route);
 
-		// TODO: Research what these parameters do
+		// Generate minifest parameter dynamically
+		const minifestParam = await this.buildMinifestParameter();
+
 		const unknownParams = {
-			minifest: '1772776800000;1773295200000;1,1,90;3,93,144;6,150,354',
 			pr: '0',
 			sc: '124',
 			poc: '60'
@@ -56,13 +57,48 @@ export class WeatherForecastService {
 
 		const queryString = [
 			...timeParams,
-			`minifest=${unknownParams.minifest}`,
+			`minifest=${minifestParam}`,
 			`pr=${unknownParams.pr}`,
 			`sc=${unknownParams.sc}`,
 			`poc=${unknownParams.poc}`
 		].join('&');
 
 		return `/rplanner/v1/forecast/boat/${coordsString}?${queryString}`;
+	}
+
+	private async buildMinifestParameter(): Promise<string> {
+		console.log('Building minifest parameter...');
+
+		const W = (window as any).W;
+		if (!W || !W.products || !W.products.ecmwf) {
+			throw new Error('W.products.ecmwf not available - cannot generate minifest parameter');
+		}
+
+		// Load ECMWF manifest and calendar
+		const ecmwfMinifest = await W.products.ecmwf.loadMinifest();
+		const ecmwfCalendar = await W.products.ecmwf.getCalendar();
+
+		if (!ecmwfMinifest || !ecmwfCalendar) {
+			throw new Error('Failed to load ECMWF manifest or calendar');
+		}
+
+		console.log('ECMWF manifest:', ecmwfMinifest);
+		console.log('ECMWF calendar:', ecmwfCalendar);
+
+		// Build minifest string according to reverse-engineered format
+		const start = new Date(ecmwfMinifest.ref).getTime();
+		const end = ecmwfCalendar.premiumStart;
+
+		if (!end) {
+			throw new Error('ECMWF calendar premiumStart not available');
+		}
+
+		const dstAsString = ecmwfMinifest.dst.map((e: any) => e.join(',')).join(';');
+
+		const minifest = `${start};${end};${dstAsString}`;
+
+		console.log('Generated minifest:', minifest);
+		return minifest;
 	}
 
 	private buildTimeParameters(route: RouteDefinition): string[] {

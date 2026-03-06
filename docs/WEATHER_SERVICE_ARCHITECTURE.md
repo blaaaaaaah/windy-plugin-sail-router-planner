@@ -90,25 +90,48 @@ src/
 
 ### Parameters
 - **waypoints**: `lat,lon;lat,lon;...` format
-- **dst, dst2, dst3...**: Leg start times in `YYYY/MM/DD/HH` format
+- **dst**: Start time of forecast window in `YYYY/MM/DD/HH` format
+- **dst2**: End time of forecast window in `YYYY/MM/DD/HH` format
 - **Unknown params**: `minifest`, `pr`, `sc`, `poc` (require research)
+
+### API Behavior - Key Understanding
+
+**CRITICAL**: The API always returns exactly **67 forecast points** for a **fixed time window** defined by `dst` and `dst2` parameters.
+
+#### How It Works:
+1. **Fixed Point Count**: Always 67 data points regardless of route length or duration
+2. **Time Window**: From `dst` (start) to `dst2` (end) - can be any duration (2 hours, 6 days, etc.)
+3. **Route Progress**: The boat progresses along the route during this time window
+4. **Position Interpolation**: Each point shows where the boat will be at that time
+5. **Time Distribution**: 67 timestamps evenly distributed across the time window
+6. **Route Completion**: If route finishes before dst2, boat stays at final waypoint
+
+#### Example with 3-waypoint route:
+- **Route**: A → B → C (2 legs)
+- **Result**: 67 points interpolated along entire A→B→C path
+- **Bearings**: Change at each waypoint (e.g., -114°, -136°, 112°)
+- **Timestamps**: Start at departure time, end when route completes
+- **Distance**: Cumulative distance from start point (in meters)
 
 ### Response Format
 ```typescript
 {
-  gust: number[];
-  wind: number[];
-  windDir: number[];
-  waves: number[];
-  wavesDir: number[];
-  wavesPeriod: number[];
-  precip: number[];
-  warn: (string | null)[];
-  icon: number[];
-  distances: number[];
-  bearings: number[];
-  timestamps: number[];
-  // ... other fields
+  data: {
+    gust: number[67];        // Wind gusts at each route segment
+    wind: number[67];        // Wind speed at each route segment
+    windDir: number[67];     // Wind direction at each route segment
+    waves: number[67];       // Wave height at each route segment
+    wavesDir: number[67];    // Wave direction at each route segment
+    wavesPeriod: number[67]; // Wave period at each route segment
+    precip: number[67];      // Precipitation at each route segment
+    warn: (string | null)[67]; // Weather warnings at each route segment
+    icon: number[67];        // Weather icon codes at each route segment
+    // ... other weather fields
+  },
+  distances: number[67];     // Cumulative distance from start (meters)
+  bearings: number[67];      // Course bearing at each segment (degrees)
+  timestamps: number[67];    // Time at each route segment (unix ms)
+  firstClampedIndex: number | null; // Index where forecast data starts being extrapolated
 }
 ```
 

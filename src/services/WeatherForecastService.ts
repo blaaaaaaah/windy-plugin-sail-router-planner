@@ -17,7 +17,7 @@ export class WeatherForecastService {
 		}
 
 		// Build API URL
-		const url = this.buildAPIUrl(route);
+		const url = await this.buildAPIUrl(route);
 		console.log('Calling API with URL:', url);
 
 		// Call API
@@ -31,7 +31,7 @@ export class WeatherForecastService {
 		return routeForecast;
 	}
 
-	private buildAPIUrl(route: RouteDefinition): string {
+	private async buildAPIUrl(route: RouteDefinition): Promise<string> {
 		const legs = route.getLegs();
 
 		// Extract waypoints (start point + each leg's end point)
@@ -48,19 +48,19 @@ export class WeatherForecastService {
 
 		// Generate minifest parameter dynamically
 		const minifestParam = await this.buildMinifestParameter();
-
+/*
 		const unknownParams = {
 			pr: '0',
 			sc: '124',
 			poc: '60'
-		};
+		};*/
 
 		const queryString = [
 			...timeParams,
 			`minifest=${minifestParam}`,
-			`pr=${unknownParams.pr}`,
-			`sc=${unknownParams.sc}`,
-			`poc=${unknownParams.poc}`
+			//`pr=${unknownParams.pr}`,
+			//`sc=${unknownParams.sc}`,
+			//`poc=${unknownParams.poc}`
 		].join('&');
 
 		return `/rplanner/v1/forecast/boat/${coordsString}?${queryString}`;
@@ -105,17 +105,18 @@ export class WeatherForecastService {
 		const legs = route.getLegs();
 		const timeParams: string[] = [];
 
-		// First time parameter is departure time
+		// dst = departure time (start of forecast window)
 		const departureTime = new Date(route.getDepartureTime());
 		timeParams.push(`dst=${toDateWithHour(departureTime)}`);
 
-		// Additional time parameters for each leg start time
-		legs.forEach((leg, index) => {
-			if (index > 0) { // Skip first leg as it's the departure time
-				const legStartTime = new Date(leg.startTime);
-				timeParams.push(`dst${index + 1}=${toDateWithHour(legStartTime)}`);
-			}
-		});
+		// dst2 = end time (end of forecast window)
+		// Calculate total route time based on all legs
+		const totalRouteTime = legs.reduce((total, leg) => {
+			return total + (leg.endTime - leg.startTime);
+		}, 0);
+
+		const endTime = new Date(route.getDepartureTime() + totalRouteTime);
+		timeParams.push(`dst2=${toDateWithHour(endTime)}`);
 
 		return timeParams;
 	}

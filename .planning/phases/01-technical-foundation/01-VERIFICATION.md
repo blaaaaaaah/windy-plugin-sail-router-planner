@@ -90,6 +90,20 @@ human_verification:
 | WeatherForecastService.ts | 203 | TODO comment | ⚠️ Warning | Current data not implemented, API limitation noted |
 | plugin.svelte | Multiple | Console.log debugging | ℹ️ Info | Development debugging code, should be removed for production |
 
+### Technical Limitations Discovered
+
+#### Windy API Speed Averaging Issue
+**Severity:** 🔸 Medium
+**Impact:** Forecast timing accuracy for multi-leg routes with varying speeds
+
+The Windy route planner API uses whole-trip average speed rather than individual leg speeds. This creates forecast timing inaccuracies:
+
+- **Problem**: Route with 10kt leg + 3kt leg uses ~6.5kt average for all weather timing
+- **Impact**: Weather conditions may be misaligned with actual boat position
+- **Required Fix**: Implement per-leg API calls to preserve speed accuracy
+- **Status**: Documented, not yet implemented
+- **Priority**: Medium (functional but sub-optimal for sailing strategy)
+
 ### Human Verification Required
 
 #### 1. RouteDefinition Sailing Calculations

@@ -204,6 +204,32 @@ const apparentWindEast = trueWindEast - boatVelocityEast;
 }
 ```
 
+## Known Limitations
+
+### API Speed Averaging Issue
+
+**Critical Discovery**: The Windy route planner API returns weather forecasts based on **whole-trip average speed**, not individual leg speeds. This creates inaccurate time predictions for multi-leg routes with varying speeds.
+
+**Current Implementation:**
+```typescript
+// Single API call for entire route
+const forecast = await weatherService.getRouteForecast(route);
+// Returns 67 points distributed across total trip time
+// Uses average speed across all legs for time calculations
+```
+
+**Problem:**
+- Fast leg (10 knots) + Slow leg (3 knots) = API uses ~6.5 knots average
+- Weather timing becomes inaccurate for individual leg conditions
+- Sailing strategy decisions compromised by timing misalignment
+
+**Required Solution:**
+- Make **separate API calls per leg** with individual speeds
+- Combine results into unified forecast maintaining proper timing
+- Preserve 67-point structure while respecting leg-specific speeds
+
+**Implementation Priority**: Medium (affects forecast accuracy but doesn't break core functionality)
+
 ## Testing Integration
 
 ### Test Button

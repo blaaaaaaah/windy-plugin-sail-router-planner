@@ -37,6 +37,8 @@
 - **GPS Strategy**: Keep simple (position display only) to avoid over-engineering
 
 ### Active TODOs
+- [ ] **API Enhancement Required**: Implement per-leg API calls to address speed averaging limitation
+- [ ] **Gap Closure**: Execute Phase 1 plan 01-02 to fix documentation and add missing tests
 - [x] Research Windy's exact weather data API patterns for plugins (✓ Reverse-engineered route planner API)
 - [x] Study Measure&Plan implementation for weather interpolation methods (✓ Implemented position interpolation)
 - [x] Investigate @gml/truewind integration within Svelte 5 + TypeScript (✓ Built custom navigation utilities instead)

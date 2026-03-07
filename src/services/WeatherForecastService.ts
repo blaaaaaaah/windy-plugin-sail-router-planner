@@ -211,61 +211,6 @@ export class WeatherForecastService {
 		return avgDirection;
 	}
 
-	private async buildAPIUrl(route: RouteDefinition): Promise<string> {
-		const legs = route.getLegs();
-
-		// Extract waypoints (start point + each leg's end point)
-		const waypoints = [route.getStartPoint()];
-		legs.forEach(leg => waypoints.push(leg.endPoint));
-
-		// Convert to coordinate string
-		const coordsString = waypoints
-			.map(point => `${point.lat},${point.lng}`)
-			.join(';');
-
-		// Build time parameters (dst, dst2, dst3, ...)
-		const timeParams = this.buildTimeParameters(route);
-
-		// Generate minifest parameter dynamically
-		const minifestParam = await this.buildMinifestParameter();
-/*
-		const unknownParams = {
-			pr: '0',
-			sc: '124',
-			poc: '60'
-		};*/
-
-		const queryString = [
-			...timeParams,
-			`minifest=${minifestParam}`,
-			//`pr=${unknownParams.pr}`,
-			//`sc=${unknownParams.sc}`,
-			//`poc=${unknownParams.poc}`
-		].join('&');
-
-		return `/rplanner/v1/forecast/boat/${coordsString}?${queryString}`;
-	}
-
-
-	private buildTimeParameters(route: RouteDefinition): string[] {
-		const legs = route.getLegs();
-		const timeParams: string[] = [];
-
-		// dst = departure time (start of forecast window)
-		const departureTime = new Date(route.getDepartureTime());
-		timeParams.push(`dst=${toDateWithHour(departureTime)}`);
-
-		// dst2 = end time (end of forecast window)
-		// Calculate total route time based on all legs
-		const totalRouteTime = legs.reduce((total, leg) => {
-			return total + (leg.endTime - leg.startTime);
-		}, 0);
-
-		const endTime = new Date(route.getDepartureTime() + totalRouteTime);
-		timeParams.push(`dst2=${toDateWithHour(endTime)}`);
-
-		return timeParams;
-	}
 
 
 	private parseLegForecastResponse(leg: RouteLeg, apiResponse: WindyAPIResponse): PointForecast[] {
@@ -369,16 +314,6 @@ export class WeatherForecastService {
 		return pointForecasts;
 	}
 
-	private findLegForTimestamp(legs: RouteLeg[], timestamp: number): RouteLeg | null {
-		for (const leg of legs) {
-			if (timestamp >= leg.startTime && timestamp <= leg.endTime) {
-				return leg;
-			}
-		}
-		// If not found in any leg, return the last leg (might be slightly beyond end time)
-		return legs[legs.length - 1] || null;
-	}
-
 	private interpolateLegPosition(leg: RouteLeg, distance: number): LatLng {
 		// Convert distance from meters to nautical miles to match leg distances
 		const distanceNM = distance / 1852;
@@ -388,28 +323,6 @@ export class WeatherForecastService {
 
 		// Interpolate position within the leg
 		return interpolateLatLng(leg.startPoint, leg.endPoint, legProgress);
-	}
-
-	private interpolatePosition(route: RouteDefinition, distance: number): LatLng {
-		const legs = route.getLegs();
-		let cumulativeDistance = 0;
-
-		// Convert distance from meters to nautical miles to match leg distances
-		const distanceNM = distance / 1852;
-
-		// Find which leg contains this distance
-		for (const leg of legs) {
-			if (cumulativeDistance + leg.distance >= distanceNM) {
-				// Interpolate within this leg
-				const legProgress = (distanceNM - cumulativeDistance) / leg.distance;
-				return interpolateLatLng(leg.startPoint, leg.endPoint, legProgress);
-			}
-			cumulativeDistance += leg.distance;
-		}
-
-		// If beyond all legs, return the end point of the last leg
-		const lastLeg = legs[legs.length - 1];
-		return lastLeg ? lastLeg.endPoint : route.getStartPoint();
 	}
 
 

@@ -240,8 +240,8 @@ Following PredictWind's passage planning model:
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WEATHER-01 | Phase 1 | Pending |
-| WEATHER-02 | Phase 1 | Pending |
+| WEATHER-01 | Phase 1 | Complete (01-01) |
+| WEATHER-02 | Phase 1 | Complete (01-01) |
 | CALC-01 | Phase 1 | Pending |
 | CALC-02 | Phase 1 | Pending |
 | CALC-03 | Phase 1 | Pending |

@@ -7,7 +7,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Technical Foundation** - Validate weather data access and sailing calculations
+- [⚡] **Phase 1: Technical Foundation** - Validate weather data access and sailing calculations (1/3 complete)
 - [ ] **Phase 2: Route Planning Interface** - Build familiar route creation and editing UX
 - [ ] **Phase 3: Enhanced Features** - Add multi-route comparison, time scrubbing, and GPS integration
 - [ ] **Phase 4: Polish & Settings** - Persistence, configuration, and optimization
@@ -23,7 +23,7 @@
   2. User can see AWS/AWA range calculations for any route hour with realistic sailing values
   3. Weather data interpolation works correctly along route geometry with hourly precision
   4. All calculations perform efficiently in browser without lag or blocking
-**Plans**: TBD
+**Plans**: Plan 01 (Complete), Plan 02 (TBD), Plan 03 (TBD)
 
 ### Phase 2: Route Planning Interface
 **Goal**: Users can create and edit sailing routes using familiar map-based interface
@@ -63,7 +63,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Technical Foundation | 0/? | Not started | - |
+| 1. Technical Foundation | 1/3 | In Progress | Plan 01: 2026-03-06 |
 | 2. Route Planning | 0/? | Not started | - |
 | 3. Enhanced Features | 0/? | Not started | - |
 | 4. Polish & Settings | 0/? | Not started | - |
@@ -107,13 +107,15 @@ Phase 4: Polish & Settings
 **Critical Path**: Phase 1 must validate technical feasibility before building user features. Research identified that weather data access and AWS/AWA calculations represent the highest technical risk.
 
 **Key Decisions**:
-- Use @gml/truewind library for sailing calculations (avoid custom vector math)
-- Leverage Windy's existing weather APIs (follow Measure&Plan patterns)
+- ✅ Built custom navigation utilities with precise spherical trigonometry (replaced @gml/truewind)
+- ✅ Successfully reverse-engineered Windy's route planner API with dynamic manifest generation
+- ✅ Used Leaflet's existing LatLng type for coordinate system integration
+- ✅ Separated weather data into northUp (API) and apparent (calculated) for sailing displays
 - Limit complexity: 4-5 routes maximum, 10-15 waypoints per route
 - Keep GPS integration simple (position display only, no complex tracking)
 
 **Research Flags**:
-- Phase 1 needs deep research into Windy's weather API patterns
+- ✅ Phase 1 deep research complete - Windy's route planner API successfully integrated
 - Phase 3 needs investigation of GPS integration methods (SignalK/PredictWind)
 
 ---

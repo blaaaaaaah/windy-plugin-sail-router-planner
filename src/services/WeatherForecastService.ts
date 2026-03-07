@@ -4,6 +4,7 @@ import { calculateApparentWind, calculateRelativeDirection, interpolateLatLng } 
 import { toDateWithHour } from '../utils/TimeUtils';
 
 export class WeatherForecastService {
+	private static readonly MAX_LEG_DURATION_HOURS = 67; // Maximum hours per API call
 	private windyAPI: WindyAPI;
 
 	constructor(windyAPI: WindyAPI) {
@@ -16,19 +17,230 @@ export class WeatherForecastService {
 			throw new Error('Route must have at least one leg');
 		}
 
-		// Build API URL
-		const url = await this.buildAPIUrl(route);
-		console.log('Calling API with URL:', url);
+		// Calculate all legs and break long ones into parts
+		const allLegParts = this.calculateLegParts(legs);
+
+		// Get forecast for each leg part
+		const allPointForecasts: PointForecast[] = [];
+		for (const legPart of allLegParts) {
+			const legForecast = await this.getLegForecast(legPart);
+			allPointForecasts.push(...legForecast);
+		}
+
+		// Consolidate all forecasts
+		const consolidatedForecasts = this.consolidateLegsForecasts(allPointForecasts);
+
+		return {
+			route,
+			pointForecasts: consolidatedForecasts
+		};
+	}
+
+	private calculateLegParts(legs: RouteLeg[]): RouteLeg[] {
+		const legParts: RouteLeg[] = [];
+
+		for (const leg of legs) {
+			const legDurationHours = (leg.endTime - leg.startTime) / (1000 * 60 * 60);
+			const requiredParts = Math.ceil(legDurationHours / WeatherForecastService.MAX_LEG_DURATION_HOURS);
+
+			if (requiredParts === 1) {
+				// Leg is short enough, use as is
+				legParts.push(leg);
+			} else {
+				// Break leg into multiple parts
+				const partDuration = (leg.endTime - leg.startTime) / requiredParts;
+				for (let i = 0; i < requiredParts; i++) {
+					const startTime = leg.startTime + (i * partDuration);
+					const endTime = leg.startTime + ((i + 1) * partDuration);
+
+					// Calculate intermediate points
+					const progress = i / requiredParts;
+					const nextProgress = (i + 1) / requiredParts;
+
+					const startPoint = interpolateLatLng(leg.startPoint, leg.endPoint, progress);
+					const endPoint = interpolateLatLng(leg.startPoint, leg.endPoint, nextProgress);
+
+					// Calculate distance and course for this part
+					const partDistance = leg.distance / requiredParts;
+
+					legParts.push({
+						startPoint,
+						endPoint,
+						startTime,
+						endTime,
+						distance: partDistance,
+						course: leg.course,
+						averageSpeed: leg.averageSpeed
+					});
+				}
+			}
+		}
+
+		return legParts;
+	}
+
+	private async getLegForecast(leg: RouteLeg): Promise<PointForecast[]> {
+		// Build API URL for this specific leg
+		const url = await this.buildLegAPIUrl(leg);
+		console.log('Calling API for leg with URL:', url);
 
 		// Call API
-		const apiResponse:WindyAPIResponse = await this.windyAPI.get(url);
-		console.log('Raw API response structure:', apiResponse);
-		console.log('API response keys:', Object.keys(apiResponse));
+		const apiResponse: WindyAPIResponse = await this.windyAPI.get(url);
 
-		// Parse response
-		const routeForecast = this.parseRouteForecastResponse(route, apiResponse);
+		// Parse response for this leg (without apparent/relative calculations)
+		return this.parseLegForecastResponse(leg, apiResponse);
+	}
 
-		return routeForecast;
+	private consolidateLegsForecasts(allPointForecasts: PointForecast[]): PointForecast[] {
+		console.log(`Consolidating ${allPointForecasts.length} total forecasts from all legs`);
+
+		// Group forecasts by hour
+		const hourlyGroups = new Map<number, PointForecast[]>();
+
+		for (const forecast of allPointForecasts) {
+			const hour = Math.floor(forecast.timestamp / (1000 * 60 * 60)) * (1000 * 60 * 60);
+
+			if (!hourlyGroups.has(hour)) {
+				hourlyGroups.set(hour, []);
+			}
+			hourlyGroups.get(hour)!.push(forecast);
+		}
+
+		console.log(`Found ${hourlyGroups.size} unique hours`);
+
+		// Consolidate each hour's forecasts
+		const consolidatedForecasts: PointForecast[] = [];
+		for (const [hour, forecasts] of hourlyGroups) {
+			if (forecasts.length === 1) {
+				// Single forecast for this hour - calculate apparent/relative now
+				const forecast = forecasts[0];
+				forecast.apparent = this.convertToApparent(
+					forecast.northUp,
+					forecast.leg.averageSpeed,
+					forecast.leg.course
+				);
+				consolidatedForecasts.push(forecast);
+			} else {
+				// Multiple forecasts for this hour - average them
+				console.log(`Averaging ${forecasts.length} forecasts for hour ${new Date(hour).toISOString()}`);
+				const averaged = this.averagePointForecasts(forecasts);
+				averaged.apparent = this.convertToApparent(
+					averaged.northUp,
+					averaged.leg.averageSpeed,
+					averaged.leg.course
+				);
+				consolidatedForecasts.push(averaged);
+			}
+		}
+
+		// Sort by timestamp
+		const result = consolidatedForecasts.sort((a, b) => a.timestamp - b.timestamp);
+		console.log(`Consolidated to ${result.length} forecasts`);
+		return result;
+	}
+
+	private averagePointForecasts(forecasts: PointForecast[]): PointForecast {
+		if (forecasts.length === 0) {
+			throw new Error('Cannot average empty forecasts array');
+		}
+
+		if (forecasts.length === 1) {
+			return forecasts[0];
+		}
+
+		// Use the first forecast as template
+		const template = forecasts[0];
+
+		// Average weather data
+		const avgWeather: WeatherData = {
+			windSpeed: forecasts.reduce((sum, f) => sum + f.northUp.windSpeed, 0) / forecasts.length,
+			windDirection: this.averageDirections(forecasts.map(f => f.northUp.windDirection)),
+			gustsSpeed: forecasts.reduce((sum, f) => sum + f.northUp.gustsSpeed, 0) / forecasts.length,
+			gustsDirection: this.averageDirections(forecasts.map(f => f.northUp.gustsDirection)),
+			currentSpeed: forecasts.reduce((sum, f) => sum + f.northUp.currentSpeed, 0) / forecasts.length,
+			currentDirection: this.averageDirections(forecasts.map(f => f.northUp.currentDirection)),
+			wavesHeight: forecasts.reduce((sum, f) => sum + f.northUp.wavesHeight, 0) / forecasts.length,
+			wavesPeriod: forecasts.reduce((sum, f) => sum + f.northUp.wavesPeriod, 0) / forecasts.length,
+			wavesDirection: this.averageDirections(forecasts.map(f => f.northUp.wavesDirection))
+		};
+
+		// Average position
+		const avgLat = forecasts.reduce((sum, f) => sum + f.point.lat, 0) / forecasts.length;
+		const avgLng = forecasts.reduce((sum, f) => sum + f.point.lng, 0) / forecasts.length;
+
+		// Average bearing
+		const avgBearing = this.averageDirections(forecasts.map(f => f.bearing));
+
+		// Average precipitations and weather
+		const avgPrecip = forecasts.reduce((sum, f) => sum + f.precipitations, 0) / forecasts.length;
+		const avgWeatherCode = Math.round(forecasts.reduce((sum, f) => sum + f.weather, 0) / forecasts.length);
+
+		// Combine warnings
+		const allWarnings = forecasts.flatMap(f => f.warnings);
+		const uniqueWarnings = Array.from(new Set(allWarnings));
+
+		return {
+			point: { lat: avgLat, lng: avgLng },
+			timestamp: template.timestamp,
+			bearing: avgBearing,
+			leg: template.leg,
+			warnings: uniqueWarnings,
+			northUp: avgWeather,
+			apparent: avgWeather, // Will be recalculated in consolidateLegsForecasts
+			precipitations: avgPrecip,
+			weather: avgWeatherCode
+		};
+	}
+
+	private averageDirections(directions: number[]): number {
+		if (directions.length === 0) return 0;
+		if (directions.length === 1) return directions[0];
+
+		// Convert to unit vectors, average, then convert back
+		const vectors = directions.map(dir => ({
+			x: Math.cos(dir * Math.PI / 180),
+			y: Math.sin(dir * Math.PI / 180)
+		}));
+
+		const avgX = vectors.reduce((sum, v) => sum + v.x, 0) / vectors.length;
+		const avgY = vectors.reduce((sum, v) => sum + v.y, 0) / vectors.length;
+
+		let avgDirection = Math.atan2(avgY, avgX) * 180 / Math.PI;
+		if (avgDirection < 0) avgDirection += 360;
+
+		return avgDirection;
+	}
+
+	private async buildLegAPIUrl(leg: RouteLeg): Promise<string> {
+		// Convert to coordinate string for this leg
+		const coordsString = `${leg.startPoint.lat},${leg.startPoint.lng};${leg.endPoint.lat},${leg.endPoint.lng}`;
+
+		// Build time parameters for this leg
+		const timeParams = this.buildLegTimeParameters(leg);
+
+		// Generate minifest parameter dynamically
+		const minifestParam = await this.buildMinifestParameter();
+
+		const queryString = [
+			...timeParams,
+			`minifest=${minifestParam}`
+		].join('&');
+
+		return `/rplanner/v1/forecast/boat/${coordsString}?${queryString}`;
+	}
+
+	private buildLegTimeParameters(leg: RouteLeg): string[] {
+		const timeParams: string[] = [];
+
+		// dst = departure time for this leg
+		const startTime = new Date(leg.startTime);
+		timeParams.push(`dst=${toDateWithHour(startTime)}`);
+
+		// dst2 = end time for this leg
+		const endTime = new Date(leg.endTime);
+		timeParams.push(`dst2=${toDateWithHour(endTime)}`);
+
+		return timeParams;
 	}
 
 	private async buildAPIUrl(route: RouteDefinition): Promise<string> {
@@ -122,11 +334,10 @@ export class WeatherForecastService {
 	}
 
 
-	private parseRouteForecastResponse(route: RouteDefinition, apiResponse: WindyAPIResponse): RouteForecast {
-		const legs = route.getLegs();
+	private parseLegForecastResponse(leg: RouteLeg, apiResponse: WindyAPIResponse): PointForecast[] {
 		const pointForecasts: PointForecast[] = [];
 
-		console.log('Parsing API response, checking required fields...');
+		console.log('Parsing leg API response, checking required fields...');
 
 		// Safety checks for top-level fields
 		const topLevelFields = ['timestamps', 'distances', 'bearings', 'data'];
@@ -177,22 +388,18 @@ export class WeatherForecastService {
 			throw new Error(`API response array length mismatch. Expected ${arrayLength}, got: ${mismatchedLengths.map(f => `${f.field}:${f.length}`).join(', ')}`);
 		}
 
-		console.log(`Processing ${arrayLength} forecast points...`);
+		console.log(`Processing ${arrayLength} forecast points for leg...`);
 
-		// Process each hour in the API response
+		console.log(`Leg duration: ${(leg.endTime - leg.startTime) / (1000 * 60 * 60)} hours`);
+
+		// Process each data point in the API response
+		// Don't filter here - let consolidation handle the hourly filtering
 		for (let i = 0; i < apiResponse.timestamps.length; i++) {
-
-			// Find which leg this timestamp belongs to
 			const timestamp = apiResponse.timestamps[i];
-			const currentLeg = this.findLegForTimestamp(legs, timestamp);
+			console.log(`Processing timestamp ${i}: ${new Date(timestamp).toISOString()}`);
 
-			if (!currentLeg) {
-				console.warn('Could not find leg for timestamp:', timestamp);
-				continue;
-			}
-
-			// Interpolate position using distances
-			const point = this.interpolatePosition(route, apiResponse.distances[i]);
+			// Interpolate position using distances and leg bounds
+			const point = this.interpolateLegPosition(leg, apiResponse.distances[i]);
 
 			// Extract weather data from API response (with null checks)
 			const northUpWeather: WeatherData = {
@@ -207,9 +414,6 @@ export class WeatherForecastService {
 				wavesDirection: apiResponse.data.wavesDir[i] || 0
 			};
 
-			// Calculate apparent wind and relative directions
-			const apparentWeather = this.convertToApparent(northUpWeather, currentLeg.averageSpeed, currentLeg.course);
-
 			// Parse warnings
 			const warnings = apiResponse.data.warn[i] ? [apiResponse.data.warn[i] as string] : [];
 
@@ -217,10 +421,10 @@ export class WeatherForecastService {
 				point,
 				timestamp,
 				bearing: apiResponse.bearings[i],
-				leg: currentLeg,
+				leg,
 				warnings,
 				northUp: northUpWeather,
-				apparent: apparentWeather,
+				apparent: northUpWeather, // Will be calculated later in consolidation
 				precipitations: apiResponse.data.precip[i] || 0,
 				weather: apiResponse.data.icon[i] || 0
 			};
@@ -228,10 +432,7 @@ export class WeatherForecastService {
 			pointForecasts.push(pointForecast);
 		}
 
-		return {
-			route,
-			pointForecasts
-		};
+		return pointForecasts;
 	}
 
 	private findLegForTimestamp(legs: RouteLeg[], timestamp: number): RouteLeg | null {
@@ -242,6 +443,17 @@ export class WeatherForecastService {
 		}
 		// If not found in any leg, return the last leg (might be slightly beyond end time)
 		return legs[legs.length - 1] || null;
+	}
+
+	private interpolateLegPosition(leg: RouteLeg, distance: number): LatLng {
+		// Convert distance from meters to nautical miles to match leg distances
+		const distanceNM = distance / 1852;
+
+		// Calculate progress within this leg (0 to 1)
+		const legProgress = Math.min(1, Math.max(0, distanceNM / leg.distance));
+
+		// Interpolate position within the leg
+		return interpolateLatLng(leg.startPoint, leg.endPoint, legProgress);
 	}
 
 	private interpolatePosition(route: RouteDefinition, distance: number): LatLng {

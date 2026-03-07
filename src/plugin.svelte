@@ -42,14 +42,9 @@
         {/if}
     </div>
 
-    <div class="debug-container">
-        <p>Plugin loaded. Check console for debug info.</p>
-        <button on:click={testRouteAPI}>Test Route API</button>
-        <button on:click={testWeatherService}>Test Weather Service</button>
-        <div class="results">
-            <h4>Last API Result:</h4>
-            <pre>{lastResult}</pre>
-        </div>
+    <div class="results">
+        <h4>Last Result:</h4>
+        <pre>{lastResult}</pre>
     </div>
 </section>
 <script lang="ts">
@@ -65,7 +60,7 @@
     let lastResult = 'No API calls made yet';
 
     // Route editor state
-    let routeUrl = '';
+    let routeUrl = 'https://www.windy.com/route-planner/boat/2.8726,-84.8206;-0.2539,-86.6167;-0.1687,-88.8618;-0.7887,-90.2270;1.0536,-89.9273;2.8996,-91.9098;0.6286,-94.1834?-1.115,-90.163,6,p:cities';
     let parsedRoute: { lat: number; lng: number }[] = [];
 
     // Reactive validation
@@ -177,105 +172,6 @@
         }
     }
 
-    // Test route coordinates - using exact example from working call
-    const testRoute = [
-        { lat: 2.8652, lon: -84.7625 },
-        { lat: -0.2539, lon: -86.6167 },
-        { lat: -0.1687, lon: -88.8618 },
-        { lat: -0.7887, lon: -90.2270 }
-    ];
-
-    function coordsToString(coords: any[]) {
-        return coords.map(c => `${c.lat},${c.lon}`).join(';');
-    }
-
-    async function callRouteAPI(coords: any[], routeName: string) {
-        try {
-            console.log(`=== TESTING ${routeName.toUpperCase()} ROUTE ===`);
-
-            const coordsString = coordsToString(coords);
-            console.log('Coordinates:', coordsString);
-
-            const url = `/rplanner/v1/forecast/boat/${coordsString}?dst2=2026/03/06/08&dst=2026/03/05/07&minifest=1772690400000;1773208800000;1,1,90;3,93,144;6,150,354&pr=0&sc=114`;
-            console.log('API URL:', url);
-
-            const W = (window as any).W;
-            const response = await W.http.get(url);
-
-            console.log('Response:', response);
-
-            // Show full response data
-            const data = response.data;
-            console.log('Full response data:', data);
-
-            // Format full result for display
-            lastResult = JSON.stringify(data, null, 2);
-
-            return response;
-        } catch (error) {
-            console.error(`Error testing ${routeName} route:`, error);
-            lastResult = `Error: ${error}`;
-            throw error;
-        }
-    }
-
-    function debugCurrentState() {
-        console.log('=== DEBUGGING CURRENT STATE ===');
-
-        // Add your debug inspection here
-        console.log('Window object:', window);
-        console.log('Windy W object:', (window as any).W);
-    }
-
-    function testRouteAPI() {
-        console.log('Testing route...');
-        callRouteAPI(testRoute, 'TEST');
-    }
-
-    async function testWeatherService() {
-        try {
-            console.log('=== TESTING WEATHER FORECAST SERVICE ===');
-
-            // Create a test route
-            const L = (window as any).L;
-            const startPoint = new L.LatLng(2.8652, -84.7625);
-            const departureTime = new Date('2026-03-05T07:00:00Z').getTime();
-
-            const route = new RouteDefinition(startPoint, departureTime);
-            route.addLeg(new L.LatLng(-0.2539, -86.6167), 5); // 5 knots
-            route.addLeg(new L.LatLng(-0.7887, -90.2270), 6); // 6 knots
-
-            console.log('Route created:', route);
-            console.log('Route legs:', route.getLegs());
-
-            // Create services
-            const windyAPI = new WindyAPI();
-            const weatherService = new WeatherForecastService(windyAPI);
-
-            // Get forecast
-            const forecast = await weatherService.getRouteForecast(route);
-
-            console.log('Weather forecast:', forecast);
-            console.log('Point forecasts count:', forecast.pointForecasts.length);
-
-            // Display first few point forecasts
-            forecast.pointForecasts.forEach((point, index) => {
-                console.log(`Point ${index}:`, {
-                    time: new Date(point.timestamp).toISOString(),
-                    position: `${point.point.lat.toFixed(4)}, ${point.point.lng.toFixed(4)}`,
-                    northUpWind: `${point.northUp.windSpeed.toFixed(1)} knots @ ${point.northUp.windDirection.toFixed(0)}°`,
-                    apparentWind: `${point.apparent.windSpeed.toFixed(1)} knots @ ${point.apparent.windDirection.toFixed(0)}°`,
-                    leg: point.leg.course.toFixed(0) + '° course'
-                });
-            });
-
-            lastResult = `Weather Service Test Complete!\n${forecast.pointForecasts.length} hourly forecasts generated.\nSee console for detailed output.`;
-
-        } catch (error) {
-            console.error('Weather service test failed:', error);
-            lastResult = `Weather Service Error: ${error}`;
-        }
-    }
 
     export const onopen = (params: unknown) => {
         console.log('=== PLUGIN ONOPEN ===');
@@ -331,24 +227,6 @@
         console.log('Plugin destroyed');
     });
 
-    // Additional lifecycle hooks for debugging
-    import { beforeUpdate, afterUpdate, tick } from 'svelte';
-
-    beforeUpdate(() => {
-        console.log('=== BEFORE UPDATE ===');
-    });
-
-    afterUpdate(() => {
-        console.log('=== AFTER UPDATE ===');
-    });
-
-    // Global error handler
-    if (typeof window !== 'undefined') {
-        window.addEventListener('error', (event) => {
-            console.log('=== GLOBAL ERROR ===');
-            console.log('Error:', event.error);
-        });
-    }
 </script>
 
 <style lang="less">
@@ -460,17 +338,24 @@
         }
     }
 
-    .debug-container {
+    .results {
         padding: 20px;
 
-        button {
-            padding: 10px 20px;
-            margin: 10px 0;
-            background: #007cba;
-            color: white;
-            border: none;
+        h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+        }
+
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border: 1px solid #dee2e6;
             border-radius: 4px;
-            cursor: pointer;
+            font-size: 12px;
+            overflow-x: auto;
+            max-height: 200px;
+            overflow-y: auto;
         }
     }
 </style>

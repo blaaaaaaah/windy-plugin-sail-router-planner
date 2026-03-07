@@ -1,7 +1,6 @@
 import type { RouteDefinition, RouteLeg, RouteForecast, PointForecast, WeatherData, WindyAPIResponse, LatLng } from '../types';
 import { WindyAPI } from './WindyAPI';
 import { calculateApparentWind, calculateRelativeDirection, interpolateLatLng } from '../utils/NavigationUtils';
-import { toDateWithHour } from '../utils/TimeUtils';
 
 export class WeatherForecastService {
 	private static readonly MAX_LEG_DURATION_HOURS = 67; // Maximum hours per API call
@@ -80,12 +79,13 @@ export class WeatherForecastService {
 	}
 
 	private async getLegForecast(leg: RouteLeg): Promise<PointForecast[]> {
-		// Build API URL for this specific leg
-		const url = await this.buildLegAPIUrl(leg);
-		console.log('Calling API for leg with URL:', url);
-
-		// Call API
-		const apiResponse: WindyAPIResponse = await this.windyAPI.get(url);
+		// Call Windy API for this specific leg
+		const waypoints = [leg.startPoint, leg.endPoint];
+		const apiResponse: WindyAPIResponse = await this.windyAPI.getRoutePlanner(
+			leg.startTime,
+			leg.endTime,
+			waypoints
+		);
 
 		// Parse response for this leg (without apparent/relative calculations)
 		return this.parseLegForecastResponse(leg, apiResponse);
@@ -211,38 +211,6 @@ export class WeatherForecastService {
 		return avgDirection;
 	}
 
-	private async buildLegAPIUrl(leg: RouteLeg): Promise<string> {
-		// Convert to coordinate string for this leg
-		const coordsString = `${leg.startPoint.lat},${leg.startPoint.lng};${leg.endPoint.lat},${leg.endPoint.lng}`;
-
-		// Build time parameters for this leg
-		const timeParams = this.buildLegTimeParameters(leg);
-
-		// Generate minifest parameter dynamically
-		const minifestParam = await this.buildMinifestParameter();
-
-		const queryString = [
-			...timeParams,
-			`minifest=${minifestParam}`
-		].join('&');
-
-		return `/rplanner/v1/forecast/boat/${coordsString}?${queryString}`;
-	}
-
-	private buildLegTimeParameters(leg: RouteLeg): string[] {
-		const timeParams: string[] = [];
-
-		// dst = departure time for this leg
-		const startTime = new Date(leg.startTime);
-		timeParams.push(`dst=${toDateWithHour(startTime)}`);
-
-		// dst2 = end time for this leg
-		const endTime = new Date(leg.endTime);
-		timeParams.push(`dst2=${toDateWithHour(endTime)}`);
-
-		return timeParams;
-	}
-
 	private async buildAPIUrl(route: RouteDefinition): Promise<string> {
 		const legs = route.getLegs();
 
@@ -278,40 +246,6 @@ export class WeatherForecastService {
 		return `/rplanner/v1/forecast/boat/${coordsString}?${queryString}`;
 	}
 
-	private async buildMinifestParameter(): Promise<string> {
-		console.log('Building minifest parameter...');
-
-		const W = (window as any).W;
-		if (!W || !W.products || !W.products.ecmwf) {
-			throw new Error('W.products.ecmwf not available - cannot generate minifest parameter');
-		}
-
-		// Load ECMWF manifest and calendar
-		const ecmwfMinifest = await W.products.ecmwf.loadMinifest();
-		const ecmwfCalendar = await W.products.ecmwf.getCalendar();
-
-		if (!ecmwfMinifest || !ecmwfCalendar) {
-			throw new Error('Failed to load ECMWF manifest or calendar');
-		}
-
-		console.log('ECMWF manifest:', ecmwfMinifest);
-		console.log('ECMWF calendar:', ecmwfCalendar);
-
-		// Build minifest string according to reverse-engineered format
-		const start = new Date(ecmwfMinifest.ref).getTime();
-		const end = ecmwfCalendar.premiumStart;
-
-		if (!end) {
-			throw new Error('ECMWF calendar premiumStart not available');
-		}
-
-		const dstAsString = ecmwfMinifest.dst.map((e: any) => e.join(',')).join(';');
-
-		const minifest = `${start};${end};${dstAsString}`;
-
-		console.log('Generated minifest:', minifest);
-		return minifest;
-	}
 
 	private buildTimeParameters(route: RouteDefinition): string[] {
 		const legs = route.getLegs();

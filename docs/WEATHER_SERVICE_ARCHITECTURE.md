@@ -85,14 +85,14 @@ src/
 
 ### URL Format
 ```
-/rplanner/v1/forecast/boat/{waypoints}?dst={start}&dst2={leg2_start}&dst3={leg3_start}...&minifest={unknown}&pr=0&sc={unknown}&poc={unknown}
+/rplanner/v1/forecast/boat/{waypoints}?dst={start}&dst2={end}&minifest={ecmwf_data}
 ```
 
 ### Parameters
 - **waypoints**: `lat,lon;lat,lon;...` format
 - **dst**: Start time of forecast window in `YYYY/MM/DD/HH` format
 - **dst2**: End time of forecast window in `YYYY/MM/DD/HH` format
-- **Unknown params**: `minifest`, `pr`, `sc`, `poc` (require research)
+- **minifest**: ECMWF model manifest string (dynamically generated)
 
 ### API Behavior - Key Understanding
 
@@ -110,8 +110,15 @@ src/
 - **Route**: A → B → C (2 legs)
 - **Result**: 67 points interpolated along entire A→B→C path
 - **Bearings**: Change at each waypoint (e.g., -114°, -136°, 112°)
-- **Timestamps**: Start at departure time, end when route completes
+- **Time Window**: `dst` (departure) → `dst2` (calculated route end time)
+- **Timestamps**: 67 points evenly distributed across time window
 - **Distance**: Cumulative distance from start point (in meters)
+
+#### Time Parameter Implementation:
+- **No per-leg times**: Removed incorrect `dst3`, `dst4`, etc.
+- **Simple window**: Just `dst` (start) and `dst2` (end)
+- **Route duration**: Calculated from sum of all leg sailing times
+- **67-point distribution**: API handles interpolation across time window
 
 ### Response Format
 ```typescript

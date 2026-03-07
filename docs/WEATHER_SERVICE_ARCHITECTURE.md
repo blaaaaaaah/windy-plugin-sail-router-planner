@@ -32,14 +32,14 @@ src/
 │   ├── WeatherTypes.ts        # WeatherData, PointForecast, RouteForecast
 │   └── index.ts
 ├── services/
-│   ├── WindyAPI.ts            # Wrapper for W.http.get()
-│   ├── WeatherForecastService.ts  # Main forecast service
+│   ├── WindyAPI.ts            # Windy API wrapper with route planner integration
+│   ├── WeatherForecastService.ts  # Main forecast service with per-leg logic
 │   └── index.ts
 ├── utils/
 │   ├── NavigationUtils.ts     # Distance, bearing, apparent wind calculations
 │   ├── TimeUtils.ts           # Date formatting
 │   └── index.ts
-└── plugin.svelte              # Updated with test integration
+└── plugin.svelte              # Clean UI with route parsing and forecasting
 ```
 
 ## Design Decisions
@@ -67,9 +67,10 @@ src/
   - `TimeUtils.ts`: Date formatting for API
 
 ### 5. API Integration
-- **Decision**: Use `W.http.get()` method (not `W.htt.get()`)
-- **Rationale**: Correct Windy API method based on working plugin analysis
-- **No Fallback**: Show error if rplanner API fails (user's clarification)
+- **Decision**: Separate `WindyAPI` class with `getRoutePlanner()` method
+- **Rationale**: Clean separation of Windy-specific logic from business logic
+- **Implementation**: All API details (URL building, time parameters, minifest) in `WindyAPI.ts`
+- **Method**: Use `W.http.get()` (not `W.htt.get()`) based on working plugin analysis
 
 ### 6. Route Design Pattern
 - **Decision**: `RouteDefinition.addLeg()` prevents gaps by design
@@ -206,46 +207,57 @@ const apparentWindEast = trueWindEast - boatVelocityEast;
 
 ## Known Limitations
 
-### API Speed Averaging Issue
+### Per-Leg API Implementation ✅
 
-**Critical Discovery**: The Windy route planner API returns weather forecasts based on **whole-trip average speed**, not individual leg speeds. This creates inaccurate time predictions for multi-leg routes with varying speeds.
+**RESOLVED**: The API speed averaging issue has been solved with a per-leg implementation.
 
 **Current Implementation:**
 ```typescript
-// Single API call for entire route
-const forecast = await weatherService.getRouteForecast(route);
-// Returns 67 points distributed across total trip time
-// Uses average speed across all legs for time calculations
+// Separate API call for each leg with individual speeds
+const legParts = this.calculateLegParts(legs); // Break long legs if needed
+for (const legPart of allLegParts) {
+    const legForecast = await this.getLegForecast(legPart);
+    allPointForecasts.push(...legForecast);
+}
+// Consolidate all leg forecasts into hourly data
+const consolidatedForecasts = this.consolidateLegsForecasts(allPointForecasts);
 ```
 
-**Problem:**
-- Fast leg (10 knots) + Slow leg (3 knots) = API uses ~6.5 knots average
-- Weather timing becomes inaccurate for individual leg conditions
-- Sailing strategy decisions compromised by timing misalignment
+**Solution Features:**
+- **Individual leg speeds**: Each leg gets its own API call with accurate timing
+- **Long leg breaking**: Legs longer than 67 hours are automatically split
+- **Hourly consolidation**: Multiple forecasts within same hour are averaged
+- **Apparent wind timing**: Calculations moved to post-consolidation for accuracy
+- **API separation**: All Windy-specific logic moved to `WindyAPI.ts`
 
-**Required Solution:**
-- Make **separate API calls per leg** with individual speeds
-- Combine results into unified forecast maintaining proper timing
-- Preserve 67-point structure while respecting leg-specific speeds
+**Benefits:**
+- Accurate timing for variable-speed routes
+- Better forecast granularity for long passages
+- Clean separation of concerns between services
+- Hourly data filtering for optimal sailing decisions
 
-**Implementation Priority**: Medium (affects forecast accuracy but doesn't break core functionality)
+## UI Integration
 
-## Testing Integration
+### Route Editor
+- **URL Input**: Pre-populated with complex multi-waypoint route for testing
+- **Parse Button**: Extracts waypoints from Windy route planner URLs
+- **Forecast Button**: Generates complete weather forecast for parsed route
+- **Results Display**: Shows forecast summary and detailed console logging
 
-### Test Button
-- Added to plugin UI: "Test Weather Service"
-- Creates sample route: Caribbean → Pacific passage
-- Tests full service chain: RouteDefinition → API → Calculations
-- Outputs detailed console logging for debugging
+### Default Test Route
+```
+https://www.windy.com/route-planner/boat/2.8726,-84.8206;-0.2539,-86.6167;-0.1687,-88.8618;-0.7887,-90.2270;1.0536,-89.9273;2.8996,-91.9098;0.6286,-94.1834?-1.115,-90.163,6,p:cities
+```
 
 ### Console Output
 ```
 Point 0: {
-  time: "2026-03-05T07:00:00.000Z",
-  position: "2.8652, -84.7625",
-  northUpWind: "2.1 knots @ 347°",
-  apparentWind: "5.8 knots @ 156°",
-  leg: "246° course"
+  time: "2026-03-07T09:00:00.000Z",
+  position: "8.9081, -79.5253",
+  bearing: "-172°",
+  northUpWind: "4.3 knots @ 323°",
+  apparentWind: "8.6 knots @ 159°",
+  leg: "Course data"
 }
 ```
 

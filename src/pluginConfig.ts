@@ -11,6 +11,7 @@ const config: ExternalPluginConfig = {
     desktopUI: 'rhpane',
     mobileUI: 'fullscreen',
     routerPath: '/sail-router-planner',
+    listenToSingleclick: true,
     private: true,
 };
 

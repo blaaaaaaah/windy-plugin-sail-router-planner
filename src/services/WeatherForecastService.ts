@@ -11,7 +11,7 @@ export class WeatherForecastService {
 	}
 
 	async getRouteForecast(route: RouteDefinition): Promise<RouteForecast> {
-		const legs = route.getLegs();
+		const legs = route.legs;
 		if (legs.length === 0) {
 			throw new Error('Route must have at least one leg');
 		}

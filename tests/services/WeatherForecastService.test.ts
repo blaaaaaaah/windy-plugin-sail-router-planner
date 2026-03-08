@@ -539,10 +539,13 @@ describe('WeatherForecastService Integration Tests', () => {
         // Create a test route
         const startPoint = new (global as any).L.LatLng(40.7128, -74.0060); // New York
         const departureTime = Date.now();
-        const route = new RouteDefinition(startPoint, departureTime);
+        const route = new RouteDefinition();
+        route.addWaypoint(startPoint);
+        route.setDepartureTime(departureTime);
 
         const endPoint = new (global as any).L.LatLng(51.5074, -0.1278); // London
-        route.addLeg(endPoint, 10); // 10 knots average speed
+        route.addWaypoint(endPoint);
+        route.setLegSpeed(0, 10); // 10 knots average speed
 
         // Mock the API response
         const mockResponse: WindyAPIResponse = {
@@ -562,7 +565,7 @@ describe('WeatherForecastService Integration Tests', () => {
             }
         };
 
-        mockWindyAPI.setMockResponse(`${route.getLegs()[0].startTime}-${route.getLegs()[0].endTime}-2`, mockResponse);
+        mockWindyAPI.setMockResponse(`${route.legs[0].startTime}-${route.legs[0].endTime}-2`, mockResponse);
 
         // Execute the forecast
         const result = await service.getRouteForecast(route);
@@ -595,15 +598,19 @@ describe('WeatherForecastService Integration Tests', () => {
         // Create a multi-leg route
         const startPoint = new (global as any).L.LatLng(40.7128, -74.0060); // New York
         const departureTime = Date.now();
-        const route = new RouteDefinition(startPoint, departureTime);
+        const route = new RouteDefinition();
+        route.addWaypoint(startPoint);
+        route.setDepartureTime(departureTime);
 
         const midPoint = new (global as any).L.LatLng(38.9072, -77.0369); // Washington DC
         const endPoint = new (global as any).L.LatLng(25.7617, -80.1918); // Miami
 
-        route.addLeg(midPoint, 8); // 8 knots to DC
-        route.addLeg(endPoint, 12); // 12 knots to Miami
+        route.addWaypoint(midPoint);
+        route.addWaypoint(endPoint);
+        route.setLegSpeed(0, 8); // 8 knots to DC
+        route.setLegSpeed(1, 12); // 12 knots to Miami
 
-        const legs = route.getLegs();
+        const legs = route.legs;
 
         // Mock responses for each leg
         legs.forEach((leg, index) => {

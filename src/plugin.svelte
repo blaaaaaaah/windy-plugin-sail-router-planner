@@ -12,6 +12,11 @@
     <div class="route-editor">
         <h3>Route Editor</h3>
 
+        <div class="editor-controls">
+            <button on:click={startNewRoute} class="start-route-btn">Start New Route</button>
+            <span class="instruction-text">{editorInstruction}</span>
+        </div>
+
         <div class="url-input-container">
             <label for="route-url">Windy Route Planner URL:</label>
             <input
@@ -49,9 +54,12 @@
 </section>
 <script lang="ts">
     import bcast from "@windy/broadcast";
+    import { map } from '@windy/map';
+    import { singleclick } from '@windy/singleclick';
     import { onDestroy, onMount } from 'svelte';
     import { RouteDefinition } from './types/RouteTypes';
     import { WindyAPI, WeatherForecastService } from './services';
+    import { RouteEditorController } from './controllers/RouteEditorController';
 
     import config from './pluginConfig';
 
@@ -62,6 +70,11 @@
     // Route editor state
     let routeUrl = 'https://www.windy.com/route-planner/boat/2.8726,-84.8206;-0.2539,-86.6167;-0.1687,-88.8618;-0.7887,-90.2270;1.0536,-89.9273;2.8996,-91.9098;0.6286,-94.1834?-1.115,-90.163,6,p:cities';
     let parsedRoute: { lat: number; lng: number }[] = [];
+
+    // Interactive route editor
+    let routeEditor: RouteEditorController | null = null;
+    let currentRoutes: RouteDefinition[] = [];
+    let editorInstruction = 'Click "Start New Route" then click on the map to add waypoints';
 
     // Reactive validation
     $: isRouteValid = parsedRoute.length >= 2;
@@ -132,16 +145,17 @@
             const startPoint = new L.LatLng(parsedRoute[0].lat, parsedRoute[0].lng);
             const departureTime = Date.now(); // Use current time as departure
 
-            const route = new RouteDefinition(startPoint, departureTime);
+            const route = new RouteDefinition();
+            route.setDepartureTime(departureTime);
 
-            // Add all legs with 5 knots default speed
-            for (let i = 1; i < parsedRoute.length; i++) {
-                const endPoint = new L.LatLng(parsedRoute[i].lat, parsedRoute[i].lng);
-                route.addLeg(endPoint, 5); // Default 5 knots speed
+            // Add all waypoints
+            for (let i = 0; i < parsedRoute.length; i++) {
+                const waypoint = new L.LatLng(parsedRoute[i].lat, parsedRoute[i].lng);
+                route.addWaypoint(waypoint);
             }
 
             console.log('Route created:', route);
-            console.log('Route legs:', route.getLegs());
+            console.log('Route legs:', route.legs);
 
             // Get forecast
             const windyAPI = new WindyAPI();
@@ -176,55 +190,41 @@
     export const onopen = (params: unknown) => {
         console.log('=== PLUGIN ONOPEN ===');
 
-        console.log('onopen params:', params);
-        console.log('Window W:', (window as any).W);
 
-        // Inspect available APIs
-        if ((window as any).W) {
-            const W = (window as any).W;
-            console.log('W.user:', W.user);
-            console.log('W.store:', W.store);
-            console.log('W.utils:', W.utils);
-            console.log('W.subscription:', W.subscription);
-        }
     };
 
-    onMount(() => {
-        console.log('=== PLUGIN ONMOUNT ===');
-
-        console.log('Plugin mounted');
-        console.log('Global window:', window);
-
-        // Check for Windy globals
-        if (typeof (window as any).W !== 'undefined') {
-            console.log('Windy W object available:', (window as any).W);
-
-            // Log all available keys
-            console.log('W keys:', Object.keys((window as any).W));
-
-            // Check for specific APIs we need
-            const W = (window as any).W;
-            console.log('Has interpolateLatLon?', typeof W.interpolateLatLon);
-            console.log('Has user?', !!W.user);
-            console.log('Has store?', !!W.store);
-
-            // Try to access store if available
-            if (W.store) {
-                console.log('Store methods:', Object.keys(W.store));
-            }
-        } else {
-            console.log('Windy W object not available yet');
+    function startNewRoute() {
+        if (routeEditor) {
+            routeEditor.clearActiveRoute();
+            editorInstruction = 'Click on the map to start a new route';
         }
+    }
 
-        // Check localStorage/sessionStorage
-        console.log('localStorage keys:', Object.keys(localStorage));
-        console.log('sessionStorage keys:', Object.keys(sessionStorage));
+    function onRouteUpdated(route: RouteDefinition) {
+        currentRoutes = routeEditor ? routeEditor.getRoutes() : [];
+
+        if (route.waypoints.length === 1) {
+            editorInstruction = 'Click on the map to add more waypoints';
+        } else {
+            editorInstruction = `Route has ${route.waypoints.length} waypoints. Continue clicking to add more or start a new route.`;
+        }
+    }
+
+    function handleMapClick(latLon: any) {
+        if (routeEditor) {
+            routeEditor.onMapClick(latLon);
+        }
+    }
+
+    onMount(() => {
+        routeEditor = new RouteEditorController(map, onRouteUpdated);
+
+        singleclick.on(config.name, handleMapClick);
     });
 
     onDestroy(() => {
-        console.log('=== PLUGIN ONDESTROY ===');
-
-        console.log('Plugin destroyed');
+        // Clean up singleclick listener
+        singleclick.off(config.name, handleMapClick);
     });
 
 </script>
@@ -311,6 +311,34 @@
             }
         }
 
+        .editor-controls {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+
+            .start-route-btn {
+                padding: 8px 16px;
+                background: #28a745;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: bold;
+
+                &:hover {
+                    background: #218838;
+                }
+            }
+
+            .instruction-text {
+                font-size: 13px;
+                color: #666;
+                font-style: italic;
+            }
+        }
+
         .route-actions {
             margin-top: 15px;
             display: flex;
@@ -357,6 +385,89 @@
             max-height: 200px;
             overflow-y: auto;
         }
+    }
+
+    /* Windy-style waypoint markers */
+    :global(.windy-waypoint-marker) {
+        position: relative;
+        cursor: grab;
+    }
+
+    :global(.windy-waypoint-marker:hover) {
+        cursor: grab;
+    }
+
+    :global(.windy-waypoint-marker:active) {
+        cursor: grabbing;
+    }
+
+    :global(.waypoint-circle) {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid white;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s ease;
+        position: relative;
+        z-index: 2;
+    }
+
+    :global(.waypoint-number) {
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+        font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    :global(.waypoint-delete-pill) {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: rgba(68, 68, 68, 0.9);
+        border-radius: 0 12px 12px 0;
+        width: 40px;
+        height: 26px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-left: none;
+        z-index: 1;
+    }
+
+    :global(.waypoint-delete) {
+        color: white;
+        font-size: 20px;
+        font-weight: normal;
+        line-height: 1;
+        user-select: none;
+        margin-left: 12px;
+        margin-top: -3px
+    }
+
+    :global(.windy-waypoint-marker:hover .waypoint-delete-pill) {
+        display: flex;
+    }
+
+    :global(.windy-waypoint-marker:hover .waypoint-circle) {
+        transform: scale(1.1);
+    }
+
+    :global(.waypoint-delete-pill:hover) {
+        background-color: rgba(220, 53, 69, 0.9);
+        transform: translateY(-50%) scale(1.1);
+        transition: all 0.2s ease;
+    }
+
+    :global(.custom-waypoint-icon) {
+        background: transparent !important;
+        border: none !important;
     }
 </style>
 

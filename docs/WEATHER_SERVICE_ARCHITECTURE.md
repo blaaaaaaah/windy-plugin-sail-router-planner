@@ -5,8 +5,10 @@
 This document describes the architecture and design decisions for the Weather Forecast Service foundation layer of the Windy Sailing Route Planner plugin.
 
 **Created**: 2026-03-06
+**Updated**: 2026-03-08
 **Phase**: 1 - Technical Foundation
-**Purpose**: Ground service foundation for accessing weather data
+**Status**: ✅ **IMPLEMENTED** - Fully functional with sailing-specific features
+**Purpose**: Complete weather service with apparent wind calculations and route editing
 
 ## Architecture Overview
 
@@ -275,6 +277,68 @@ Point 0: {
 - Navigation utilities could be further modularized
 - API parameter research needed for full functionality
 
+## Current Implementation Status ✅
+
+### Fully Implemented Features
+
+1. **Complete Route Editor System**
+   - Interactive map waypoint creation via `RouteEditorController.ts:4`
+   - Draggable waypoint markers with visual feedback
+   - Route line visualization with color coding
+   - Waypoint deletion with hover UI
+
+2. **Advanced Weather Service**
+   - Per-leg forecast processing with accurate timing
+   - Long leg automatic breaking (>67 hours)
+   - Hourly forecast consolidation and averaging
+   - Apparent wind calculations from true wind + boat motion
+
+3. **URL-Based Route Import**
+   - Windy route planner URL parsing (`plugin.svelte:82-134`)
+   - Coordinate extraction and validation
+   - Route preview with waypoint display
+
+4. **Sailing-Specific Calculations**
+   - Apparent wind from true wind + boat velocity vectors
+   - Relative wind directions for sailing decisions
+   - Course calculations with proper bearing handling
+   - Distance conversions to nautical miles
+
+### Active Features in Development Server
+
+The plugin is currently running at `https://0.0.0.0:9999` with:
+
+- ✅ Real-time building with Rollup
+- ✅ URL parsing and route generation working
+- ✅ Interactive map route creation functional
+- ✅ Weather forecast generation with console output
+- ✅ Apparent wind calculations verified
+- ✅ Route editing with draggable waypoints
+
+### Usage Example
+
+```javascript
+// From plugin.svelte:136-186 - Complete forecast generation
+1. Parse route URL → Extract waypoints
+2. Create RouteDefinition → Calculate legs with timing
+3. Call WeatherForecastService → Get per-leg forecasts
+4. Consolidate forecasts → Average hourly data
+5. Calculate apparent wind → Display sailing-optimized data
+```
+
+### Console Output Example
+
+```
+Point 0: {
+  time: "2026-03-08T11:40:59.000Z",
+  position: "2.8726, -84.8206",
+  bearing: "245°",
+  northUpWind: "12.3 knots @ 078°",
+  apparentWind: "15.7 knots @ 156°",
+  leg: "245° course"
+}
+```
+
 ---
 
-*This document will be updated as the weather service evolves through subsequent phases.*
+*✅ Phase 1 Technical Foundation: **COMPLETE** - All weather service architecture implemented and functional*

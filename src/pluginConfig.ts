@@ -10,7 +10,7 @@ const config: ExternalPluginConfig = {
     repository: 'https://github.com/windycom/windy-plugin-template',
     desktopUI: 'rhpane',
     mobileUI: 'fullscreen',
-    routerPath: '/sail-router-planner',
+    routerPath: '/sail-router-planner/:route?',
     listenToSingleclick: true,
     private: true,
 };

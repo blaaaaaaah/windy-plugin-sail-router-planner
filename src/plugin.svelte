@@ -31,6 +31,8 @@
     import { WindyAPI, WeatherForecastService } from './services';
     import { RouteEditorController } from './controllers/RouteEditorController';
     import ForecastTable from './components/ForecastTable.svelte';
+    import { serializeRoute, deserializeRoute } from './utils/RouteSerializer';
+    import { setUrl } from '@windy/location';
 
     import config from './pluginConfig';
 
@@ -46,32 +48,52 @@
     let currentForecast: any = null;
     let forecastStartTime: number = Date.now();
     let forecastEndTime: number = Date.now() + 24 * 60 * 60 * 1000;
+    let isLoadingForecast: boolean = false;
 
-    // Load forecast data from localhost
-    async function loadForecastData() {
+    // Weather service instances
+    let windyAPI: WindyAPI | null = null;
+    let weatherService: WeatherForecastService | null = null;
+
+    // Generate forecast from route using WeatherForecastService
+    async function generateForecastFromRoute(route: RouteDefinition) {
+        if (!weatherService || !route.waypoints.length || route.waypoints.length < 2) {
+            return;
+        }
+
         try {
-            const response = await fetch('https://localhost:9999/forecast.json');
-            const forecastData = await response.json();
-            currentForecast = forecastData;
+            isLoadingForecast = true;
+            console.log('Generating forecast for route with', route.waypoints.length, 'waypoints');
 
-            if (forecastData.pointForecasts?.length > 0) {
+            const forecast = await weatherService.getRouteForecast(route);
+            currentForecast = forecast;
+
+            if (forecast.pointForecasts?.length > 0) {
                 // Set times based on forecast data
-                forecastStartTime = forecastData.pointForecasts[0].timestamp;
-                forecastEndTime = forecastData.pointForecasts[forecastData.pointForecasts.length - 1].timestamp;
+                forecastStartTime = forecast.pointForecasts[0].timestamp;
+                forecastEndTime = forecast.pointForecasts[forecast.pointForecasts.length - 1].timestamp;
             }
 
-            console.log('Forecast data loaded:', forecastData.pointForecasts.length, 'points');
+            console.log('Forecast generated:', forecast.pointForecasts.length, 'points');
         } catch (error) {
-            console.error('Failed to load forecast data:', error);
+            console.error('Failed to generate forecast:', error);
+        } finally {
+            isLoadingForecast = false;
         }
     }
 
 
 
-    export const onopen = (params: unknown) => {
-        console.log('=== PLUGIN ONOPEN ===');
+    export const onopen = (params: any) => {
+        console.log('=== PLUGIN ONOPEN ===', params);
 
-
+        // Load route from URL if available
+        if (params?.route) {
+            const route = deserializeRoute(params.route);
+            if (route && routeEditor) {
+                routeEditor.loadRoute(route);
+                console.log('Loaded route from URL');
+            }
+        }
     };
 
 
@@ -83,11 +105,22 @@
         } else {
             editorInstruction = `Route has ${route.waypoints.length} waypoints. Continue clicking to add more or start a new route.`;
         }
+
+        // Update URL with current route
+        const serializedRoute = serializeRoute(route);
+        setUrl(config.name, { route: serializedRoute });
+
+        // Generate forecast when route has 2+ waypoints
+        if (route.waypoints.length >= 2) {
+            generateForecastFromRoute(route);
+        }
     }
 
     function handleMapClick(latLon: any) {
         if (routeEditor) {
-            routeEditor.onMapClick(latLon);
+            // Convert singleclick position to proper Leaflet LatLng object
+            const position = new L.LatLng(latLon.lat, latLon.lon);
+            routeEditor.onMapClick(position);
         }
     }
 
@@ -108,8 +141,11 @@
 
         singleclick.on(config.name, handleMapClick);
 
-        // Load forecast data on mount
-        loadForecastData();
+        // Initialize weather services
+        windyAPI = new WindyAPI();
+        weatherService = new WeatherForecastService(windyAPI);
+
+        console.log('Weather services initialized');
     });
 
     onDestroy(() => {

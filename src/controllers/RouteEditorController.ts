@@ -44,6 +44,26 @@ export class RouteEditorController {
 		}
 	}
 
+	loadRoute(route: RouteDefinition): void {
+		// Assign a color if not already set
+		if (!route.color) {
+			route.color = this._colors[this._currentColorIndex];
+			this._currentColorIndex = (this._currentColorIndex + 1) % this._colors.length;
+		}
+
+		// Add to routes collection
+		this._routes.push(route);
+		this._activeRoute = route;
+
+		// Update map display
+		this._updateRouteDisplay(route);
+
+		// Notify callback handler
+		this._onRouteUpdated(route);
+
+		console.log('Route loaded with', route.waypoints.length, 'waypoints');
+	}
+
 
 	onMapClick(position: LatLng): void {
 		if (!this._activeRoute) {

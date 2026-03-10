@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, createEventDispatcher } from 'svelte';
+    import { createEventDispatcher } from 'svelte';
     import type { WeatherForecast } from '../types/WeatherTypes';
 
     export let forecast: WeatherForecast | null = null;
@@ -9,10 +9,7 @@
 
     const dispatch = createEventDispatcher();
 
-    let canvas: HTMLCanvasElement;
-    let tableContainer: HTMLDivElement;
     let currentHoverIndex: number | null = null;
-    let scrollPosition = 0;
     let isDragging = false;
     let dragStartIndex: number | null = null;
     let dragDropTargetIndex: number | null = null;
@@ -63,29 +60,10 @@
         return `linear-gradient(to bottom, ${prevColorTransparent} 0%, ${currentColorTransparent} 50%, ${nextColorTransparent} 100%)`;
     }
 
-    // Constants
-    const HOUR_WIDTH = 30; // 30px per hour
-    const ROW_HEIGHTS = {
-        weather: 20,
-        temperature: 18,
-        rain: 22,
-        wind: 18,
-        windGust: 16,
-        windDir: 20,
-        waves: 31
-    };
 
     // Calculate hourly data points including 6h before/after
     $: hourlyData = generateHourlyData();
-    $: routeProgress = calculateRouteProgress();
     $: waypointPositions = calculateWaypointPositions();
-    $: canvasWidth = hourlyData.length * HOUR_WIDTH;
-    $: displayWidth = canvasWidth / 2; // Canvas is 2x for retina
-
-    // Redraw canvas when data changes
-    $: if (canvas && hourlyData.length > 0) {
-        drawCanvas();
-    }
 
     function generateHourlyData() {
         if (!forecast) return [];
@@ -123,17 +101,6 @@
         });
     }
 
-    function calculateRouteProgress() {
-        const totalDuration = endTime - startTime;
-        const totalDataDuration = (hourlyData.length - 1) * 60 * 60 * 1000;
-        const routeStartOffset = startTime - (hourlyData[0]?.timestamp || startTime);
-
-        return {
-            startPercent: (routeStartOffset / totalDataDuration) * 100,
-            duration: totalDuration,
-            durationPercent: (totalDuration / totalDataDuration) * 100
-        };
-    }
 
     function calculateWaypointPositions() {
         if (!hourlyData.length) return [];
@@ -213,91 +180,6 @@
         };
     }
 
-    function drawCanvas() {
-        if (!canvas || !hourlyData.length) return;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        // Set canvas size (2x for retina)
-        canvas.width = canvasWidth;
-        canvas.height = 370;
-
-        // Scale for retina
-        ctx.scale(2, 2);
-
-        // Clear canvas
-        ctx.clearRect(0, 0, displayWidth, 185);
-
-        // Draw background grid
-        drawGrid(ctx);
-
-        // Draw data backgrounds and gradients
-        drawDataBackgrounds(ctx);
-    }
-
-    function drawGrid(ctx: CanvasRenderingContext2D) {
-        ctx.strokeStyle = '#f0f0f0';
-        ctx.lineWidth = 0.5;
-
-        // Vertical lines (hourly)
-        for (let i = 0; i <= hourlyData.length; i++) {
-            const x = i * 15; // 15px in display coordinates
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, 185);
-            ctx.stroke();
-        }
-
-        // Horizontal lines (row separators)
-        let y = 30; // Start after weather icons
-        const rowHeights = Object.values(ROW_HEIGHTS);
-
-        for (let i = 0; i < rowHeights.length; i++) {
-            y += rowHeights[i];
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(displayWidth, y);
-            ctx.stroke();
-        }
-    }
-
-    function drawDataBackgrounds(ctx: CanvasRenderingContext2D) {
-        // Draw route highlight
-        const routeStart = routeProgress.startPercent / 100 * displayWidth;
-        const routeWidth = routeProgress.durationPercent / 100 * displayWidth;
-
-        const rgb = hexToRgb(routeColor);
-        ctx.fillStyle = `rgba(${rgb}, 0.1)`;
-        ctx.fillRect(routeStart, 0, routeWidth, 185);
-
-        // Draw temperature gradient background
-        drawTemperatureGradient(ctx);
-    }
-
-    function drawTemperatureGradient(ctx: CanvasRenderingContext2D) {
-        const tempY = 55; // Temperature row position
-        const tempHeight = ROW_HEIGHTS.temperature;
-
-        hourlyData.forEach((data, index) => {
-            if (!data.forecast?.northUp?.temperature) return;
-
-            const x = index * 15;
-            const temp = data.forecast.northUp.temperature;
-
-            // Color based on temperature
-            let color;
-            if (temp < 15) color = '#74b9ff'; // Cold - blue
-            else if (temp < 25) color = '#00b894'; // Cool - green
-            else if (temp < 30) color = '#fdcb6e'; // Warm - yellow
-            else color = '#e17055'; // Hot - red
-
-            ctx.fillStyle = color;
-            ctx.globalAlpha = 0.3;
-            ctx.fillRect(x, tempY, 15, tempHeight);
-            ctx.globalAlpha = 1;
-        });
-    }
 
     function handleHover(index: number | null) {
         currentHoverIndex = index;
@@ -309,10 +191,6 @@
         }
     }
 
-    function handleScroll(event: Event) {
-        const target = event.target as HTMLElement;
-        scrollPosition = target.scrollLeft;
-    }
 
     function formatTime(timestamp: number): string {
         return new Date(timestamp).toLocaleTimeString('en-US', {
@@ -322,16 +200,6 @@
         });
     }
 
-    function formatDuration(ms: number): string {
-        const hours = Math.floor(ms / (1000 * 60 * 60));
-        const days = Math.floor(hours / 24);
-        const remainingHours = hours % 24;
-
-        if (days > 0) {
-            return `${days}d ${remainingHours}h`;
-        }
-        return `${hours}h`;
-    }
 
     function getWeatherIcon(weatherCode: number): string {
         // Map weather codes to icon paths
@@ -350,17 +218,6 @@
         dispatch('metricClick', { metric });
     }
 
-    function handleSpeedEdit(leg: number) {
-        console.log(`Editing speed for leg ${leg}`);
-    }
-
-    function handleSpeedChange(leg: number, speedText: string) {
-        const speed = parseFloat(speedText.replace('kt', ''));
-        if (!isNaN(speed) && speed > 0) {
-            console.log(`Speed changed to ${speed}kt for leg ${leg}`);
-            // TODO: Implement speed change logic
-        }
-    }
 
     function handleDragStart(event: DragEvent, index: number) {
         isDragging = true;
@@ -472,12 +329,6 @@
         return '52, 152, 219'; // fallback to default blue
     }
 
-    onMount(() => {
-        if (canvas) {
-            drawCanvas();
-        }
-
-    });
 </script>
 
 <div class="forecast-table-container" style="--route-color: {routeColor}; --route-color-rgb: {hexToRgb(routeColor)};">
@@ -765,69 +616,6 @@
         flex: 1;
     }
 
-    .legend-wrapper {
-        display: none; /* Hide legend for vertical layout */
-    }
-
-    .legend {
-        padding: 0;
-
-        .flex-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid #f0f0f0;
-            transition: background 0.2s ease;
-
-            &:hover {
-                background: #f8f9fa;
-            }
-
-            &.legend-temp {
-                background: rgba(116, 185, 255, 0.05);
-            }
-
-            &.legend-rain {
-                background: rgba(74, 144, 226, 0.05);
-            }
-
-            &.legend-wind {
-                background: rgba(51, 51, 51, 0.05);
-            }
-
-            &.legend-windGust {
-                background: rgba(102, 102, 102, 0.05);
-            }
-
-            &.legend-waves {
-                background: rgba(0, 102, 204, 0.05);
-            }
-        }
-
-        .legend-left {
-            font-size: 13px;
-            color: #333;
-            font-weight: 500;
-        }
-
-        .legend-right {
-            font-size: 12px;
-            color: #666;
-
-            &.metric-clickable {
-                color: #007cba;
-                font-weight: bold;
-                cursor: pointer;
-
-                &:hover {
-                    text-decoration: underline;
-                    color: #005a87;
-                }
-            }
-        }
-    }
 
     .data-table {
         flex: 1;
@@ -1157,78 +945,9 @@
         transition: transform 0.3s ease;
     }
 
-    .forecast-table {
-        position: relative;
-        cursor: grab;
 
-        &:active {
-            cursor: grabbing;
-        }
 
-        canvas {
-            display: block;
-        }
-    }
 
-    .rplanner-adjust-top {
-        position: absolute;
-        top: 0;
-        left: 0;
-        pointer-events: none;
-
-        text {
-            pointer-events: all;
-            cursor: pointer;
-            transition: all 0.2s ease;
-
-            &:hover {
-                fill: #007cba !important;
-                font-weight: bold;
-                font-size: 14px;
-            }
-        }
-
-        image {
-            pointer-events: all;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-
-            &:hover {
-                transform: scale(1.2);
-            }
-        }
-    }
-
-    .wind-directions {
-        circle {
-            transition: all 0.2s ease;
-        }
-
-        g:hover circle {
-            fill: #e3f2fd;
-            stroke: #007cba;
-            stroke-width: 1;
-        }
-    }
-
-    /* Scrollbar styling */
-    .horizontal-scroll::-webkit-scrollbar {
-        height: 10px;
-    }
-
-    .horizontal-scroll::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 5px;
-    }
-
-    .horizontal-scroll::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 5px;
-
-        &:hover {
-            background: #a8a8a8;
-        }
-    }
 
     .bg-gray-dark {
         background: #34495e;

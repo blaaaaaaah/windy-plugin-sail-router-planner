@@ -18,11 +18,6 @@
             on:timeHover={handleTimeHover}
             on:metricClick={handleMetricClick}
         />
-    {:else if isLoadingForecast}
-        <div class="forecast-loading">
-            <div class="loading-spinner"></div>
-            <p>Generating route forecast...</p>
-        </div>
     {:else}
         <div class="forecast-placeholder">
             <div class="placeholder-icon">🗺️</div>
@@ -245,8 +240,8 @@
         border: none !important;
     }
 
-    /* Forecast placeholder and loading states */
-    .forecast-placeholder, .forecast-loading {
+    /* Forecast placeholder */
+    .forecast-placeholder {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -254,7 +249,7 @@
         padding: 60px 20px;
         background: #f8f9fa;
         text-align: center;
-        height: 300px;
+        height: 100%;
     }
 
     .placeholder-icon {
@@ -276,27 +271,6 @@
         margin: 0;
         max-width: 320px;
         line-height: 1.5;
-    }
-
-    .forecast-loading p {
-        color: #495057;
-        font-size: 16px;
-        margin: 20px 0 0 0;
-        font-weight: 500;
-    }
-
-    .loading-spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid #dee2e6;
-        border-top: 3px solid var(--route-color, #3498db);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
     }
 </style>
 

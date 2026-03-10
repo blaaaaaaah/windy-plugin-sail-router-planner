@@ -26,7 +26,7 @@ export class RouteDefinition {
 		id: string = crypto.randomUUID(),
 		name: string = `Route ${new Date().toLocaleTimeString()}`,
 		color: string = '',
-		departureTime: number = Date.now(),
+		departureTime: number = Math.floor(Date.now() / (1000 * 60 * 60)) * (1000 * 60 * 60),
 		defaultSpeed: number = 5
 	) {
 		this.id = id;

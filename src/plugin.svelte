@@ -104,6 +104,8 @@
         const serializedRoute = serializeRoute(route);
         setUrl(config.name, { route: serializedRoute });
 
+        logWindyRPlannerRoute(route);
+
         // Generate forecast when route has 2+ waypoints
         if (route.waypoints.length >= 2) {
             generateForecastFromRoute(route);
@@ -111,6 +113,13 @@
             currentForecast = null;
         }
     }
+
+    function logWindyRPlannerRoute(route: RouteDefinition) {
+        let coordinates = route.waypoints.map(wp => `${wp.lat.toFixed(4)},${wp.lng.toFixed(4)}`).join(';');
+        let url = `https://www.windy.com/route-planner/boat/${coordinates}?1.370,-85.912,6,p:cities`;
+        console.log('Generated Windy RPlanner URL:', url);
+    }
+    
 
     function handleMapClick(latLon: any) {
         if (routeEditor) {

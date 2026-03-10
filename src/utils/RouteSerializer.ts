@@ -10,22 +10,22 @@ export function serializeRoute(route: RouteDefinition): string {
 
     const parts: string[] = [];
 
-    // Waypoints: lat,lng;lat,lng;...
+    // Waypoints: lat,lng|lat,lng|...
     const waypoints = route.waypoints.map(wp => `${wp.lat.toFixed(6)},${wp.lng.toFixed(6)}`);
-    parts.push(`w=${waypoints.join(';')}`);
+    parts.push(`w:${waypoints.join('|')}`);
 
     // Departure time
     if (route.departureTime) {
-        parts.push(`d=${route.departureTime}`);
+        parts.push(`d:${route.departureTime}`);
     }
 
     // Leg speeds
     if (route.legs && route.legs.length > 0) {
         const speeds = route.legs.map(leg => leg.speed?.toString() || '5');
-        parts.push(`s=${speeds.join(',')}`);
+        parts.push(`s:${speeds.join(',')}`);
     }
 
-    return parts.join('&');
+    return parts.join(';');
 }
 
 /**
@@ -37,18 +37,25 @@ export function deserializeRoute(routeString: string): RouteDefinition | null {
     }
 
     try {
-        const params = new URLSearchParams(routeString);
+        // Parse Windy-style parameters (key:value;key:value)
+        const params: Record<string, string> = {};
+        routeString.split(';').forEach(part => {
+            const [key, value] = part.split(':');
+            if (key && value) {
+                params[key] = value;
+            }
+        });
 
-        const waypointsParam = params.get('w');
-        const departureParam = params.get('d');
-        const speedsParam = params.get('s');
+        const waypointsParam = params['w'];
+        const departureParam = params['d'];
+        const speedsParam = params['s'];
 
         if (!waypointsParam) {
             return null;
         }
 
         // Parse waypoints
-        const waypointCoords = waypointsParam.split(';').map(coord => {
+        const waypointCoords = waypointsParam.split('|').map(coord => {
             const [lat, lng] = coord.split(',').map(Number);
             if (isNaN(lat) || isNaN(lng)) {
                 throw new Error('Invalid waypoint coordinates');

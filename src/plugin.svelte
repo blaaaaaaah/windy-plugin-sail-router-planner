@@ -108,6 +108,7 @@
 
         // Update URL with current route
         const serializedRoute = serializeRoute(route);
+        console.log('Updating URL with route:', serializedRoute);
         setUrl(config.name, { route: serializedRoute });
 
         // Generate forecast when route has 2+ waypoints

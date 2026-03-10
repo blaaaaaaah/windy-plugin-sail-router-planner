@@ -20,6 +20,49 @@
     let tableScrollContainer: HTMLElement | null = null;
     let expandedWaypoints: Set<number> = new Set();
 
+
+    // Color helper functions using Windy's color system
+    function getWindColor(windSpeedKnots: number): string {
+        if (W?.colors?.wind?.getColor && typeof windSpeedKnots === 'number' && !isNaN(windSpeedKnots)) {
+            try {
+                return W.colors.wind.getColor().color(windSpeedKnots * 0.514444); // Convert knots to m/s
+            } catch (error) {
+                console.warn('Windy wind color failed:', error);
+            }
+        }
+        return 'rgba(0, 119, 190, 0.1)'; // fallback
+    }
+
+    function getWaveColor(waveHeightMeters: number): string {
+        if (W?.colors?.waves?.getColor && typeof waveHeightMeters === 'number' && !isNaN(waveHeightMeters)) {
+            try {
+                return W.colors.waves.getColor().color(waveHeightMeters);
+            } catch (error) {
+                console.warn('Windy wave color failed:', error);
+            }
+        }
+        return 'rgba(40, 146, 199, 0.1)'; // fallback
+    }
+
+    function createGradientBackground(currentValue: number, prevValue: number | null, nextValue: number | null, colorFunc: (value: number) => string): string {
+        const currentColor = colorFunc(currentValue);
+
+        if (prevValue === null && nextValue === null) {
+            // Add transparency to make single colors less overwhelming
+            return currentColor.replace('rgb(', 'rgba(').replace(')', ', 0.3)');
+        }
+
+        const prevColor = prevValue !== null ? colorFunc(prevValue) : currentColor;
+        const nextColor = nextValue !== null ? colorFunc(nextValue) : currentColor;
+
+        // Add transparency to gradient colors
+        const prevColorTransparent = prevColor.replace('rgb(', 'rgba(').replace(')', ', 0.3)');
+        const currentColorTransparent = currentColor.replace('rgb(', 'rgba(').replace(')', ', 0.3)');
+        const nextColorTransparent = nextColor.replace('rgb(', 'rgba(').replace(')', ', 0.3)');
+
+        return `linear-gradient(to bottom, ${prevColorTransparent} 0%, ${currentColorTransparent} 50%, ${nextColorTransparent} 100%)`;
+    }
+
     // Constants
     const HOUR_WIDTH = 30; // 30px per hour
     const ROW_HEIGHTS = {
@@ -433,10 +476,12 @@
         if (canvas) {
             drawCanvas();
         }
+
     });
 </script>
 
 <div class="forecast-table-container" style="--route-color: {routeColor}; --route-color-rgb: {hexToRgb(routeColor)};">
+
 
     <div class="table-container">
         <!-- Table Content -->
@@ -569,7 +614,12 @@
                             <div class="rain-value">{data.forecast?.precipitations?.toFixed(1) || '0'}mm</div>
                         </div>
 
-                        <div class="wind-column">
+                        <div class="wind-column" style="background: {createGradientBackground(
+                            data.forecast?.northUp?.windSpeed || 0,
+                            index > 0 ? hourlyData[index - 1].forecast?.northUp?.windSpeed || null : null,
+                            index < hourlyData.length - 1 ? hourlyData[index + 1].forecast?.northUp?.windSpeed || null : null,
+                            getWindColor
+                        )}">
                             <div class="metric-value">
                                 {data.forecast?.northUp?.windSpeed?.toFixed(0) || '--'}kt
                                 {#if data.forecast?.northUp?.windDirection !== undefined}
@@ -578,11 +628,21 @@
                             </div>
                         </div>
 
-                        <div class="gusts-column">
+                        <div class="gusts-column" style="background: {createGradientBackground(
+                            data.forecast?.northUp?.gustsSpeed || 0,
+                            index > 0 ? hourlyData[index - 1].forecast?.northUp?.gustsSpeed || null : null,
+                            index < hourlyData.length - 1 ? hourlyData[index + 1].forecast?.northUp?.gustsSpeed || null : null,
+                            getWindColor
+                        )}">
                             <div class="metric-value gust-value">{data.forecast?.northUp?.gustsSpeed?.toFixed(0) || '--'}kt</div>
                         </div>
 
-                        <div class="waves-column">
+                        <div class="waves-column" style="background: {createGradientBackground(
+                            data.forecast?.northUp?.wavesHeight || 0,
+                            index > 0 ? hourlyData[index - 1].forecast?.northUp?.wavesHeight || null : null,
+                            index < hourlyData.length - 1 ? hourlyData[index + 1].forecast?.northUp?.wavesHeight || null : null,
+                            getWaveColor
+                        )}">
                             <div class="metric-value wave-value">
                                 {data.forecast?.northUp?.wavesHeight?.toFixed(1) || '--'}m
                                 {#if data.forecast?.northUp?.wavesDirection !== undefined}
@@ -790,8 +850,8 @@
     .forecast-item {
         display: flex;
         align-items: center;
-        padding: 8px 12px;
-        border-bottom: 1px solid #f0f0f0;
+        padding: 0px 12px;
+        //border-bottom: 1px solid #f0f0f0;
         border-left: 4px solid transparent;
         background: white;
         transition: background 0.2s ease;
@@ -1053,6 +1113,9 @@
         flex-shrink: 0;
         display: flex;
         justify-content: center;
+        align-items: center;
+        min-height: 50px;
+        position: relative;
 
         .metric-value {
             font-size: 14px;
@@ -1062,6 +1125,9 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+            position: relative;
+            z-index: 1;
         }
     }
 
@@ -1171,4 +1237,5 @@
     .uiyellow {
         color: #f39c12;
     }
+
 </style>

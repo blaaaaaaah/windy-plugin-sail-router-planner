@@ -31,11 +31,12 @@ export function calculateCourse(start: LatLng, end: LatLng): number {
 
 /**
  * Calculate apparent wind from true wind and boat motion
+ * Note: Wind speeds should be in the same units (m/s from Windy API, converted to knots in UI)
  */
 export function calculateApparentWind(
-	trueWindSpeed: number,
+	trueWindSpeed: number, // m/s from Windy API
 	trueWindDirection: number,
-	boatSpeed: number,
+	boatSpeed: number, // knots
 	boatCourse: number
 ): { speed: number; direction: number } {
 	// Convert degrees to radians

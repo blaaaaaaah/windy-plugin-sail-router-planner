@@ -17,46 +17,102 @@
     let expandedWaypoints: Set<number> = new Set();
 
 
-    // Color helper functions using Windy's color system
-    function getWindColor(windSpeedKnots: number): string {
-        if (W?.colors?.wind?.getColor && typeof windSpeedKnots === 'number' && !isNaN(windSpeedKnots)) {
+    // Create windDetail color object using Windy's Color system
+
+
+
+
+    let windDetailColor:any = null
+    let wavesDetailColor:any = null
+
+    // Color helper function using windDetail palette
+    function getWindColor(windSpeedMs: number): string {
+        if ( ! windDetailColor ) {
             try {
-                return W.colors.wind.getColor().color(windSpeedKnots * 0.514444); // Convert knots to m/s
+                windDetailColor = new W.Color.Color({
+                    ident: "windDetail",
+                    default: [
+                        [0,"rgb(243,243,243)"],
+                        [3,"rgb(243,243,243)"],
+                        [4,"rgb(0,200,254)"],
+                        [6,"rgb(0,230,0)"],
+                        [10,"rgb(254,174,0)"],
+                        [19,"rgb(254,0,150)"],
+                        [100,"rgb(151,50,222)"]
+                    ]
+                });
+                console.log('windDetailColor created successfully');
             } catch (error) {
-                console.warn('Windy wind color failed:', error);
+                console.error('Failed to create windDetail color:', error);
+            }
+        }
+        if (windDetailColor && typeof windSpeedMs === 'number' && !isNaN(windSpeedMs)) {
+            try {
+                return windDetailColor.getColor().color(windSpeedMs);
+            } catch (error) {
+                console.warn('WindDetail color failed:', error);
             }
         }
         return 'rgba(0, 119, 190, 0.1)'; // fallback
     }
 
     function getWaveColor(waveHeightMeters: number): string {
-        if (W?.colors?.waves?.getColor && typeof waveHeightMeters === 'number' && !isNaN(waveHeightMeters)) {
+        if ( ! wavesDetailColor ) {
             try {
-                return W.colors.waves.getColor().color(waveHeightMeters);
+                wavesDetailColor = new W.Color.Color({
+                    ident: "wavesDetail",
+                    default: [
+                        [0, "rgba(255,255,255,0)"],
+                        [0.1, "rgba(255,255,255,0)"],
+                        [1, "rgb(180,180,255)"],
+                        [2.5, "rgb(254,174,0)"],
+                        [20, "rgb(255,255,255)"]
+                    ]
+                });
+                console.log('wavesDetailColor created successfully');
             } catch (error) {
-                console.warn('Windy wave color failed:', error);
+                console.error('Failed to create wavesDetail color:', error);
+            }
+        }
+        if (wavesDetailColor && typeof waveHeightMeters === 'number' && !isNaN(waveHeightMeters)) {
+            try {
+                return wavesDetailColor.getColor().color(waveHeightMeters);
+            } catch (error) {
+                console.warn('WavesDetail color failed:', error);
             }
         }
         return 'rgba(40, 146, 199, 0.1)'; // fallback
+    }
+
+    // Helper function to interpolate between two RGB colors
+    function interpolateColors(color1: string, color2: string, factor: number = 0.5): string {
+        const rgb1 = color1.match(/\d+/g)!.map(Number);
+        const rgb2 = color2.match(/\d+/g)!.map(Number);
+
+        const r = Math.round(rgb1[0] + (rgb2[0] - rgb1[0]) * factor);
+        const g = Math.round(rgb1[1] + (rgb2[1] - rgb1[1]) * factor);
+        const b = Math.round(rgb1[2] + (rgb2[2] - rgb1[2]) * factor);
+
+        return `rgb(${r},${g},${b})`;
     }
 
     function createGradientBackground(currentValue: number, prevValue: number | null, nextValue: number | null, colorFunc: (value: number) => string): string {
         const currentColor = colorFunc(currentValue);
 
         if (prevValue === null && nextValue === null) {
-            // Add transparency to make single colors less overwhelming
-            return currentColor.replace('rgb(', 'rgba(').replace(')', ', 0.3)');
+            // Single cell, use solid color
+            return currentColor;
         }
 
         const prevColor = prevValue !== null ? colorFunc(prevValue) : currentColor;
         const nextColor = nextValue !== null ? colorFunc(nextValue) : currentColor;
 
-        // Add transparency to gradient colors
-        const prevColorTransparent = prevColor.replace('rgb(', 'rgba(').replace(')', ', 0.3)');
-        const currentColorTransparent = currentColor.replace('rgb(', 'rgba(').replace(')', ', 0.3)');
-        const nextColorTransparent = nextColor.replace('rgb(', 'rgba(').replace(')', ', 0.3)');
+        // Calculate blended colors at borders
+        const topBlendColor = interpolateColors(prevColor, currentColor);  // Half between prev and current
+        const bottomBlendColor = interpolateColors(currentColor, nextColor); // Half between current and next
 
-        return `linear-gradient(to bottom, ${prevColorTransparent} 0%, ${currentColorTransparent} 50%, ${nextColorTransparent} 100%)`;
+        // Create gradient: top blend -> current color -> bottom blend
+        return `linear-gradient(to bottom, ${topBlendColor} 0%, ${currentColor} 50%, ${bottomBlendColor} 100%)`;
     }
 
 
@@ -395,12 +451,24 @@
                                         {#if getLegData(waypoint.number)}
                                             {@const legData = getLegData(waypoint.number)}
                                             {@const leg = forecast.route.legs[waypoint.number - 1]}
-                                            <div class="leg-datetime">{new Date(leg.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {formatTime(leg.startTime)}</div>
+                                            <div class="leg-datetime">
+                                                {#if waypoint.number === 1}
+                                                    Departure: {new Date(leg.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {formatTime(leg.startTime)}
+                                                {:else}
+                                                    Leg {waypoint.number}: {new Date(leg.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {formatTime(leg.startTime)}
+                                                {/if}
+                                            </div>
                                             <div class="leg-distance">{leg.distance.toFixed(1)}nm</div>
                                             <div class="leg-speed">{leg.averageSpeed}knts</div>
                                             <div class="leg-duration">{legData.legTime}</div>
                                         {:else}
-                                            <div class="leg-placeholder">No leg data</div>
+                                            {#if waypoint.number === forecast.route.waypoints.length}
+                                                <div class="leg-datetime">
+                                                    Arrival: {new Date(forecast.route.arrivalTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {formatTime(forecast.route.arrivalTime)}
+                                                </div>
+                                            {:else}
+                                                <div class="leg-placeholder">No leg data</div>
+                                            {/if}
                                         {/if}
                                     </div>
                                     <div class="expand-chevron" class:rotated={expandedWaypoints.has(waypoint.number)}>∨</div>
@@ -500,7 +568,7 @@
                             getWindColor
                         )}">
                             <div class="metric-value">
-                                {data.forecast?.northUp?.windSpeed?.toFixed(0) || '--'}kt
+                                {data.forecast?.northUp?.windSpeed ? (data.forecast.northUp.windSpeed * 1.94384).toFixed(0) : '--'}kt
                                 {#if data.forecast?.northUp?.windDirection !== undefined}
                                     <span class="wind-dir" style="transform: rotate({data.forecast.northUp.windDirection + 180}deg)">↑</span>
                                 {/if}
@@ -514,7 +582,7 @@
                             getWindColor
                         )}">
                             <div class="metric-value gust-value">
-                                {data.forecast?.northUp?.gustsSpeed?.toFixed(0) || '--'}kt
+                                {data.forecast?.northUp?.gustsSpeed ? (data.forecast.northUp.gustsSpeed * 1.94384).toFixed(0) : '--'}kt
                                 {#if data.forecast?.northUp?.windDirection !== undefined}
                                     <span class="wind-dir" style="transform: rotate({data.forecast.northUp.windDirection + 180}deg)">↑</span>
                                 {/if}
@@ -728,7 +796,7 @@
 
     .start-beanie-row {
         height: 12px;
-        background: rgba(245, 158, 11, 0.8);
+        background: rgba(var(--route-color-rgb), 0.8);
         display: flex;
         align-items: center;
         padding: 0 12px;
@@ -775,7 +843,7 @@
             flex-direction: row;
             justify-content: space-between;
             align-items: center;
-            margin-left: 24px;
+            //margin-left: 24px;
             flex: 1;
             padding-right: 30px;
 
@@ -801,6 +869,8 @@
                 font-size: 10px;
                 color: #6c757d !important;
                 font-style: italic;
+                text-align: left;
+                flex: 1.5;
             }
         }
 

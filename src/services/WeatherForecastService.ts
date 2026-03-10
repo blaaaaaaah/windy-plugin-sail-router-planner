@@ -282,10 +282,11 @@ export class WeatherForecastService {
 			const point = this.interpolateLegPosition(leg, apiResponse.distances[i]);
 
 			// Extract weather data from API response (with null checks)
+			// Note: Windy API returns wind/gust speeds in m/s, these are converted to knots in the UI
 			const northUpWeather: WeatherData = {
-				windSpeed: apiResponse.data.wind[i] || 0,
+				windSpeed: apiResponse.data.wind[i] || 0, // m/s from Windy API
 				windDirection: apiResponse.data.windDir[i] || 0,
-				gustsSpeed: apiResponse.data.gust[i] || 0,
+				gustsSpeed: apiResponse.data.gust[i] || 0, // m/s from Windy API
 				gustsDirection: apiResponse.data.windDir[i] || 0, // Assume same direction as wind
 				currentSpeed: 0, // TODO: API doesn't seem to have current data
 				currentDirection: 0,

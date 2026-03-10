@@ -2,11 +2,11 @@ import type { LatLng } from './Coordinates';
 import type { RouteLeg, RouteDefinition } from './RouteTypes';
 
 export interface WeatherData {
-	windSpeed: number; // knots
+	windSpeed: number; // m/s (from Windy API), converted to knots for display
 	windDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
-	gustsSpeed: number; // knots
+	gustsSpeed: number; // m/s (from Windy API), converted to knots for display
 	gustsDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
-	currentSpeed: number; // knots
+	currentSpeed: number; // m/s (from Windy API), converted to knots for display
 	currentDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
 	wavesHeight: number; // meters
 	wavesPeriod: number; // seconds

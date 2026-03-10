@@ -69,7 +69,8 @@ export class WeatherForecastService {
 						endTime,
 						distance: partDistance,
 						course: leg.course,
-						averageSpeed: leg.averageSpeed
+						averageSpeed: leg.averageSpeed,
+						duration: endTime - startTime
 					});
 				}
 			}

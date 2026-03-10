@@ -1,11 +1,10 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import type { WeatherForecast } from '../types/WeatherTypes';
+    import type { RouteForecast } from '../types/WeatherTypes';
 
-    export let forecast: WeatherForecast | null = null;
-    export let startTime: number = Date.now();
-    export let endTime: number = Date.now() + 24 * 60 * 60 * 1000;
+    export let forecast: RouteForecast | null = null;
     export let routeColor: string = '#3498db';
+    export let isLoading: boolean = false;
 
     const dispatch = createEventDispatcher();
 
@@ -61,12 +60,30 @@
     }
 
 
-    // Calculate hourly data points including 6h before/after
-    $: hourlyData = generateHourlyData();
-    $: waypointPositions = calculateWaypointPositions();
+    // Data that needs to be recalculated when forecast changes
+    let hourlyData: any[] = [];
+    let waypointPositions: any[] = [];
+
+    // Debug reactive updates and recalculate data when forecast changes
+    $: if (forecast) {
+        console.log('ForecastTable: forecast updated, pointForecasts:', forecast.pointForecasts?.length || 0);
+        console.log('ForecastTable: forecast route waypoints:', forecast.route?.waypoints?.length || 0);
+
+        // Recalculate data when forecast changes
+        hourlyData = generateHourlyData();
+        waypointPositions = calculateWaypointPositions();
+        console.log('ForecastTable: recalculated hourlyData:', hourlyData.length, 'waypointPositions:', waypointPositions.length);
+    } else {
+        // Clear data when no forecast
+        hourlyData = [];
+        waypointPositions = [];
+    }
 
     function generateHourlyData() {
         if (!forecast) return [];
+
+        const startTime = forecast.route.departureTime;
+        const endTime = forecast.route.arrivalTime;
 
         // Start 6 hours before route start, end 6 hours after route end
         const dataStart = startTime - (6 * 60 * 60 * 1000);
@@ -103,14 +120,24 @@
 
 
     function calculateWaypointPositions() {
-        if (!hourlyData.length) return [];
+        if (!hourlyData.length || !forecast) return [];
 
-        const routeDuration = endTime - startTime;
-        const legDuration = routeDuration / 3; // 3 legs for now
+        const routeWaypoints = forecast.route.waypoints;
+        const totalWaypoints = routeWaypoints.length;
+
+        if (totalWaypoints === 0) return [];
 
         const waypoints = [];
-        for (let i = 0; i < 4; i++) { // 4 waypoints (start + 3 intermediate)
-            const legTime = startTime + (i * legDuration);
+        const startTime = forecast.route.departureTime;
+        const endTime = forecast.route.arrivalTime;
+        const routeDuration = endTime - startTime;
+
+        // Calculate time intervals based on actual waypoint count
+        for (let i = 0; i < totalWaypoints; i++) {
+            const waypoint = routeWaypoints[i];
+
+            // Use waypoint.estimatedTime if available, otherwise distribute evenly
+            const legTime = waypoint.estimatedTime || (startTime + (i * routeDuration / (totalWaypoints - 1)));
             const waypointIndex = hourlyData.findIndex(h => h.timestamp >= legTime);
 
             if (waypointIndex >= 0) {
@@ -166,9 +193,10 @@
             maxGust: 18 + Math.random() * 12      // 18-30 kts
         };
 
-        // Format leg time
-        const hours = Math.floor(leg.duration / 60);
-        const minutes = leg.duration % 60;
+        // Format leg time (duration is in milliseconds)
+        const totalMinutes = Math.floor(leg.duration / (1000 * 60));
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
         const legTime = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
         return {
@@ -331,8 +359,7 @@
 
 </script>
 
-<div class="forecast-table-container" style="--route-color: {routeColor}; --route-color-rgb: {hexToRgb(routeColor)};">
-
+<div class="forecast-table-container" style="--route-color: {routeColor}; --route-color-rgb: {hexToRgb(routeColor)};" class:loading={isLoading}>
 
     <div class="table-container">
         <!-- Table Content -->
@@ -365,14 +392,15 @@
                                 <div class="start-beanie-content">
                                     <div class="waypoint-number">{waypoint.number}</div>
                                     <div class="waypoint-info">
-                                        <div class="waypoint-time">{formatTime(data.timestamp)}</div>
-                                        <div class="waypoint-date">{new Date(data.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                                    </div>
-                                    <div class="waypoint-speed">
                                         {#if getLegData(waypoint.number)}
-                                            Avg: {getLegData(waypoint.number).averageSpeed}kts
+                                            {@const legData = getLegData(waypoint.number)}
+                                            {@const leg = forecast.route.legs[waypoint.number - 1]}
+                                            <div class="leg-datetime">{new Date(leg.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {formatTime(leg.startTime)}</div>
+                                            <div class="leg-distance">{leg.distance.toFixed(1)}nm</div>
+                                            <div class="leg-speed">{leg.averageSpeed}knts</div>
+                                            <div class="leg-duration">{legData.legTime}</div>
                                         {:else}
-                                            Avg: --kts
+                                            <div class="leg-placeholder">No leg data</div>
                                         {/if}
                                     </div>
                                     <div class="expand-chevron" class:rotated={expandedWaypoints.has(waypoint.number)}>∨</div>
@@ -474,7 +502,7 @@
                             <div class="metric-value">
                                 {data.forecast?.northUp?.windSpeed?.toFixed(0) || '--'}kt
                                 {#if data.forecast?.northUp?.windDirection !== undefined}
-                                    <span class="wind-dir" style="transform: rotate({data.forecast.northUp.windDirection}deg)">↑</span>
+                                    <span class="wind-dir" style="transform: rotate({data.forecast.northUp.windDirection + 180}deg)">↑</span>
                                 {/if}
                             </div>
                         </div>
@@ -485,7 +513,12 @@
                             index < hourlyData.length - 1 ? hourlyData[index + 1].forecast?.northUp?.gustsSpeed || null : null,
                             getWindColor
                         )}">
-                            <div class="metric-value gust-value">{data.forecast?.northUp?.gustsSpeed?.toFixed(0) || '--'}kt</div>
+                            <div class="metric-value gust-value">
+                                {data.forecast?.northUp?.gustsSpeed?.toFixed(0) || '--'}kt
+                                {#if data.forecast?.northUp?.windDirection !== undefined}
+                                    <span class="wind-dir" style="transform: rotate({data.forecast.northUp.windDirection + 180}deg)">↑</span>
+                                {/if}
+                            </div>
                         </div>
 
                         <div class="waves-column" style="background: {createGradientBackground(
@@ -497,7 +530,7 @@
                             <div class="metric-value wave-value">
                                 {data.forecast?.northUp?.wavesHeight?.toFixed(1) || '--'}m
                                 {#if data.forecast?.northUp?.wavesDirection !== undefined}
-                                    <span class="wave-dir" style="transform: rotate({data.forecast.northUp.wavesDirection}deg)">↑</span>
+                                    <span class="wave-dir" style="transform: rotate({data.forecast.northUp.wavesDirection + 180}deg)">↑</span>
                                 {/if}
                             </div>
                         </div>
@@ -518,6 +551,23 @@
         height: 100%;
         margin: 0;
         padding: 0;
+        position: relative;
+    }
+
+    .forecast-table-container.loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .forecast-table-container.loading::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(248, 249, 250, 0.8);
+        z-index: 100;
     }
 
     .table-container {
@@ -723,23 +773,34 @@
         .waypoint-info {
             display: flex;
             flex-direction: row;
-            gap: 6px;
+            justify-content: space-between;
+            align-items: center;
             margin-left: 24px;
+            flex: 1;
+            padding-right: 30px;
 
-            .waypoint-date {
+            .leg-datetime,
+            .leg-distance,
+            .leg-speed,
+            .leg-duration {
                 font-size: 10px;
                 color: #333 !important;
                 font-weight: 500;
                 line-height: 1;
-                order: 1;
+                white-space: nowrap;
+                flex: 1;
+                text-align: center;
             }
 
-            .waypoint-time {
+            .leg-datetime {
+                text-align: left;
+                flex: 1.5; /* Give more space for datetime since it's longer */
+            }
+
+            .leg-placeholder {
                 font-size: 10px;
-                color: #333 !important;
-                font-weight: 500;
-                line-height: 1;
-                order: 2;
+                color: #6c757d !important;
+                font-style: italic;
             }
         }
 

@@ -9,6 +9,7 @@ export interface RouteLeg {
 	distance: number; // nautical miles
 	averageSpeed: number; // knots
 	endTime: number; // timestamp
+	duration: number; // milliseconds (endTime - startTime)
 }
 
 export class RouteDefinition {
@@ -118,6 +119,10 @@ export class RouteDefinition {
 		return this._departureTime;
 	}
 
+	get arrivalTime(): number {
+		return this._departureTime + this.totalDuration;
+	}
+
 	getPositionAtTime(timestamp: number): LatLng | null {
 		const legs = this.legs;
 
@@ -177,7 +182,8 @@ export class RouteDefinition {
 				course,
 				distance,
 				averageSpeed: speed,
-				endTime
+				endTime,
+				duration: durationMs
 			});
 		}
 

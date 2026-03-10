@@ -14,11 +14,21 @@
     {#if currentForecast}
         <ForecastTable
             forecast={currentForecast}
-            startTime={forecastStartTime}
-            endTime={forecastEndTime}
+            isLoading={isLoadingForecast}
             on:timeHover={handleTimeHover}
             on:metricClick={handleMetricClick}
         />
+    {:else if isLoadingForecast}
+        <div class="forecast-loading">
+            <div class="loading-spinner"></div>
+            <p>Generating route forecast...</p>
+        </div>
+    {:else}
+        <div class="forecast-placeholder">
+            <div class="placeholder-icon">🗺️</div>
+            <h3>No route created yet</h3>
+            <p>Draw a route on the map by clicking to add waypoints. You need at least 2 waypoints to generate a weather forecast.</p>
+        </div>
     {/if}
 
 </section>
@@ -35,6 +45,7 @@
     import { setUrl } from '@windy/location';
 
     import config from './pluginConfig';
+    import { RouteForecast } from "./types/WeatherTypes";
 
     const { title } = config;
 
@@ -42,12 +53,9 @@
     // Interactive route editor
     let routeEditor: RouteEditorController | null = null;
     let currentRoutes: RouteDefinition[] = [];
-    let editorInstruction = 'Click "Start New Route" then click on the map to add waypoints';
 
     // Forecast data
-    let currentForecast: any = null;
-    let forecastStartTime: number = Date.now();
-    let forecastEndTime: number = Date.now() + 24 * 60 * 60 * 1000;
+    let currentForecast: RouteForecast|null = null;
     let isLoadingForecast: boolean = false;
 
     // Weather service instances
@@ -65,15 +73,12 @@
             console.log('Generating forecast for route with', route.waypoints.length, 'waypoints');
 
             const forecast = await weatherService.getRouteForecast(route);
-            currentForecast = forecast;
+            // Force Svelte reactivity with new object reference
+            currentForecast = { ...forecast };
 
-            if (forecast.pointForecasts?.length > 0) {
-                // Set times based on forecast data
-                forecastStartTime = forecast.pointForecasts[0].timestamp;
-                forecastEndTime = forecast.pointForecasts[forecast.pointForecasts.length - 1].timestamp;
-            }
 
             console.log('Forecast generated:', forecast.pointForecasts.length, 'points');
+            console.log('Updated currentForecast, route waypoints:', forecast.route?.waypoints?.length || 'undefined');
         } catch (error) {
             console.error('Failed to generate forecast:', error);
         } finally {
@@ -100,20 +105,15 @@
     function onRouteUpdated(route: RouteDefinition) {
         currentRoutes = routeEditor ? routeEditor.getRoutes() : [];
 
-        if (route.waypoints.length === 1) {
-            editorInstruction = 'Click on the map to add more waypoints';
-        } else {
-            editorInstruction = `Route has ${route.waypoints.length} waypoints. Continue clicking to add more or start a new route.`;
-        }
-
         // Update URL with current route
         const serializedRoute = serializeRoute(route);
-        console.log('Updating URL with route:', serializedRoute);
         setUrl(config.name, { route: serializedRoute });
 
         // Generate forecast when route has 2+ waypoints
         if (route.waypoints.length >= 2) {
             generateForecastFromRoute(route);
+        } else {
+            currentForecast = null;
         }
     }
 
@@ -243,6 +243,60 @@
     :global(.custom-waypoint-icon) {
         background: transparent !important;
         border: none !important;
+    }
+
+    /* Forecast placeholder and loading states */
+    .forecast-placeholder, .forecast-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        background: #f8f9fa;
+        text-align: center;
+        height: 300px;
+    }
+
+    .placeholder-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+        opacity: 0.6;
+    }
+
+    .forecast-placeholder h3 {
+        color: #495057;
+        font-size: 18px;
+        margin: 0 0 12px 0;
+        font-weight: 600;
+    }
+
+    .forecast-placeholder p {
+        color: #6c757d;
+        font-size: 14px;
+        margin: 0;
+        max-width: 320px;
+        line-height: 1.5;
+    }
+
+    .forecast-loading p {
+        color: #495057;
+        font-size: 16px;
+        margin: 20px 0 0 0;
+        font-weight: 500;
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #dee2e6;
+        border-top: 3px solid var(--route-color, #3498db);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
 </style>
 

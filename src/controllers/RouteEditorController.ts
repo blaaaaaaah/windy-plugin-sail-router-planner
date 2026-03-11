@@ -1,5 +1,7 @@
 import type { LatLng } from '../types/Coordinates';
 import { RouteDefinition } from '../types/RouteTypes';
+import { markers } from '@windy/map';
+import store from '@windy/store';
 
 export class RouteEditorController {
 	private _routes: RouteDefinition[] = [];
@@ -10,6 +12,8 @@ export class RouteEditorController {
 	// Map layer management
 	private _routeLayers = new Map<string, L.Polyline>();
 	private _waypointMarkers = new Map<string, L.Marker[]>();
+	private _progressMarkers = new Map<string, L.Marker>();
+	private _currentTimestamp: number | null = null;
 
 	// Color cycling
 	private _colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#FF8C94', '#A8E6CF', '#C7CEEA'];
@@ -37,11 +41,29 @@ export class RouteEditorController {
 		this._updateMapHighlight();
 	}
 
-	setRouteProgress(route: RouteDefinition, timestamp: number): void {
-		const position = route.getPositionAtTime(timestamp);
-		if (position) {
-			this._showProgressMarker(route, position);
+	setTimestamp(timestamp: number): void {
+		this._currentTimestamp = timestamp;
+
+		// Update progress markers for all routes immediately
+		for (const route of this._routes) {
+			const position = route.getPositionAtTime(timestamp);
+			if (position) {
+				this._updateProgressMarker(route, position);
+			} else {
+				this._hideProgressMarker(route);
+			}
 		}
+	}
+
+	setRouteProgress(route: RouteDefinition, timestamp: number): void {
+		// For backward compatibility - delegate to setTimestamp
+		this.setTimestamp(timestamp);
+	}
+
+	clearAllProgress(): void {
+		this._progressMarkers.forEach(marker => this._map.removeLayer(marker));
+		this._progressMarkers.clear();
+		// Keep _currentTimestamp - user might want to see progress again
 	}
 
 	loadRoute(route: RouteDefinition): void {
@@ -57,6 +79,11 @@ export class RouteEditorController {
 
 		// Update map display
 		this._updateRouteDisplay(route);
+
+		// Update progress marker if we have a current timestamp
+		if (this._currentTimestamp !== null) {
+			this.setTimestamp(this._currentTimestamp);
+		}
 
 		// Notify callback handler
 		this._onRouteUpdated(route);
@@ -80,6 +107,11 @@ export class RouteEditorController {
 
 		// Update map display
 		this._updateRouteDisplay(this._activeRoute);
+
+		// Update progress marker if we have a current timestamp
+		if (this._currentTimestamp !== null) {
+			this.setTimestamp(this._currentTimestamp);
+		}
 
 		// Notify callback handler
 		this._onRouteUpdated(this._activeRoute);
@@ -155,6 +187,12 @@ export class RouteEditorController {
 			const newPosition = (e.target as L.Marker).getLatLng();
 			route.updateWaypoint(index, newPosition);
 			this._updateRouteLine(route);
+
+			// Update progress marker if we have a current timestamp
+			if (this._currentTimestamp !== null) {
+				this.setTimestamp(this._currentTimestamp);
+			}
+
 			this._onRouteUpdated(route);
 			document.body.style.cursor = '';
 		});
@@ -200,6 +238,10 @@ export class RouteEditorController {
 			if (route.waypoints.length === 0) {
 				this._deleteRoute(route);
 			} else {
+				// Update progress marker if we have a current timestamp
+				if (this._currentTimestamp !== null) {
+					this.setTimestamp(this._currentTimestamp);
+				}
 				this._onRouteUpdated(route);
 			}
 		} catch (error) {
@@ -235,6 +277,9 @@ export class RouteEditorController {
 		const markers = this._waypointMarkers.get(route.id) || [];
 		markers.forEach(marker => this._map.removeLayer(marker));
 		this._waypointMarkers.delete(route.id);
+
+		// Remove progress marker
+		this._hideProgressMarker(route);
 	}
 
 	private _updateMapHighlight(): void {
@@ -244,9 +289,29 @@ export class RouteEditorController {
 		});
 	}
 
-	private _showProgressMarker(route: RouteDefinition, position: LatLng): void {
-		// TODO: Implement progress marker that shows current position during forecast scrubbing
-		// This would show a different marker (like a boat icon) at the calculated position
-		console.log(`Showing progress for route ${route.id} at`, position);
+	private _updateProgressMarker(route: RouteDefinition, position: LatLng): void {
+		// Get existing progress marker for this route
+		const existingMarker = this._progressMarkers.get(route.id);
+
+		if (existingMarker) {
+			// Smooth animation: update position of existing marker
+			existingMarker.setLatLng(position);
+		} else {
+			// Create new pulsating marker at calculated position with high z-index
+			const progressMarker = new L.Marker(position, {
+				icon: markers.pulsatingIcon,
+				zIndexOffset: 1000  // Ensure it appears above waypoint markers
+			}).addTo(this._map);
+
+			this._progressMarkers.set(route.id, progressMarker);
+		}
+	}
+
+	private _hideProgressMarker(route: RouteDefinition): void {
+		const existingMarker = this._progressMarkers.get(route.id);
+		if (existingMarker) {
+			this._map.removeLayer(existingMarker);
+			this._progressMarkers.delete(route.id);
+		}
 	}
 }

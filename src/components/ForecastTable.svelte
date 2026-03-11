@@ -6,6 +6,31 @@
     export let routeColor: string = '#3498db';
     export let isLoading: boolean = false;
 
+    // Data that needs to be recalculated when forecast changes
+    let hourlyData: any[] = [];
+    let waypointPositions: any[] = [];
+
+    // Debug reactive updates and recalculate data when forecast changes
+    $: if (forecast) {
+        console.log('ForecastTable: forecast updated, pointForecasts:', forecast.pointForecasts?.length || 0);
+        console.log('ForecastTable: forecast route waypoints:', forecast.route?.waypoints?.length || 0);
+
+        routeColor = forecast.route.color;
+
+        // Recalculate data when forecast changes
+        hourlyData = generateHourlyData();
+        waypointPositions = calculateWaypointPositions();
+        console.log('ForecastTable: recalculated hourlyData:', hourlyData.length, 'waypointPositions:', waypointPositions.length);
+
+        // Cache row positions after DOM updates
+        setTimeout(() => cacheRowPositions(), 0);
+    } else {
+        // Clear data when no forecast
+        hourlyData = [];
+        waypointPositions = [];
+        rowPositions = [];
+    }
+
     const dispatch = createEventDispatcher();
 
     let currentHoverIndex: number | null = null;
@@ -15,6 +40,8 @@
     let autoScrollTimer: number | null = null;
     let tableScrollContainer: HTMLElement | null = null;
     let expandedWaypoints: Set<number> = new Set();
+    let scrollContainer: HTMLElement | null = null;
+    let rowPositions: Array<{top: number, bottom: number, index: number}> = [];
 
 
     // Create windDetail color object using Windy's Color system
@@ -116,24 +143,7 @@
     }
 
 
-    // Data that needs to be recalculated when forecast changes
-    let hourlyData: any[] = [];
-    let waypointPositions: any[] = [];
-
-    // Debug reactive updates and recalculate data when forecast changes
-    $: if (forecast) {
-        console.log('ForecastTable: forecast updated, pointForecasts:', forecast.pointForecasts?.length || 0);
-        console.log('ForecastTable: forecast route waypoints:', forecast.route?.waypoints?.length || 0);
-
-        // Recalculate data when forecast changes
-        hourlyData = generateHourlyData();
-        waypointPositions = calculateWaypointPositions();
-        console.log('ForecastTable: recalculated hourlyData:', hourlyData.length, 'waypointPositions:', waypointPositions.length);
-    } else {
-        // Clear data when no forecast
-        hourlyData = [];
-        waypointPositions = [];
-    }
+    
 
     function generateHourlyData() {
         if (!forecast) return [];
@@ -272,6 +282,41 @@
                 timestamp: hourlyData[index].timestamp,
                 forecast: hourlyData[index].forecast
             });
+        }
+    }
+
+    function cacheRowPositions() {
+        if (!scrollContainer) return;
+
+        rowPositions = [];
+        const forecastItems = scrollContainer.querySelectorAll('.forecast-item');
+
+        forecastItems.forEach((item, index) => {
+            const rect = item.getBoundingClientRect();
+            const containerRect = scrollContainer.getBoundingClientRect();
+            rowPositions.push({
+                top: rect.top - containerRect.top + scrollContainer.scrollTop,
+                bottom: rect.bottom - containerRect.top + scrollContainer.scrollTop,
+                index: index
+            });
+        });
+    }
+
+    function handleScroll() {
+        if (!scrollContainer || rowPositions.length === 0) return;
+
+        const scrollTop = scrollContainer.scrollTop;
+        const containerHeight = scrollContainer.clientHeight;
+        const centerY = scrollTop + (containerHeight / 2);
+
+        // Find the row that contains the center Y position
+        for (const row of rowPositions) {
+            if (centerY >= row.top && centerY <= row.bottom) {
+                if (currentHoverIndex !== row.index && hourlyData[row.index]) {
+                    handleHover(row.index);
+                }
+                break;
+            }
         }
     }
 
@@ -431,7 +476,9 @@
 
             <!-- Vertical Data List -->
             <div class="main-table">
-                <div class="data-table vertical-scroll">
+                <div class="data-table vertical-scroll"
+                     bind:this={scrollContainer}
+                     on:scroll={handleScroll}>
                     <div class="forecast-list">
                 {#each hourlyData as data, index}
                     <!-- Waypoint beanie rows -->
@@ -795,7 +842,7 @@
     }
 
     .start-beanie-row {
-        height: 12px;
+        height: 18px;
         background: rgba(var(--route-color-rgb), 0.8);
         display: flex;
         align-items: center;
@@ -807,6 +854,8 @@
         //margin: 2px 0;
         border-left: 4px solid var(--route-color);
         overflow: visible;
+        border-top: 2px solid white;
+        border-bottom: 2px solid white;
 
         &:active,
         &.dragging {

@@ -31,6 +31,7 @@
     import bcast from "@windy/broadcast";
     import { map } from '@windy/map';
     import { singleclick } from '@windy/singleclick';
+    import store from '@windy/store';
     import { onDestroy, onMount } from 'svelte';
     import { RouteDefinition } from './types/RouteTypes';
     import { WindyAPI, WeatherForecastService } from './services';
@@ -132,6 +133,12 @@
     function handleTimeHover(event: any) {
         const { timestamp, forecast } = event.detail;
         console.log('Time hover:', new Date(timestamp), forecast);
+
+        // Update both Windy's store and RouteEditor for immediate progress updates
+        if (timestamp) {
+            store.set('timestamp', timestamp);
+            routeEditor.setTimestamp(timestamp);
+        }
     }
 
     function handleMetricClick(event: any) {

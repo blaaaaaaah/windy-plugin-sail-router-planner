@@ -112,26 +112,14 @@ export class WeatherForecastService {
 		// Consolidate each hour's forecasts
 		const consolidatedForecasts: PointForecast[] = [];
 		for (const [hour, forecasts] of hourlyGroups) {
-			if (forecasts.length === 1) {
-				// Single forecast for this hour - calculate apparent/relative now
-				const forecast = forecasts[0];
-				forecast.apparent = this.convertToApparent(
-					forecast.northUp,
-					forecast.leg.averageSpeed,
-					forecast.leg.course
-				);
-				consolidatedForecasts.push(forecast);
-			} else {
-				// Multiple forecasts for this hour - average them
-				console.log(`Averaging ${forecasts.length} forecasts for hour ${new Date(hour).toISOString()}`);
-				const averaged = this.averagePointForecasts(forecasts);
-				averaged.apparent = this.convertToApparent(
-					averaged.northUp,
-					averaged.leg.averageSpeed,
-					averaged.leg.course
-				);
-				consolidatedForecasts.push(averaged);
-			}
+			console.log(`Processing ${forecasts.length} forecasts for hour ${new Date(hour).toISOString()}`);
+			const averaged = this.averagePointForecasts(forecasts);
+			averaged.apparent = averaged.northUp ? this.convertToApparent(
+				averaged.northUp,
+				averaged.leg.averageSpeed,
+				averaged.leg.course
+			) : null;
+			consolidatedForecasts.push(averaged);
 		}
 
 		// Sort by timestamp
@@ -152,17 +140,29 @@ export class WeatherForecastService {
 		// Use the first forecast as template
 		const template = forecasts[0];
 
-		// Average weather data
+		// Filter out forecasts with null northUp data
+		const validForecasts = forecasts.filter(f => f.northUp !== null);
+
+		// If no valid forecasts, return template with null northUp
+		if (validForecasts.length === 0) {
+			return {
+				...template,
+				northUp: null,
+				apparent: null
+			};
+		}
+
+		// Average weather data from valid forecasts only
 		const avgWeather: WeatherData = {
-			windSpeed: forecasts.reduce((sum, f) => sum + f.northUp.windSpeed, 0) / forecasts.length,
-			windDirection: this.averageDirections(forecasts.map(f => f.northUp.windDirection)),
-			gustsSpeed: forecasts.reduce((sum, f) => sum + f.northUp.gustsSpeed, 0) / forecasts.length,
-			gustsDirection: this.averageDirections(forecasts.map(f => f.northUp.gustsDirection)),
-			currentSpeed: forecasts.reduce((sum, f) => sum + f.northUp.currentSpeed, 0) / forecasts.length,
-			currentDirection: this.averageDirections(forecasts.map(f => f.northUp.currentDirection)),
-			wavesHeight: forecasts.reduce((sum, f) => sum + f.northUp.wavesHeight, 0) / forecasts.length,
-			wavesPeriod: forecasts.reduce((sum, f) => sum + f.northUp.wavesPeriod, 0) / forecasts.length,
-			wavesDirection: this.averageDirections(forecasts.map(f => f.northUp.wavesDirection))
+			windSpeed: validForecasts.reduce((sum, f) => sum + f.northUp!.windSpeed, 0) / validForecasts.length,
+			windDirection: this.averageDirections(validForecasts.map(f => f.northUp!.windDirection)),
+			gustsSpeed: validForecasts.reduce((sum, f) => sum + f.northUp!.gustsSpeed, 0) / validForecasts.length,
+			gustsDirection: this.averageDirections(validForecasts.map(f => f.northUp!.gustsDirection)),
+			currentSpeed: validForecasts.reduce((sum, f) => sum + f.northUp!.currentSpeed, 0) / validForecasts.length,
+			currentDirection: this.averageDirections(validForecasts.map(f => f.northUp!.currentDirection)),
+			wavesHeight: validForecasts.reduce((sum, f) => sum + f.northUp!.wavesHeight, 0) / validForecasts.length,
+			wavesPeriod: validForecasts.reduce((sum, f) => sum + f.northUp!.wavesPeriod, 0) / validForecasts.length,
+			wavesDirection: this.averageDirections(validForecasts.map(f => f.northUp!.wavesDirection))
 		};
 
 		// Average position
@@ -187,7 +187,7 @@ export class WeatherForecastService {
 			leg: template.leg,
 			warnings: uniqueWarnings,
 			northUp: avgWeather,
-			apparent: avgWeather, // Will be recalculated in consolidateLegsForecasts
+			apparent: avgWeather, // Will be recalculated in consolidateLegsForecasts TODO : change
 			precipitations: avgPrecip,
 			weather: avgWeatherCode
 		};
@@ -283,17 +283,22 @@ export class WeatherForecastService {
 
 			// Extract weather data from API response (with null checks)
 			// Note: Windy API returns wind/gust speeds in m/s, these are converted to knots in the UI
-			const northUpWeather: WeatherData = {
-				windSpeed: apiResponse.data.wind[i] || 0, // m/s from Windy API
-				windDirection: apiResponse.data.windDir[i] || 0,
-				gustsSpeed: apiResponse.data.gust[i] || 0, // m/s from Windy API
-				gustsDirection: apiResponse.data.windDir[i] || 0, // Assume same direction as wind
+
+			// Check if we have valid forecast data for this timestamp
+			// If key weather data is null, we have no forecast for this time
+			const hasValidData = apiResponse.data.gust[i] !== null && apiResponse.data.waves[i] !== null;
+
+			const northUpWeather: WeatherData | null = hasValidData ? {
+				windSpeed: apiResponse.data.wind[i], // m/s from Windy API
+				windDirection: apiResponse.data.windDir[i],
+				gustsSpeed: apiResponse.data.gust[i], // m/s from Windy API
+				gustsDirection: apiResponse.data.windDir[i], // Assume same direction as wind
 				currentSpeed: 0, // TODO: API doesn't seem to have current data
 				currentDirection: 0,
-				wavesHeight: apiResponse.data.waves[i] || 0,
-				wavesPeriod: apiResponse.data.wavesPeriod[i] || 0,
-				wavesDirection: apiResponse.data.wavesDir[i] || 0
-			};
+				wavesHeight: apiResponse.data.waves[i],
+				wavesPeriod: apiResponse.data.wavesPeriod[i],
+				wavesDirection: apiResponse.data.wavesDir[i]
+			} : null;
 
 			// Parse warnings
 			const warnings = apiResponse.data.warn[i] ? [apiResponse.data.warn[i] as string] : [];
@@ -305,7 +310,7 @@ export class WeatherForecastService {
 				leg,
 				warnings,
 				northUp: northUpWeather,
-				apparent: northUpWeather, // Will be calculated later in consolidation
+				apparent: null, // Will be calculated later in consolidation if northUp has data
 				precipitations: apiResponse.data.precip[i] || 0,
 				weather: apiResponse.data.icon[i] || 0
 			};

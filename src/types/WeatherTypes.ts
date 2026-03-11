@@ -19,8 +19,8 @@ export interface PointForecast {
 	bearing: number; // from windyAPI bearings array, degrees 0-359
 	leg: RouteLeg; // reference to the current Leg
 	warnings: string[]; // from windy api
-	northUp: WeatherData; // data from windy's API
-	apparent: WeatherData; // northUp data, but with computed AWS, AWA, relative wave direction to course, relative current direction to course
+	northUp: WeatherData | null; // data from windy's API, null if no forecast data available
+	apparent: WeatherData | null; // northUp data, but with computed AWS, AWA, relative wave direction to course, relative current direction to course
 	precipitations: number; // millimeters
 	weather: number; // mapping to "icon" API response, will switch to ENUM later (SUN, OVERCAST, RAIN, ...)
 }

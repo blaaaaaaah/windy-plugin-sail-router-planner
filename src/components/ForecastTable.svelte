@@ -5,30 +5,39 @@
     export let forecast: RouteForecast | null = null;
     export let routeColor: string = '#3498db';
     export let isLoading: boolean = false;
+    export let showTrueWind: boolean = true;
 
     // Data that needs to be recalculated when forecast changes
     let hourlyData: any[] = [];
     let waypointPositions: any[] = [];
 
-    // Debug reactive updates and recalculate data when forecast changes
-    $: if (forecast) {
-        console.log('ForecastTable: forecast updated, pointForecasts:', forecast.pointForecasts?.length || 0);
-        console.log('ForecastTable: forecast route waypoints:', forecast.route?.waypoints?.length || 0);
+    // Refresh method to recalculate data
+    function refresh() {
+        if (forecast) {
+            console.log('ForecastTable: refreshing data, pointForecasts:', forecast.pointForecasts?.length || 0);
+            console.log('ForecastTable: forecast route waypoints:', forecast.route?.waypoints?.length || 0);
+            console.log('ForecastTable: showTrueWind:', showTrueWind);
 
-        routeColor = forecast.route.color;
+            routeColor = forecast.route.color;
 
-        // Recalculate data when forecast changes
-        hourlyData = generateHourlyData();
-        waypointPositions = calculateWaypointPositions();
-        console.log('ForecastTable: recalculated hourlyData:', hourlyData.length, 'waypointPositions:', waypointPositions.length);
+            // Recalculate data
+            hourlyData = generateHourlyData();
+            waypointPositions = calculateWaypointPositions();
+            console.log('ForecastTable: recalculated hourlyData:', hourlyData.length, 'waypointPositions:', waypointPositions.length);
 
-        // Cache row positions after DOM updates
-        setTimeout(() => cacheRowPositions(), 0);
-    } else {
-        // Clear data when no forecast
-        hourlyData = [];
-        waypointPositions = [];
-        rowPositions = [];
+            // Cache row positions after DOM updates
+            setTimeout(() => cacheRowPositions(), 0);
+        } else {
+            // Clear data when no forecast
+            hourlyData = [];
+            waypointPositions = [];
+            rowPositions = [];
+        }
+    }
+
+    // Reactive updates when forecast or showTrueWind changes
+    $: if (forecast || showTrueWind !== undefined) {
+        refresh();
     }
 
     const dispatch = createEventDispatcher();
@@ -378,6 +387,39 @@
         }
     }
 
+    // Helper functions to get wind data based on showTrueWind setting
+    function getWindSpeed(forecastData: any): number {
+        if (showTrueWind) {
+            return forecastData?.northUp?.windSpeed || 0;
+        } else {
+            return forecastData?.apparent?.windSpeed || 0;
+        }
+    }
+
+    function getWindDirection(forecastData: any): number | undefined {
+        if (showTrueWind) {
+            return forecastData?.northUp?.windDirection;
+        } else {
+            return forecastData?.apparent?.windDirection + 90 % 360;
+        }
+    }
+
+    function getGustSpeed(forecastData: any): number {
+        if (showTrueWind) {
+            return forecastData?.northUp?.gustsSpeed || 0;
+        } else {
+            return forecastData?.apparent?.gustsSpeed || 0;
+        }
+    }
+
+    function getWaveDirection(forecastData: any): number | undefined {
+        if (showTrueWind) {
+            return forecastData?.northUp?.wavesDirection;
+        } else {
+            return forecastData?.apparent?.wavesDirection + 90 % 360;
+        }
+    }
+
 
     function formatTime(timestamp: number): string {
         return new Date(timestamp).toLocaleTimeString('en-US', {
@@ -708,29 +750,29 @@
                         </div>
 
                         <div class="wind-column" style="background: {createGradientBackground(
-                            data.forecast?.northUp?.windSpeed || 0,
-                            index > 0 ? hourlyData[index - 1].forecast?.northUp?.windSpeed || null : null,
-                            index < hourlyData.length - 1 ? hourlyData[index + 1].forecast?.northUp?.windSpeed || null : null,
+                            getWindSpeed(data.forecast),
+                            index > 0 ? getWindSpeed(hourlyData[index - 1].forecast) : null,
+                            index < hourlyData.length - 1 ? getWindSpeed(hourlyData[index + 1].forecast) : null,
                             getWindColor
                         )}">
                             <div class="metric-value">
-                                {data.forecast?.northUp?.windSpeed ? (data.forecast.northUp.windSpeed * 1.94384).toFixed(0) : '--'}kt
-                                {#if data.forecast?.northUp?.windDirection !== undefined}
-                                    <span class="wind-dir" style="transform: rotate({data.forecast.northUp.windDirection + 180}deg)">↑</span>
+                                {getWindSpeed(data.forecast) ? (getWindSpeed(data.forecast) * 1.94384).toFixed(0) : '--'}kt
+                                {#if getWindDirection(data.forecast) !== undefined}
+                                    <span class="wind-dir" style="transform: rotate({getWindDirection(data.forecast) + 180}deg)" title="{getWindDirection(data.forecast).toFixed(0)}°">↑</span>
                                 {/if}
                             </div>
                         </div>
 
                         <div class="gusts-column" style="background: {createGradientBackground(
-                            data.forecast?.northUp?.gustsSpeed || 0,
-                            index > 0 ? hourlyData[index - 1].forecast?.northUp?.gustsSpeed || null : null,
-                            index < hourlyData.length - 1 ? hourlyData[index + 1].forecast?.northUp?.gustsSpeed || null : null,
+                            getGustSpeed(data.forecast),
+                            index > 0 ? getGustSpeed(hourlyData[index - 1].forecast) : null,
+                            index < hourlyData.length - 1 ? getGustSpeed(hourlyData[index + 1].forecast) : null,
                             getWindColor
                         )}">
                             <div class="metric-value gust-value">
-                                {data.forecast?.northUp?.gustsSpeed ? (data.forecast.northUp.gustsSpeed * 1.94384).toFixed(0) : '--'}kt
-                                {#if data.forecast?.northUp?.windDirection !== undefined}
-                                    <span class="wind-dir" style="transform: rotate({data.forecast.northUp.windDirection + 180}deg)">↑</span>
+                                {getGustSpeed(data.forecast) ? (getGustSpeed(data.forecast) * 1.94384).toFixed(0) : '--'}kt
+                                {#if getWindDirection(data.forecast) !== undefined}
+                                    <span class="wind-dir" style="transform: rotate({getWindDirection(data.forecast) + 180}deg)" title="{getWindDirection(data.forecast).toFixed(0)}°">↑</span>
                                 {/if}
                             </div>
                         </div>
@@ -743,8 +785,8 @@
                         )}">
                             <div class="metric-value wave-value">
                                 {data.forecast?.northUp?.wavesHeight?.toFixed(1) || '--'}m
-                                {#if data.forecast?.northUp?.wavesDirection !== undefined}
-                                    <span class="wave-dir" style="transform: rotate({data.forecast.northUp.wavesDirection + 180}deg)">↑</span>
+                                {#if getWaveDirection(data.forecast) !== undefined}
+                                    <span class="wave-dir" style="transform: rotate({getWaveDirection(data.forecast) + 180}deg)" title="{getWaveDirection(data.forecast).toFixed(0)}°">↑</span>
                                 {/if}
                             </div>
                         </div>

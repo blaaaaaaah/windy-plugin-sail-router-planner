@@ -334,11 +334,14 @@ export class WeatherForecastService {
 
 
 	private convertToApparent(northUp: WeatherData, boatSpeed: number, boatCourse: number): WeatherData {
+		// Convert boat speed from knots to m/s for apparent wind calculations
+		const boatSpeedMs = boatSpeed * 0.514444; // 1 knot = 0.514444 m/s
+
 		// Calculate apparent wind
 		const apparentWind = calculateApparentWind(
 			northUp.windSpeed,
 			northUp.windDirection,
-			boatSpeed,
+			boatSpeedMs,
 			boatCourse
 		);
 
@@ -346,15 +349,15 @@ export class WeatherForecastService {
 		const apparentGusts = calculateApparentWind(
 			northUp.gustsSpeed,
 			northUp.gustsDirection,
-			boatSpeed,
+			boatSpeedMs,
 			boatCourse
 		);
 
 		return {
 			windSpeed: apparentWind.speed,
-			windDirection: calculateRelativeDirection(apparentWind.direction, boatCourse),
+			windDirection: apparentWind.direction, // Already boat-relative from calculateApparentWind
 			gustsSpeed: apparentGusts.speed,
-			gustsDirection: calculateRelativeDirection(apparentGusts.direction, boatCourse),
+			gustsDirection: apparentGusts.direction, // Already boat-relative from calculateApparentWind
 			currentSpeed: northUp.currentSpeed,
 			currentDirection: calculateRelativeDirection(northUp.currentDirection, boatCourse),
 			wavesHeight: northUp.wavesHeight,

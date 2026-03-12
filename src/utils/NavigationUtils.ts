@@ -35,15 +35,18 @@ export function calculateCourse(start: LatLng, end: LatLng): number {
  */
 export function calculateApparentWind(
 	trueWindSpeed: number, // m/s from Windy API
-	trueWindDirection: number,
-	boatSpeed: number, // knots
-	boatCourse: number
+	trueWindDirection: number, // degrees - Windy gives wind direction "FROM" (meteorological)
+	boatSpeed: number, // m/s (converted from knots in calling code)
+	boatCourse: number // degrees
 ): { speed: number; direction: number } {
+	// Convert wind direction FROM meteorological (where it's coming from) to mathematical (where it's going to)
+	const windDirectionTo = (trueWindDirection + 180) % 360;
+
 	// Convert degrees to radians
-	const twdRad = (trueWindDirection * Math.PI) / 180;
+	const twdRad = (windDirectionTo * Math.PI) / 180;
 	const courseRad = (boatCourse * Math.PI) / 180;
 
-	// Convert to velocity components (north/east)
+	// Convert to velocity components (north/east) - now using "going TO" direction
 	const trueWindNorth = trueWindSpeed * Math.cos(twdRad);
 	const trueWindEast = trueWindSpeed * Math.sin(twdRad);
 
@@ -67,28 +70,36 @@ export function calculateApparentWind(
 		apparentWindDirection += 360;
 	}
 
+	// Convert back to meteorological direction (where wind is coming FROM) to match true wind format
+	const apparentWindDirectionFrom = (apparentWindDirection + 180) % 360;
+
 	return {
 		speed: apparentWindSpeed,
-		direction: apparentWindDirection
+		direction: apparentWindDirectionFrom
 	};
 }
 
 /**
- * Calculate relative direction from course (for apparent wind display)
+ * Calculate relative direction from course (for both wind and wave display)
+ * Input: direction FROM (meteorological convention)
+ * Output: direction relative to boat heading with front being "up" in display
  */
-export function calculateRelativeDirection(absoluteDirection: number, course: number): number {
-	let relative = absoluteDirection - course;
+export function calculateRelativeDirection(directionFrom: number, boatCourse: number): number {
+	// Convert direction FROM meteorological (where it's coming from) to mathematical (where it's going to)
+	const directionTo = (directionFrom + 180) % 360;
 
-	// Normalize to -180 to 180 range
-	while (relative > 180) {
-		relative -= 360;
-	}
-	while (relative < -180) {
-		relative += 360;
+	// Convert to relative to boat course: direction - boat course
+	let relativeDirection = directionTo - boatCourse;
+
+	// Normalize to 0-359 degrees
+	if (relativeDirection < 0) {
+		relativeDirection += 360;
 	}
 
-	return relative;
+	return relativeDirection;
 }
+
+
 
 /**
  * Interpolate position between two points

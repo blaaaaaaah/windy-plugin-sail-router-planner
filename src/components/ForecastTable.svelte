@@ -470,7 +470,7 @@
                 <div class="time-column">Time</div>
                 <div class="weather-column" on:click={() => onMetricClick('thunder')}>Weather</div>
                 <div class="wind-column" on:click={() => onMetricClick('wind')}>Wind</div>
-                <div class="gusts-column" on:click={() => onMetricClick('windGust')}>Gusts</div>
+                <div class="gusts-column" on:click={() => onMetricClick('gust')}>Gusts</div>
                 <div class="waves-column" on:click={() => onMetricClick('waves')}>Waves</div>
             </div>
 

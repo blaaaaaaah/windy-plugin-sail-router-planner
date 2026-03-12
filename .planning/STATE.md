@@ -7,15 +7,15 @@
 
 ## Current Position
 **Phase**: 2 - Enhanced Forecast & Interaction
-**Plan**: 0 of 1 started (Ready to begin)
-**Status**: Planning Complete
-**Progress**: ███░░░░░░░ 25% (1/4 phases complete, ready for Phase 2)
+**Plan**: 1 of 1 in progress (Route Progress implemented)
+**Status**: In Progress
+**Progress**: █████░░░░░ 40% (1/4 phases complete, Phase 2 progressing)
 
 ## Performance Metrics
 - **Phases Complete**: 1/4
-- **Plans Complete**: 2/2 (Phase 1), 0/1 (Phase 2)
+- **Plans Complete**: 2/2 (Phase 1), 0/1 (Phase 2 in progress)
 - **Requirements Mapped**: 20/20 ✓ (expanded for Phase 2)
-- **Requirements Completed**: 8 (WEATHER-01, WEATHER-02, CALC-01, CALC-02, CALC-03, ROUTE-01, ROUTE-02, ROUTE-03)
+- **Requirements Completed**: 10 (WEATHER-01, WEATHER-02, CALC-01, CALC-02, CALC-03, ROUTE-01, ROUTE-02, ROUTE-03, TIME-02, UI-04)
 - **Active Blockers**: 0
 - **Days Since Last Progress**: 0
 
@@ -24,6 +24,7 @@
 |-------|------|----------|-------|-------|------|
 | 01 | 01 | 45 min | 3+ | 23 | 2026-03-06 |
 | 01 | 02 | 5+ days | 20+ | 15 | 2026-03-07 to 2026-03-11 |
+| 02 | 01 | 2 hours | 2 | 3 | 2026-03-11 |
 
 ## Accumulated Context
 
@@ -46,10 +47,10 @@
 - [x] Investigate @gml/truewind integration within Svelte 5 + TypeScript (✓ Built custom navigation utilities instead)
 - [x] Build route planning user interface (✓ Interactive route editor with Windy-style UI completed)
 
-**Phase 2 Ready to Start:**
+**Phase 2 In Progress:**
 - [ ] **Timeline Scrubbing**: Implement left-side timeline slider for forecast navigation
 - [ ] **Editable Fields**: Make departure time and leg speeds editable with instant updates
-- [ ] **Route Progress**: Show boat position visualization during timeline scrub
+- [x] **Route Progress**: Show boat position visualization during timeline scrub (✓ Pulsating marker with scroll-based hover)
 - [ ] **Wave Period**: Add wave period data to forecast table
 - [ ] **True/Apparent Toggle**: Switch between true and apparent wind data display
 - [ ] **Enhanced Metrics**: Add PredictWind-style sailing statistics (passage time, wind stats)
@@ -75,7 +76,7 @@ None accumulated yet.
 - **Next**: Begin Phase 2 for enhanced features (multi-route, time scrubbing, GPS)
 
 ### Context for Next Session
-**What was accomplished**: Phase 1 is COMPLETE and Phase 2 is PLANNED! Built functional sailing route planner, now ready for enhancements:
+**What was accomplished**: Phase 1 COMPLETE + Phase 2 route progress implemented! Built functional sailing route planner with advanced timeline interaction:
 - ✅ Weather data access via reverse-engineered Windy route planner API with per-leg calls
 - ✅ Precise navigation calculations (course, distance, apparent wind)
 - ✅ Interactive route editor with Windy-style UI
@@ -83,11 +84,13 @@ None accumulated yet.
 - ✅ Route serialization and URL-based sharing
 - ✅ Comprehensive test coverage for weather service
 - ✅ Type-safe development environment with comprehensive domain modeling
-- ✅ Phase 2 planning complete with detailed task breakdown
+- ✅ **Route progress indicator**: Pulsating marker shows boat position during forecast table hover/scroll
+- ✅ **Scroll-based timeline**: Cached row positions enable smooth progress updates during scroll
+- ✅ **Windy integration**: Progress updates sync with Windy's weather layer timestamps
 
-**Why this unlocks progress**: Core sailing route planner works perfectly. Phase 2 plan focuses on timeline interaction, editable fields, enhanced sailing metrics, and comprehensive forecast data.
+**Why this unlocks progress**: Timeline interaction foundation is complete! Users can now see boat position move along route during forecast exploration. Ready for timeline slider component and editable fields.
 
-**What's next**: Implement Phase 2 features - timeline scrubbing, editable departure/speeds, wave period, true/apparent wind toggle, and PredictWind-style sailing statistics.
+**What's next**: Implement timeline slider, editable departure time/speeds, wave period data, true/apparent wind toggle, and enhanced sailing metrics.
 
 ### Assumptions to Validate
 - [x] Windy's plugin API provides sufficient weather data access (similar to Measure&Plan) ✓ VALIDATED
@@ -96,4 +99,4 @@ None accumulated yet.
 - [ ] Windy's existing map and state management can be extended for sailing-specific features
 
 ---
-*Updated: 2026-03-11 - Phase 1 complete, Phase 2 planned and ready for implementation*
+*Updated: 2026-03-11 - Phase 1 complete, Phase 2 route progress indicator implemented*

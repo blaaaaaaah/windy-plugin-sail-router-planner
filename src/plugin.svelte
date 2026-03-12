@@ -48,7 +48,6 @@
 
     // Interactive route editor
     let routeEditor: RouteEditorController | null = null;
-    let currentRoutes: RouteDefinition[] = [];
 
     // Forecast data
     let currentForecast: RouteForecast|null = null;
@@ -99,8 +98,6 @@
 
 
     function onRouteUpdated(route: RouteDefinition) {
-        currentRoutes = routeEditor ? routeEditor.getRoutes() : [];
-
         // Update URL with current route
         const serializedRoute = serializeRoute(route);
         setUrl(config.name, { route: serializedRoute });
@@ -137,15 +134,14 @@
         // Update both Windy's store and RouteEditor for immediate progress updates
         if (timestamp) {
             store.set('timestamp', timestamp);
-            routeEditor.setTimestamp(timestamp);
+            routeEditor?.setTimestamp(timestamp);
         }
     }
 
     function handleMetricClick(event: any) {
         const { metric } = event.detail;
         console.log('Metric clicked:', metric);
-        // TODO: Change Windy layer based on metric
-        // bcast.emit('rqstOpen', 'windy-layer-' + metric);
+        store.set('overlay', metric);
     }
 
     onMount(() => {

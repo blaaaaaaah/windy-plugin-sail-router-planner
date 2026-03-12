@@ -274,6 +274,23 @@
         }
     }
 
+    function handleDepartureTimeUpdate(newDateTimeString: string) {
+        if (newDateTimeString && forecast?.route) {
+            const newDepartureTime = new Date(newDateTimeString).getTime();
+            if (!isNaN(newDepartureTime)) {
+                console.log(`Updated departure time to ${new Date(newDepartureTime)}`);
+
+                // Update the route departure time directly
+                forecast.route.setDepartureTime(newDepartureTime);
+
+                // Dispatch updated route to trigger forecast regeneration
+                dispatch('routeUpdated', {
+                    route: forecast.route
+                });
+            }
+        }
+    }
+
     function getLegData(waypointNumber: number) {
         if (!forecast?.route?.legs || waypointNumber > forecast.route.legs.length) {
             // TODO: Handle missing leg data properly in UI
@@ -472,15 +489,15 @@
 
         if (dragStartIndex !== null && targetIndex !== dragStartIndex) {
             const newStartTime = hourlyData[targetIndex]?.timestamp;
-            if (newStartTime) {
+            if (newStartTime && forecast?.route) {
                 console.log(`Moving route start from ${formatTime(hourlyData[dragStartIndex].timestamp)} to ${formatTime(newStartTime)}`);
 
-                // Dispatch event to update route start time
-                dispatch('routeStartChange', {
-                    oldTime: hourlyData[dragStartIndex].timestamp,
-                    newTime: newStartTime,
-                    fromIndex: dragStartIndex,
-                    toIndex: targetIndex
+                // Update the route departure time directly
+                forecast.route.setDepartureTime(newStartTime);
+
+                // Dispatch updated route to trigger forecast regeneration
+                dispatch('routeUpdated', {
+                    route: forecast.route
                 });
             }
         }
@@ -576,8 +593,8 @@
                                             <div class="leg-stat departure-stat">
                                                 <label>Departure:</label>
                                                 <input type="datetime-local"
-                                                       value={new Date(data.timestamp).toISOString().slice(0, 16)}
-                                                       on:change={(e) => console.log('Date changed:', e.target.value)} />
+                                                       value={new Date(forecast.route.departureTime).toISOString().slice(0, 16)}
+                                                       on:change={(e) => handleDepartureTimeUpdate(e.target.value)} />
                                             </div>
                                         {/if}
                                         {#if getLegData(waypoint.number)}

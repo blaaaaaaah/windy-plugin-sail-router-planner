@@ -51,6 +51,7 @@
 
     let windDetailColor:any = null
     let wavesDetailColor:any = null
+    let wavesPeriodColor:any = null
 
     // Color helper function using windDetail palette
     function getWindColor(windSpeedMs: number): string {
@@ -109,6 +110,35 @@
             }
         }
         return 'rgba(40, 146, 199, 0.1)'; // fallback
+    }
+
+    function getWavePeriodColor(wavePeriodSeconds: number): string {
+        if ( ! wavesPeriodColor ) {
+            try {
+                wavesPeriodColor = new W.Color.Color({
+                    ident: "wavesPeriod",
+                    default: [
+                        [0, "rgba(255,255,255,0)"],
+                        [2, "rgb(151,50,222)"],      // Purple for short periods (2-3s)
+                        [3, "rgb(151,50,222)"],      // Purple for short periods
+                        [5, "rgb(254,174,0)"],       // Orange for medium periods
+                        [7, "rgb(180,180,255)"],     // Blue for long periods (8+s)
+                        [15, "rgb(180,180,255)"]
+                    ]
+                });
+                console.log('wavesPeriodColor created successfully');
+            } catch (error) {
+                console.error('Failed to create wavesPeriod color:', error);
+            }
+        }
+        if (wavesPeriodColor && typeof wavePeriodSeconds === 'number' && !isNaN(wavePeriodSeconds)) {
+            try {
+                return wavesPeriodColor.getColor().color(wavePeriodSeconds);
+            } catch (error) {
+                console.warn('WavesPeriod color failed:', error);
+            }
+        }
+        return 'rgba(120, 120, 255, 0.1)'; // fallback
     }
 
     // Helper function to interpolate between two RGB colors
@@ -472,6 +502,7 @@
                 <div class="wind-column" on:click={() => onMetricClick('wind')}>Wind</div>
                 <div class="gusts-column" on:click={() => onMetricClick('gust')}>Gusts</div>
                 <div class="waves-column" on:click={() => onMetricClick('waves')}>Waves</div>
+                <div class="period-column" on:click={() => onMetricClick('waves')}>Period</div>
             </div>
 
             <!-- Vertical Data List -->
@@ -650,6 +681,17 @@
                             </div>
                         </div>
 
+                        <div class="period-column" style="background: {createGradientBackground(
+                            data.forecast?.northUp?.wavesPeriod || 0,
+                            index > 0 ? hourlyData[index - 1].forecast?.northUp?.wavesPeriod || null : null,
+                            index < hourlyData.length - 1 ? hourlyData[index + 1].forecast?.northUp?.wavesPeriod || null : null,
+                            getWavePeriodColor
+                        )}">
+                            <div class="metric-value period-value">
+                                {data.forecast?.northUp?.wavesPeriod?.toFixed(1) || '--'}s
+                            </div>
+                        </div>
+
                     </div>
                     {/each}
                     </div>
@@ -725,7 +767,7 @@
 
         .time-column {
             width: 52px;
-            margin-right: 9px;
+            //margin-right: 9px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -753,9 +795,10 @@
 
         .wind-column,
         .gusts-column,
-        .waves-column {
+        .waves-column,
+        .period-column {
             width: 60px;
-            margin-right: 12px;
+            //margin-right: 12px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -823,7 +866,7 @@
 
     .forecast-item .time-column {
         width: 52px;
-        margin-right: 9px;
+        //margin-right: 9px;
         flex-shrink: 0;
         position: relative;
 
@@ -1074,9 +1117,10 @@
 
     .forecast-item .wind-column,
     .forecast-item .waves-column,
-    .forecast-item .gusts-column {
+    .forecast-item .gusts-column,
+    .forecast-item .period-column {
         width: 60px;
-        margin-right: 12px;
+        //margin-right: 12px;
         padding: 6px;
         flex-shrink: 0;
         display: flex;

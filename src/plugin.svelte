@@ -17,6 +17,7 @@
             isLoading={isLoadingForecast}
             on:timeHover={handleTimeHover}
             on:metricClick={handleMetricClick}
+            on:routeUpdated={handleRouteUpdated}
         />
     {:else}
         <div class="forecast-placeholder">
@@ -93,7 +94,7 @@
                 routeEditor.loadRoute(route);
                 console.log('Loaded route from URL');
             }
-        }
+        } 
     };
 
 
@@ -144,6 +145,11 @@
         store.set('overlay', metric);
     }
 
+    function handleRouteUpdated(event: any) {
+        const { route } = event.detail;
+        onRouteUpdated(route);
+    }
+
     onMount(() => {
         routeEditor = new RouteEditorController(map, onRouteUpdated);
 
@@ -159,6 +165,17 @@
     onDestroy(() => {
         // Clean up singleclick listener
         singleclick.off(config.name, handleMapClick);
+
+        // Clean up route editor and all map layers/markers
+        if (routeEditor) {
+            routeEditor.destroy();
+            routeEditor = null;
+        }
+
+        // Clear forecast data
+        currentForecast = null;
+
+        console.log('Plugin destroyed and cleaned up');
     });
 
 </script>

@@ -66,6 +66,21 @@ export class RouteEditorController {
 		// Keep _currentTimestamp - user might want to see progress again
 	}
 
+	destroy(): void {
+		// Remove all routes from map
+		this._routes.forEach(route => this._removeRouteFromMap(route));
+
+		// Clear all data structures
+		this._routes = [];
+		this._activeRoute = null;
+		this._routeLayers.clear();
+		this._waypointMarkers.clear();
+		this._progressMarkers.clear();
+		this._currentTimestamp = null;
+
+		console.log('RouteEditorController destroyed and cleaned up');
+	}
+
 	loadRoute(route: RouteDefinition): void {
 		// Assign a color if not already set
 		if (!route.color) {

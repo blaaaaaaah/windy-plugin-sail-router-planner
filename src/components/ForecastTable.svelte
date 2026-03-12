@@ -1157,18 +1157,21 @@
                 display: flex;
                 align-items: center;
                 gap: 4px;
+                height: 12px; /* Match the line-height of .value elements */
             }
 
             .compact-input {
                 width: 45px;
-                padding: 4px 6px;
+                padding: 0 6px;
                 border: 1px solid #ddd;
                 border-radius: 3px;
-                font-size: 12px;
+                font-size: 10px;
                 font-weight: 600;
                 text-align: center;
                 background: white;
                 color: #333 !important;
+                height: 14px; /* Match the height of .value text */
+                line-height: 16px;
 
                 &:focus {
                     outline: none;

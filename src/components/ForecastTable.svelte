@@ -758,7 +758,26 @@
                             <div class="metric-value">
                                 {getWindSpeed(data.forecast) ? (getWindSpeed(data.forecast) * 1.94384).toFixed(0) : '--'}kt
                                 {#if getWindDirection(data.forecast) !== undefined}
-                                    <span class="wind-dir" style="transform: rotate({getWindDirection(data.forecast) + 180}deg)" title="{getWindDirection(data.forecast).toFixed(0)}°">↑</span>
+                                    <div class="direction-container">
+                                        <svg class="wind-dir" width="20" height="27" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
+                                            <title>{getWindDirection(data.forecast)?.toFixed(0) || 'N/A'}°</title>
+                                            <!-- Arrow shaft -->
+                                            <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
+                                            <!-- Arrow head -->
+                                            <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
+                                        </svg>
+                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({(showTrueWind ? (forecast?.route?.legs?.[0]?.course || 0) : 270)}deg)">
+                                            <path d="
+                                                M35 150
+                                                L65 150
+                                                Q70 100 50 50
+                                                Q30 100 35 150
+                                                Z"
+                                                fill="white"
+                                                stroke="gray"
+                                                stroke-width="4"/>
+                                        </svg>
+                                    </div>
                                 {/if}
                             </div>
                         </div>
@@ -772,7 +791,26 @@
                             <div class="metric-value gust-value">
                                 {getGustSpeed(data.forecast) ? (getGustSpeed(data.forecast) * 1.94384).toFixed(0) : '--'}kt
                                 {#if getWindDirection(data.forecast) !== undefined}
-                                    <span class="wind-dir" style="transform: rotate({getWindDirection(data.forecast) + 180}deg)" title="{getWindDirection(data.forecast).toFixed(0)}°">↑</span>
+                                    <div class="direction-container">
+                                        <svg class="wind-dir" width="20" height="27" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
+                                            <title>{getWindDirection(data.forecast)?.toFixed(0) || 'N/A'}°</title>
+                                            <!-- Arrow shaft -->
+                                            <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
+                                            <!-- Arrow head -->
+                                            <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
+                                        </svg>
+                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({(showTrueWind ? (forecast?.route?.legs?.[0]?.course || 0) : 270)}deg)">
+                                            <path d="
+                                                M35 150
+                                                L65 150
+                                                Q70 100 50 50
+                                                Q30 100 35 150
+                                                Z"
+                                                fill="white"
+                                                stroke="gray"
+                                                stroke-width="4"/>
+                                        </svg>
+                                    </div>
                                 {/if}
                             </div>
                         </div>
@@ -786,7 +824,26 @@
                             <div class="metric-value wave-value">
                                 {data.forecast?.northUp?.wavesHeight?.toFixed(1) || '--'}m
                                 {#if getWaveDirection(data.forecast) !== undefined}
-                                    <span class="wave-dir" style="transform: rotate({getWaveDirection(data.forecast) + 180}deg)" title="{getWaveDirection(data.forecast).toFixed(0)}°">↑</span>
+                                    <div class="direction-container">
+                                        <svg class="wave-dir" width="20" height="27" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWaveDirection(data.forecast) + 180}deg)">
+                                            <title>{getWaveDirection(data.forecast)?.toFixed(0) || 'N/A'}°</title>
+                                            <!-- Arrow shaft -->
+                                            <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
+                                            <!-- Arrow head -->
+                                            <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
+                                        </svg>
+                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({(showTrueWind ? (forecast?.route?.legs?.[0]?.course || 0) : 270)}deg)">
+                                            <path d="
+                                                M35 150
+                                                L65 150
+                                                Q70 100 50 50
+                                                Q30 100 35 150
+                                                Z"
+                                                fill="white"
+                                                stroke="gray"
+                                                stroke-width="4"/>
+                                        </svg>
+                                    </div>
                                 {/if}
                             </div>
                         </div>
@@ -1352,12 +1409,33 @@
         }
     }
 
+    .direction-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+    }
+
     .wind-dir, .wave-dir {
-        display: inline-block;
-        font-size: 16px;
-        color: #007cba;
+        position: absolute;
+        top: 50%;
+        left: 50%;
         transform-origin: center;
+        transform: translate(-50%, -50%) rotate(0deg);
         transition: transform 0.3s ease;
+        z-index: 2;
+    }
+
+    .boat-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform-origin: center;
+        transform: translate(-50%, -50%) rotate(0deg);
+        transition: transform 0.3s ease;
+        z-index: 1;
     }
 
 

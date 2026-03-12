@@ -151,6 +151,9 @@
     }
 
     onMount(() => {
+        // Clean up any orphaned markers from previous plugin instances (Windy bug workaround)
+        RouteEditorController.cleanupOrphanedMarkers(map);
+
         routeEditor = new RouteEditorController(map, onRouteUpdated);
 
         singleclick.on(config.name, handleMapClick);

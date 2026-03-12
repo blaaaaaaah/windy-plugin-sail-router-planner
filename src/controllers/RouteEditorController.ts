@@ -9,8 +9,6 @@ export class RouteEditorController {
 	private _map: L.Map;
 	private _onRouteUpdated: (route: RouteDefinition) => void;
 
-	// Plugin identifier for cleanup
-	private static readonly PLUGIN_ID = 'windy-plugin-sail-router-planner';
 
 	// Map layer management
 	private _routeLayers = new Map<string, L.Polyline>();
@@ -84,25 +82,6 @@ export class RouteEditorController {
 		console.log('RouteEditorController destroyed and cleaned up');
 	}
 
-	// Static method to clean up any orphaned markers from previous instances
-	static cleanupOrphanedMarkers(map: L.Map): void {
-		let removedCount = 0;
-		map.eachLayer((layer: any) => {
-			// Check for our waypoint markers
-			if (layer instanceof L.Marker && layer.options.pluginId === RouteEditorController.PLUGIN_ID) {
-				map.removeLayer(layer);
-				removedCount++;
-			}
-			// Check for our polylines
-			else if (layer instanceof L.Polyline && layer.options.pluginId === RouteEditorController.PLUGIN_ID) {
-				map.removeLayer(layer);
-				removedCount++;
-			}
-		});
-		if (removedCount > 0) {
-			console.log(`Cleaned up ${removedCount} orphaned markers/layers from previous plugin instances`);
-		}
-	}
 
 	loadRoute(route: RouteDefinition): void {
 		// Assign a color if not already set
@@ -174,8 +153,7 @@ export class RouteEditorController {
 			const polyline = L.polyline(waypoints, {
 				color: route.color,
 				weight: this._activeRoute?.id === route.id ? 4 : 2,
-				opacity: 0.8,
-				pluginId: RouteEditorController.PLUGIN_ID // Add our plugin identifier
+				opacity: 0.8
 			});
 
 			polyline.addTo(this._map);
@@ -206,8 +184,7 @@ export class RouteEditorController {
 
 		const marker = L.marker(position, {
 			draggable: true,
-			icon: this._createWindyStyleIcon(waypointNumber, route.color),
-			pluginId: RouteEditorController.PLUGIN_ID // Add our plugin identifier
+			icon: this._createWindyStyleIcon(waypointNumber, route.color)
 		});
 
 		// Handle drag events
@@ -340,8 +317,7 @@ export class RouteEditorController {
 			// Create new pulsating marker at calculated position with high z-index
 			const progressMarker = new L.Marker(position, {
 				icon: markers.pulsatingIcon,
-				zIndexOffset: 1000,  // Ensure it appears above waypoint markers
-				pluginId: RouteEditorController.PLUGIN_ID // Add our plugin identifier
+				zIndexOffset: 1000  // Ensure it appears above waypoint markers
 			}).addTo(this._map);
 
 			this._progressMarkers.set(route.id, progressMarker);

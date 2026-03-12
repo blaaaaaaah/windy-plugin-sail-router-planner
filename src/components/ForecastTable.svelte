@@ -260,13 +260,16 @@
 
     function handleAverageSpeedUpdate(waypointNumber: number, newSpeed: string) {
         const speed = parseFloat(newSpeed);
-        if (!isNaN(speed) && speed > 0) {
+        if (!isNaN(speed) && speed > 0 && forecast?.route) {
             console.log(`Updated leg ${waypointNumber} average speed to ${speed}kts`);
 
-            // Dispatch event to notify parent component of leg speed change
-            dispatch('legSpeedChange', {
-                legNumber: waypointNumber,
-                newAverageSpeed: speed
+            // Update the route leg speed directly
+            const legIndex = waypointNumber - 1; // Convert to 0-based index
+            forecast.route.setLegSpeed(legIndex, speed);
+
+            // Dispatch updated route to trigger forecast regeneration
+            dispatch('routeUpdated', {
+                route: forecast.route
             });
         }
     }
@@ -283,10 +286,14 @@
             return null;
         }
 
-        // Mock weather data for now - TODO: Calculate from weather service
+        // Mock weather data for now - TODO: Calculate from actual weather service data
         const mockWeatherStats = {
-            avgWindSpeed: 12 + Math.random() * 8, // 12-20 kts
-            maxGust: 18 + Math.random() * 12      // 18-30 kts
+            minWindSpeed: 8 + Math.random() * 4,   // 8-12 kts
+            avgWindSpeed: 12 + Math.random() * 8,  // 12-20 kts
+            maxWindSpeed: 16 + Math.random() * 12, // 16-28 kts
+            minGust: 10 + Math.random() * 6,       // 10-16 kts
+            avgGust: 15 + Math.random() * 10,      // 15-25 kts
+            maxGust: 18 + Math.random() * 12       // 18-30 kts
         };
 
         // Format leg time (duration is in milliseconds)
@@ -297,7 +304,11 @@
 
         return {
             averageSpeed: leg.averageSpeed,
+            minWindSpeed: Math.round(mockWeatherStats.minWindSpeed),
             avgWindSpeed: Math.round(mockWeatherStats.avgWindSpeed),
+            maxWindSpeed: Math.round(mockWeatherStats.maxWindSpeed),
+            minGust: Math.round(mockWeatherStats.minGust),
+            avgGust: Math.round(mockWeatherStats.avgGust),
             maxGust: Math.round(mockWeatherStats.maxGust),
             legTime: legTime,
             distance: `${leg.distance.toFixed(1)}nm`
@@ -519,10 +530,11 @@
                                  class:dragging={isDragging && dragStartIndex === index && waypoint.isStart}
                                  class:waypoint-row={!waypoint.isStart}
                                  class:expanded={expandedWaypoints.has(waypoint.number)}
+                                 class:destination-waypoint={waypoint.number === forecast.route.waypoints.length}
                                  draggable={waypoint.isStart ? "true" : "false"}
                                  on:dragstart={waypoint.isStart ? (e) => handleDragStart(e, index) : undefined}
                                  on:dragend={waypoint.isStart ? () => handleDragEnd() : undefined}
-                                 on:click={() => toggleWaypointExpansion(waypoint.number)}>
+                                 on:click={waypoint.number < forecast.route.waypoints.length ? () => toggleWaypointExpansion(waypoint.number) : undefined}>
                                 <div class="start-beanie-content">
                                     <div class="waypoint-number">{waypoint.number}</div>
                                     <div class="waypoint-info">
@@ -549,16 +561,19 @@
                                             {/if}
                                         {/if}
                                     </div>
-                                    <div class="expand-chevron" class:rotated={expandedWaypoints.has(waypoint.number)}>∨</div>
+                                    <!-- Only show expand chevron for non-destination waypoints -->
+                                    {#if waypoint.number < forecast.route.waypoints.length}
+                                        <div class="expand-chevron" class:rotated={expandedWaypoints.has(waypoint.number)}>∨</div>
+                                    {/if}
                                 </div>
                             </div>
 
-                            <!-- Expanded content -->
-                            {#if expandedWaypoints.has(waypoint.number)}
+                            <!-- Expanded content - only for non-destination waypoints -->
+                            {#if expandedWaypoints.has(waypoint.number) && waypoint.number < forecast.route.waypoints.length}
                                 <div class="waypoint-expanded">
                                     <div class="expanded-content">
                                         {#if waypoint.number === 1}
-                                            <div class="leg-stat">
+                                            <div class="leg-stat departure-stat">
                                                 <label>Departure:</label>
                                                 <input type="datetime-local"
                                                        value={new Date(data.timestamp).toISOString().slice(0, 16)}
@@ -566,34 +581,60 @@
                                             </div>
                                         {/if}
                                         {#if getLegData(waypoint.number)}
-                                            <div class="leg-stat">
-                                                <label>Avg Speed:</label>
-                                                <input type="number"
-                                                       value={getLegData(waypoint.number).averageSpeed}
-                                                       min="0.5" max="50" step="0.5"
-                                                       on:change={(e) => handleAverageSpeedUpdate(waypoint.number, e.target.value)} />
-                                                <span class="unit">kts</span>
+                                            {@const legData = getLegData(waypoint.number)}
+                                            <!-- Row 1: Speed, Distance, Time -->
+                                            <div class="leg-row">
+                                                <div class="leg-item speed-input">
+                                                    <label>AVG SPEED</label>
+                                                    <div class="input-group">
+                                                        <input type="number"
+                                                               class="compact-input"
+                                                               value={legData.averageSpeed}
+                                                               min="0.5" max="50" step="0.5"
+                                                               on:change={(e) => handleAverageSpeedUpdate(waypoint.number, e.target.value)} />
+                                                        <span class="unit">kts</span>
+                                                    </div>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>DISTANCE</label>
+                                                    <span class="value">{legData.distance}</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>LEG TIME</label>
+                                                    <span class="value">{legData.legTime}</span>
+                                                </div>
                                             </div>
-                                            <div class="leg-stat readonly">
-                                                <label>Avg Wind:</label>
-                                                <span>{getLegData(waypoint.number).avgWindSpeed}kts</span>
+
+                                            <!-- Row 2: Wind Statistics -->
+                                            <div class="leg-row">
+                                                <div class="leg-item">
+                                                    <label>MIN WIND</label>
+                                                    <span class="value">{legData.minWindSpeed}kts</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>AVG WIND</label>
+                                                    <span class="value">{legData.avgWindSpeed}kts</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>MAX WIND</label>
+                                                    <span class="value">{legData.maxWindSpeed}kts</span>
+                                                </div>
                                             </div>
-                                            <div class="leg-stat readonly">
-                                                <label>Max Gust:</label>
-                                                <span>{getLegData(waypoint.number).maxGust}kts</span>
-                                            </div>
-                                            <div class="leg-stat readonly">
-                                                <label>Leg Time:</label>
-                                                <span>{getLegData(waypoint.number).legTime}</span>
-                                            </div>
-                                            <div class="leg-stat readonly">
-                                                <label>Distance:</label>
-                                                <span>{getLegData(waypoint.number).distance}</span>
-                                            </div>
-                                        {:else}
-                                            <div class="leg-stat readonly">
-                                                <label>No leg data available</label>
-                                                <span>--</span>
+
+                                            <!-- Row 3: Gust Statistics -->
+                                            <div class="leg-row">
+                                                <div class="leg-item">
+                                                    <label>MIN GUST</label>
+                                                    <span class="value">{legData.minGust}kts</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>AVG GUST</label>
+                                                    <span class="value">{legData.avgGust}kts</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>MAX GUST</label>
+                                                    <span class="value">{legData.maxGust}kts</span>
+                                                </div>
                                             </div>
                                         {/if}
                                     </div>
@@ -920,6 +961,14 @@
             }
         }
 
+        &.destination-waypoint {
+            cursor: default;
+
+            &:hover {
+                background: rgba(var(--route-color-rgb), 0.8); // Keep original background
+            }
+        }
+
 
         .start-beanie-content {
             display: flex;
@@ -1032,16 +1081,86 @@
     .waypoint-expanded {
         background: rgba(var(--route-color-rgb), 0.08);
         border-left: 4px solid var(--route-color);
+        border-bottom: 1px solid var(--route-color);
         padding: 12px 16px;
         margin: 0;
         overflow: hidden;
         transition: max-height 0.3s ease-out, padding 0.3s ease-out;
 
         .expanded-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px 20px;
-            align-items: start;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .leg-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-end;
+            margin-bottom: 12px;
+        }
+
+        .leg-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+
+            label {
+                font-weight: 600;
+                color: #444 !important;
+                font-size: 9px;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                text-align: center;
+            }
+
+            .value {
+                color: #555 !important;
+                font-size: 12px;
+                font-weight: 600;
+                text-align: center;
+            }
+        }
+
+        .leg-item.speed-input {
+            .input-group {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+
+            .compact-input {
+                width: 45px;
+                padding: 4px 6px;
+                border: 1px solid #ddd;
+                border-radius: 3px;
+                font-size: 12px;
+                font-weight: 600;
+                text-align: center;
+                background: white;
+                color: #333 !important;
+
+                &:focus {
+                    outline: none;
+                    border-color: var(--route-color);
+                    box-shadow: 0 0 0 2px rgba(var(--route-color-rgb), 0.2);
+                }
+            }
+
+            .unit {
+                font-size: 10px;
+                color: #666 !important;
+                font-weight: 500;
+            }
+        }
+
+        .departure-stat {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(var(--route-color-rgb), 0.2);
         }
 
         .leg-stat {

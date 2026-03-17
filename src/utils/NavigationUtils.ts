@@ -65,17 +65,21 @@ export function calculateApparentWind(
 
 	let apparentWindDirection = Math.atan2(apparentWindEast, apparentWindNorth) * 180 / Math.PI;
 
-	// Normalize to 0-359 degrees
-	if (apparentWindDirection < 0) {
-		apparentWindDirection += 360;
-	}
+	// Calculate relative to boat heading: boat course - apparent wind direction
+	// This gives us: negative = port side, positive = starboard side
+	let relativeWindAngle = boatCourse - apparentWindDirection;
 
-	// Convert back to meteorological direction (where wind is coming FROM) to match true wind format
-	const apparentWindDirectionFrom = (apparentWindDirection + 180) % 360;
+	// Normalize to -179 to 180 range
+	while (relativeWindAngle > 180) {
+		relativeWindAngle -= 360;
+	}
+	while (relativeWindAngle <= -180) {
+		relativeWindAngle += 360;
+	}
 
 	return {
 		speed: apparentWindSpeed,
-		direction: apparentWindDirectionFrom
+		direction: relativeWindAngle // Now returns relative angle (-179 to 180)
 	};
 }
 

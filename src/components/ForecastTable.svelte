@@ -400,9 +400,46 @@
         if (showTrueWind) {
             return forecastData?.northUp?.windDirection;
         } else {
-            return forecastData?.apparent?.windDirection + 90 % 360;
+            // Apparent wind direction is already relative to boat (-179 to 180)
+            // Convert to 0-360 for arrow rotation
+            const apparentAngle = forecastData?.apparent?.windDirection;
+            if (apparentAngle === undefined) return undefined;
+            return apparentAngle < 0 ? apparentAngle + 360 : apparentAngle;
         }
     }
+
+    function getWindDirectionForTooltip(forecastData: any): string {
+        if (showTrueWind) {
+            const dir = forecastData?.northUp?.windDirection;
+            return dir !== undefined ? `${dir.toFixed(0)}°` : 'N/A°';
+        } else {
+            // Apparent wind: show as Port/Starboard
+            const apparentAngle = forecastData?.apparent?.windDirection;
+            if (apparentAngle === undefined) return 'N/A°';
+
+            if (apparentAngle === 180 || apparentAngle === -180) {
+                return '180°';
+            } else if (apparentAngle > 0) {
+                return `${apparentAngle.toFixed(0)}S`;
+            } else {
+                return `${Math.abs(apparentAngle).toFixed(0)}P`;
+            }
+        }
+    }
+
+    // Reactive boat rotation based on showTrueWind
+    $: boatRotation = (() => {
+        console.log('getBoatRotation: showTrueWind =', showTrueWind);
+        if (showTrueWind) {
+            const course = forecast?.route?.legs?.[0]?.course || 0;
+            console.log('getBoatRotation: true wind mode, course =', course);
+            return course;
+        } else {
+            console.log('getBoatRotation: apparent wind mode, returning 0');
+            // For apparent wind, boat should face up (0 degrees)
+            return 0;
+        }
+    })();
 
     function getGustSpeed(forecastData: any): number {
         if (showTrueWind) {
@@ -416,7 +453,34 @@
         if (showTrueWind) {
             return forecastData?.northUp?.wavesDirection;
         } else {
-            return forecastData?.apparent?.wavesDirection + 90 % 360;
+            // For apparent wind mode, waves still use true direction relative to boat
+            const waveDir = forecastData?.northUp?.wavesDirection;
+            const boatCourse = forecast?.route?.legs?.[0]?.course || 0;
+            if (waveDir === undefined) return undefined;
+
+            // Calculate relative to boat
+            let relative = waveDir - boatCourse;
+            while (relative > 180) relative -= 360;
+            while (relative <= -180) relative += 360;
+            return relative < 0 ? relative + 360 : relative;
+        }
+    }
+
+    function getWaveDirectionForTooltip(forecastData: any): string {
+        if (showTrueWind) {
+            const dir = forecastData?.northUp?.wavesDirection;
+            return dir !== undefined ? `${dir.toFixed(0)}°` : 'N/A°';
+        } else {
+            // In apparent mode, show wave direction relative to boat
+            const waveDir = forecastData?.northUp?.wavesDirection;
+            const boatCourse = forecast?.route?.legs?.[0]?.course || 0;
+            if (waveDir === undefined) return 'N/A°';
+
+            let relative = waveDir - boatCourse;
+            while (relative > 180) relative -= 360;
+            while (relative <= -180) relative += 360;
+
+            return `${Math.abs(relative).toFixed(0)}° ${relative >= 0 ? 'S' : 'P'}`;
         }
     }
 
@@ -759,14 +823,14 @@
                                 {getWindSpeed(data.forecast) ? (getWindSpeed(data.forecast) * 1.94384).toFixed(0) : '--'}kt
                                 {#if getWindDirection(data.forecast) !== undefined}
                                     <div class="direction-container">
-                                        <svg class="wind-dir" width="20" height="27" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
-                                            <title>{getWindDirection(data.forecast)?.toFixed(0) || 'N/A'}°</title>
+                                        <svg class="wind-dir" width="18" height="24" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
+                                            <title>{getWindDirectionForTooltip(data.forecast)}</title>
                                             <!-- Arrow shaft -->
                                             <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
                                             <!-- Arrow head -->
                                             <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
                                         </svg>
-                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({(showTrueWind ? (forecast?.route?.legs?.[0]?.course || 0) : 270)}deg)">
+                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
                                             <path d="
                                                 M35 150
                                                 L65 150
@@ -792,14 +856,14 @@
                                 {getGustSpeed(data.forecast) ? (getGustSpeed(data.forecast) * 1.94384).toFixed(0) : '--'}kt
                                 {#if getWindDirection(data.forecast) !== undefined}
                                     <div class="direction-container">
-                                        <svg class="wind-dir" width="20" height="27" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
-                                            <title>{getWindDirection(data.forecast)?.toFixed(0) || 'N/A'}°</title>
+                                        <svg class="wind-dir" width="18" height="24" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
+                                            <title>{getWindDirectionForTooltip(data.forecast)}</title>
                                             <!-- Arrow shaft -->
                                             <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
                                             <!-- Arrow head -->
                                             <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
                                         </svg>
-                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({(showTrueWind ? (forecast?.route?.legs?.[0]?.course || 0) : 270)}deg)">
+                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
                                             <path d="
                                                 M35 150
                                                 L65 150
@@ -825,14 +889,14 @@
                                 {data.forecast?.northUp?.wavesHeight?.toFixed(1) || '--'}m
                                 {#if getWaveDirection(data.forecast) !== undefined}
                                     <div class="direction-container">
-                                        <svg class="wave-dir" width="20" height="27" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWaveDirection(data.forecast) + 180}deg)">
-                                            <title>{getWaveDirection(data.forecast)?.toFixed(0) || 'N/A'}°</title>
+                                        <svg class="wave-dir" width="18" height="24" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWaveDirection(data.forecast) + 180}deg)">
+                                            <title>{getWaveDirectionForTooltip(data.forecast)}</title>
                                             <!-- Arrow shaft -->
                                             <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
                                             <!-- Arrow head -->
                                             <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
                                         </svg>
-                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({(showTrueWind ? (forecast?.route?.legs?.[0]?.course || 0) : 270)}deg)">
+                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
                                             <path d="
                                                 M35 150
                                                 L65 150
@@ -1384,7 +1448,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 3px;
             text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
             position: relative;
             z-index: 1;
@@ -1414,8 +1478,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 24px;
-        height: 24px;
+        width: 20px;
+        height: 20px;
     }
 
     .wind-dir, .wave-dir {

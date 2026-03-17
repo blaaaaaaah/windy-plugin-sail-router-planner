@@ -63,11 +63,15 @@ export function calculateApparentWind(
 		apparentWindNorth * apparentWindNorth + apparentWindEast * apparentWindEast
 	);
 
+	// Calculate the apparent wind direction (where it's coming FROM)
 	let apparentWindDirection = Math.atan2(apparentWindEast, apparentWindNorth) * 180 / Math.PI;
 
-	// Calculate relative to boat heading: boat course - apparent wind direction
-	// This gives us: negative = port side, positive = starboard side
-	let relativeWindAngle = boatCourse - apparentWindDirection;
+	// Convert to direction wind is coming FROM (add 180)
+	apparentWindDirection = (apparentWindDirection + 180) % 360;
+
+	// Calculate relative to boat heading: apparent wind direction - boat course
+	// This gives us relative bearing where negative = port side, positive = starboard side
+	let relativeWindAngle = apparentWindDirection - boatCourse;
 
 	// Normalize to -179 to 180 range
 	while (relativeWindAngle > 180) {

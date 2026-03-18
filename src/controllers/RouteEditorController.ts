@@ -27,6 +27,9 @@ export class RouteEditorController {
 	) {
 		this._map = map;
 		this._onRouteUpdated = onRouteUpdated;
+
+		// Listen for zoom changes to update distance label sizes
+		this._map.on('zoomend', this._onZoomChange.bind(this));
 	}
 
 	// Public API
@@ -69,6 +72,9 @@ export class RouteEditorController {
 	}
 
 	destroy(): void {
+		// Remove zoom event listener
+		this._map.off('zoomend', this._onZoomChange.bind(this));
+
 		// Remove all routes from map
 		this._routes.forEach(route => this._removeRouteFromMap(route));
 
@@ -206,8 +212,10 @@ export class RouteEditorController {
 
 				// Create distance label marker positioned at midpoint with CSS offset
 				const label = this._createDistanceLabel(midpoint, distanceText, route.color, leg.startPoint, leg.endPoint);
-				label.addTo(this._map);
-				labels.push(label);
+				if (label) {
+					label.addTo(this._map);
+					labels.push(label);
+				}
 			});
 
 			this._distanceLabels.set(route.id, labels);
@@ -265,7 +273,27 @@ export class RouteEditorController {
 		return marker;
 	}
 
-	private _createDistanceLabel(position: LatLng, distanceText: string, routeColor: string, startPoint: LatLng, endPoint: LatLng): L.Marker {
+	private _createDistanceLabel(position: LatLng, distanceText: string, routeColor: string, startPoint: LatLng, endPoint: LatLng): L.Marker | null {
+		// Calculate zoom-dependent font size with more aggressive scaling
+		const currentZoom = this._map.getZoom();
+		const baseFontSize = 13; // Smaller base font size
+		const baseZoom = 8;
+		const minFontSize = 6;
+		const maxFontSize = 16;
+		const fontSize = Math.max(minFontSize, Math.min(maxFontSize, baseFontSize + (currentZoom - baseZoom) * 1.5));
+
+		// Calculate route segment length in pixels to determine if label fits
+		const startPixel = this._map.latLngToContainerPoint(startPoint);
+		const endPixel = this._map.latLngToContainerPoint(endPoint);
+		const segmentLengthPixels = startPixel.distanceTo(endPixel);
+
+		// Estimate required space for text
+		const estimatedTextWidth = distanceText.length * (fontSize * 0.6);
+
+		// Hide label only if there's not enough space to fit the text
+		if (segmentLengthPixels < 50 || estimatedTextWidth > segmentLengthPixels * 0.5) {
+			return null; // Don't create label
+		}
 		// Calculate the bearing/angle of the line for proper geographic rotation
 		const lat1 = startPoint.lat * Math.PI / 180;
 		const lat2 = endPoint.lat * Math.PI / 180;
@@ -290,12 +318,12 @@ export class RouteEditorController {
 
 		const labelHtml = `
 			<div class="route-distance-label" style="transform: rotate(${angle}deg) translate(${offsetX}px, ${offsetY}px);">
-				<span class="distance-text">${distanceText}</span>
+				<span class="distance-text" style="font-size: ${fontSize}px;">${distanceText}</span>
 			</div>
 		`;
 
-		// Estimate text width for better centering
-		const estimatedWidth = distanceText.length * 6;
+		// Estimate text width for better centering based on font size
+		const estimatedWidth = distanceText.length * (fontSize * 0.6);
 
 		return L.marker(position, {
 			icon: L.divIcon({
@@ -427,5 +455,12 @@ export class RouteEditorController {
 			this._map.removeLayer(existingMarker);
 			this._progressMarkers.delete(route.id);
 		}
+	}
+
+	private _onZoomChange(): void {
+		// Update all distance labels with new font sizes
+		this._routes.forEach(route => {
+			this._updateDistanceLabels(route);
+		});
 	}
 }

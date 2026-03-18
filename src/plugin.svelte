@@ -88,7 +88,21 @@
     let showTrueWind: boolean = true;
 
     function setShowTrueWind(value: boolean) {
+        console.log('setShowTrueWind called with:', value);
         showTrueWind = value;
+
+        // Update URL to persist wind mode
+        const activeRoute = routeEditor?.getActiveRoute();
+        console.log('activeRoute:', activeRoute ? 'exists' : 'null');
+
+        if (activeRoute) {
+            const serializedRoute = serializeRoute(activeRoute, value);
+            console.log('Updating URL with route + wind mode');
+            setUrl(config.name, { route: serializedRoute });
+        } else {
+            // If no route, create minimal route with just wind mode
+            console.log('No active route, cannot save wind mode to URL');
+        }
     }
 
     // Generate forecast from route using WeatherForecastService
@@ -120,20 +134,24 @@
     export const onopen = (params: any) => {
         console.log('=== PLUGIN ONOPEN ===', params);
 
-        // Load route from URL if available
+        // Load route and wind mode from URL if available
         if (params?.route) {
-            const route = deserializeRoute(params.route);
-            if (route && routeEditor) {
-                routeEditor.loadRoute(route);
+            const result = deserializeRoute(params.route);
+            if (result?.route && routeEditor) {
+                routeEditor.loadRoute(result.route);
                 console.log('Loaded route from URL');
+
+                // Set wind mode from deserialization
+                showTrueWind = result.windMode;
+                console.log('Loaded wind mode from route:', showTrueWind ? 'True Wind' : 'Apparent Wind');
             }
-        } 
+        }
     };
 
 
     function onRouteUpdated(route: RouteDefinition) {
-        // Update URL with current route
-        const serializedRoute = serializeRoute(route);
+        // Update URL with current route and wind mode
+        const serializedRoute = serializeRoute(route, showTrueWind);
         setUrl(config.name, { route: serializedRoute });
 
         logWindyRPlannerRoute(route);

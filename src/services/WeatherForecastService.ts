@@ -276,8 +276,7 @@ export class WeatherForecastService {
 		// Don't filter here - let consolidation handle the hourly filtering
 		for (let i = 0; i < apiResponse.timestamps.length; i++) {
 			const timestamp = apiResponse.timestamps[i];
-			console.log(`Processing timestamp ${i}: ${new Date(timestamp).toISOString()}`);
-
+	
 			// Interpolate position using distances and leg bounds
 			const point = this.interpolateLegPosition(leg, apiResponse.distances[i]);
 

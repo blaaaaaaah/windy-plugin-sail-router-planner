@@ -93,7 +93,7 @@ export class WeatherForecastService {
 	}
 
 	private consolidateLegsForecasts(allPointForecasts: PointForecast[]): PointForecast[] {
-		console.log(`Consolidating ${allPointForecasts.length} total forecasts from all legs`);
+		console.log(`Consolidating ${allPointForecasts.length} forecasts from all legs`);
 
 		// Group forecasts by hour
 		const hourlyGroups = new Map<number, PointForecast[]>();
@@ -107,12 +107,9 @@ export class WeatherForecastService {
 			hourlyGroups.get(hour)!.push(forecast);
 		}
 
-		console.log(`Found ${hourlyGroups.size} unique hours`);
-
 		// Consolidate each hour's forecasts
 		const consolidatedForecasts: PointForecast[] = [];
 		for (const [hour, forecasts] of hourlyGroups) {
-			console.log(`Processing ${forecasts.length} forecasts for hour ${new Date(hour).toISOString()}`);
 			const averaged = this.averagePointForecasts(forecasts);
 			averaged.apparent = averaged.northUp ? this.convertToApparent(
 				averaged.northUp,
@@ -124,7 +121,7 @@ export class WeatherForecastService {
 
 		// Sort by timestamp
 		const result = consolidatedForecasts.sort((a, b) => a.timestamp - b.timestamp);
-		console.log(`Consolidated to ${result.length} forecasts`);
+		console.log(`Consolidated to ${result.length} hourly forecasts`);
 		return result;
 	}
 
@@ -268,14 +265,17 @@ export class WeatherForecastService {
 			throw new Error(`API response array length mismatch. Expected ${arrayLength}, got: ${mismatchedLengths.map(f => `${f.field}:${f.length}`).join(', ')}`);
 		}
 
-		console.log(`Processing ${arrayLength} forecast points for leg...`);
-
-		console.log(`Leg duration: ${(leg.endTime - leg.startTime) / (1000 * 60 * 60)} hours`);
+		console.log(`Processing ${arrayLength} forecast points for leg (${(leg.endTime - leg.startTime) / (1000 * 60 * 60).toFixed(1)}h)`);
 
 		// Process each data point in the API response
-		// Don't filter here - let consolidation handle the hourly filtering
+		// Filter to only include timestamps within the actual leg duration
 		for (let i = 0; i < apiResponse.timestamps.length; i++) {
 			const timestamp = apiResponse.timestamps[i];
+
+			// Skip forecasts outside the leg time range
+			if (timestamp < leg.startTime || timestamp > leg.endTime) {
+				continue;
+			}
 	
 			// Interpolate position using distances and leg bounds
 			const point = this.interpolateLegPosition(leg, apiResponse.distances[i]);

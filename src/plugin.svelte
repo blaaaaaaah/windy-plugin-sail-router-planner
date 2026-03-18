@@ -192,7 +192,11 @@
 
     function handleRouteUpdated(event: any) {
         const { route } = event.detail;
-        onRouteUpdated(route);
+        //onRouteUpdated(route);
+        // Update route display (day markers, distance labels, etc.) when route properties change
+        if (routeEditor) {
+            routeEditor.loadRoute(route);
+        }
     }
 
     function handleSettingsClick() {

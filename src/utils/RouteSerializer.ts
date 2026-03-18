@@ -26,7 +26,7 @@ export function serializeRoute(route: RouteDefinition, windMode?: boolean): stri
 
     // Leg speeds
     if (route.legs && route.legs.length > 0) {
-        const speeds = route.legs.map(leg => leg.speed?.toString() || '5');
+        const speeds = route.legs.map(leg => leg.averageSpeed?.toString() || '5');
         parts.push(`s:${speeds.join(',')}`);
     }
 
@@ -95,11 +95,11 @@ export function deserializeRoute(routeString: string): { route: RouteDefinition;
         });
 
         // Set leg speeds if available
-        if (speedsParam && route.legs) {
+        if (speedsParam) {
             const speeds = speedsParam.split(',').map(Number);
             speeds.forEach((speed, index) => {
-                if (route.legs[index] && !isNaN(speed)) {
-                    route.legs[index].speed = speed;
+                if (!isNaN(speed)) {
+                    route.setLegSpeed(index, speed);
                 }
             });
         }

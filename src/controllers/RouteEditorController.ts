@@ -75,13 +75,14 @@ export class RouteEditorController {
 		// Keep _currentTimestamp - user might want to see progress again
 	}
 
-	setDailyDistance(distanceNM: number): void {
-		this._dailyDistanceNM = distanceNM;
-		// Update all existing day markers
-		this._routes.forEach(route => {
-			this._updateDayMarkers(route);
-		});
+	/**
+	 * Update route display without triggering the onRouteUpdated callback
+	 * Use this when route properties change externally (e.g., leg speeds)
+	 */
+	refreshRouteDisplay(route: RouteDefinition): void {
+		this._updateRouteDisplay(route);
 	}
+
 
 	destroy(): void {
 		// Remove zoom event listener
@@ -250,20 +251,21 @@ export class RouteEditorController {
 			const markers: L.Marker[] = [];
 			const legs = route.legs;
 
-			// Calculate cumulative distance along route
-			let cumulativeDistance = 0;
+			// Calculate cumulative time along route
+			let cumulativeTime = 0; // in hours
 			let currentDay = 1;
-			let nextDayDistance = this._dailyDistanceNM;
+			let nextDayTime = 24; // 24 hours per day
 
 			for (const leg of legs) {
-				const legStartDistance = cumulativeDistance;
-				const legEndDistance = cumulativeDistance + leg.distance;
+				const legDurationHours = leg.duration / (1000 * 60 * 60); // Convert milliseconds to hours
+				const legStartTime = cumulativeTime;
+				const legEndTime = cumulativeTime + legDurationHours;
 
 				// Check if any day markers fall within this leg
-				while (nextDayDistance <= legEndDistance && nextDayDistance > legStartDistance) {
+				while (nextDayTime <= legEndTime && nextDayTime > legStartTime) {
 					// Calculate position along this leg where the day marker should be
-					const distanceIntoLeg = nextDayDistance - legStartDistance;
-					const progressInLeg = distanceIntoLeg / leg.distance;
+					const timeIntoLeg = nextDayTime - legStartTime;
+					const progressInLeg = timeIntoLeg / legDurationHours;
 
 					// Interpolate position
 					const markerPosition = {
@@ -288,10 +290,10 @@ export class RouteEditorController {
 
 					// Move to next day
 					currentDay++;
-					nextDayDistance = currentDay * this._dailyDistanceNM;
+					nextDayTime = currentDay * 24;
 				}
 
-				cumulativeDistance = legEndDistance;
+				cumulativeTime = legEndTime;
 			}
 
 			this._dayMarkers.set(route.id, markers);

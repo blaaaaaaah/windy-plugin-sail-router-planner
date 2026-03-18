@@ -14,16 +14,12 @@
     // Refresh method to recalculate data
     function refresh() {
         if (forecast) {
-            console.log('ForecastTable: refreshing data, pointForecasts:', forecast.pointForecasts?.length || 0);
-            console.log('ForecastTable: forecast route waypoints:', forecast.route?.waypoints?.length || 0);
-            console.log('ForecastTable: showTrueWind:', showTrueWind);
 
             routeColor = forecast.route.color;
 
             // Recalculate data
             hourlyData = generateHourlyData();
             waypointPositions = calculateWaypointPositions();
-            console.log('ForecastTable: recalculated hourlyData:', hourlyData.length, 'waypointPositions:', waypointPositions.length);
 
             // Cache row positions after DOM updates
             setTimeout(() => cacheRowPositions(), 0);
@@ -229,27 +225,34 @@
 
         const routeWaypoints = forecast.route.waypoints;
         const totalWaypoints = routeWaypoints.length;
+        const routeLegs = forecast.route.legs;
 
         if (totalWaypoints === 0) return [];
 
         const waypoints = [];
-        const startTime = forecast.route.departureTime;
-        const endTime = forecast.route.arrivalTime;
-        const routeDuration = endTime - startTime;
 
-        // Calculate time intervals based on actual waypoint count
+        // Calculate waypoint positions based on actual leg start times
         for (let i = 0; i < totalWaypoints; i++) {
-            const waypoint = routeWaypoints[i];
+            let waypointTime;
 
-            // Use waypoint.estimatedTime if available, otherwise distribute evenly
-            const legTime = waypoint.estimatedTime || (startTime + (i * routeDuration / (totalWaypoints - 1)));
-            const waypointIndex = hourlyData.findIndex(h => h.timestamp >= legTime);
+            if (i === 0) {
+                // First waypoint - use departure time
+                waypointTime = forecast.route.departureTime;
+            } else if (i < routeLegs.length + 1) {
+                // Intermediate waypoints - use leg start time (which is end of previous leg)
+                waypointTime = routeLegs[i - 1].endTime;
+            } else {
+                // Last waypoint - use arrival time
+                waypointTime = forecast.route.arrivalTime;
+            }
+
+            const waypointIndex = hourlyData.findIndex(h => h.timestamp >= waypointTime);
 
             if (waypointIndex >= 0) {
                 waypoints.push({
                     index: waypointIndex,
                     number: i + 1,
-                    timestamp: legTime,
+                    timestamp: waypointTime,
                     isStart: i === 0
                 });
             }
@@ -429,13 +432,10 @@
 
     // Reactive boat rotation based on showTrueWind
     $: boatRotation = (() => {
-        console.log('getBoatRotation: showTrueWind =', showTrueWind);
         if (showTrueWind) {
             const course = forecast?.route?.legs?.[0]?.course || 0;
-            console.log('getBoatRotation: true wind mode, course =', course);
             return course;
         } else {
-            console.log('getBoatRotation: apparent wind mode, returning 0');
             // For apparent wind, boat should face up (0 degrees)
             return 0;
         }

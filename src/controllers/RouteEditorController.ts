@@ -276,10 +276,10 @@ export class RouteEditorController {
 	private _createDistanceLabel(position: LatLng, distanceText: string, routeColor: string, startPoint: LatLng, endPoint: LatLng): L.Marker | null {
 		// Calculate zoom-dependent font size with more aggressive scaling
 		const currentZoom = this._map.getZoom();
-		const baseFontSize = 13; // Smaller base font size
+		const baseFontSize = 12; // Base font size
 		const baseZoom = 8;
 		const minFontSize = 6;
-		const maxFontSize = 16;
+		const maxFontSize = 12;
 		const fontSize = Math.max(minFontSize, Math.min(maxFontSize, baseFontSize + (currentZoom - baseZoom) * 1.5));
 
 		// Calculate route segment length in pixels to determine if label fits

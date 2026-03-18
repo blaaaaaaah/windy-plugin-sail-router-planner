@@ -15,7 +15,11 @@ export class RouteEditorController {
 	private _waypointMarkers = new Map<string, L.Marker[]>();
 	private _progressMarkers = new Map<string, L.Marker>();
 	private _distanceLabels = new Map<string, L.Marker[]>();
+	private _dayMarkers = new Map<string, L.Marker[]>();
 	private _currentTimestamp: number | null = null;
+
+	// Day marker configuration
+	private _dailyDistanceNM = 150; // Default nautical miles per day
 
 	// Color cycling
 	private _colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#FF8C94', '#A8E6CF', '#C7CEEA'];
@@ -71,6 +75,14 @@ export class RouteEditorController {
 		// Keep _currentTimestamp - user might want to see progress again
 	}
 
+	setDailyDistance(distanceNM: number): void {
+		this._dailyDistanceNM = distanceNM;
+		// Update all existing day markers
+		this._routes.forEach(route => {
+			this._updateDayMarkers(route);
+		});
+	}
+
 	destroy(): void {
 		// Remove zoom event listener
 		this._map.off('zoomend', this._onZoomChange.bind(this));
@@ -85,6 +97,7 @@ export class RouteEditorController {
 		this._waypointMarkers.clear();
 		this._progressMarkers.clear();
 		this._distanceLabels.clear();
+		this._dayMarkers.clear();
 		this._currentTimestamp = null;
 
 		console.log('RouteEditorController destroyed and cleaned up');
@@ -146,6 +159,7 @@ export class RouteEditorController {
 		this._updateRouteLine(route);
 		this._updateWaypointMarkers(route);
 		this._updateDistanceLabels(route);
+		this._updateDayMarkers(route);
 	}
 
 	private _updateRouteLine(route: RouteDefinition): void {
@@ -224,6 +238,68 @@ export class RouteEditorController {
 		}
 	}
 
+	private _updateDayMarkers(route: RouteDefinition): void {
+		const waypoints = route.waypoints;
+
+		// Remove existing day markers
+		const existingMarkers = this._dayMarkers.get(route.id) || [];
+		existingMarkers.forEach(marker => this._map.removeLayer(marker));
+
+		// Create new day markers if we have at least 2 waypoints
+		if (waypoints.length >= 2) {
+			const markers: L.Marker[] = [];
+			const legs = route.legs;
+
+			// Calculate cumulative distance along route
+			let cumulativeDistance = 0;
+			let currentDay = 1;
+			let nextDayDistance = this._dailyDistanceNM;
+
+			for (const leg of legs) {
+				const legStartDistance = cumulativeDistance;
+				const legEndDistance = cumulativeDistance + leg.distance;
+
+				// Check if any day markers fall within this leg
+				while (nextDayDistance <= legEndDistance && nextDayDistance > legStartDistance) {
+					// Calculate position along this leg where the day marker should be
+					const distanceIntoLeg = nextDayDistance - legStartDistance;
+					const progressInLeg = distanceIntoLeg / leg.distance;
+
+					// Interpolate position
+					const markerPosition = {
+						lat: leg.startPoint.lat + (leg.endPoint.lat - leg.startPoint.lat) * progressInLeg,
+						lng: leg.startPoint.lng + (leg.endPoint.lng - leg.startPoint.lng) * progressInLeg
+					};
+
+					// Create day marker text label
+					const dayText = `${currentDay}d`;
+					const textMarker = this._createDayMarker(markerPosition, dayText, route.color, leg.startPoint, leg.endPoint);
+					if (textMarker) {
+						textMarker.addTo(this._map);
+						markers.push(textMarker);
+					}
+
+					// Create small dot on the line
+					const dotMarker = this._createDayDot(markerPosition, route.color);
+					if (dotMarker) {
+						dotMarker.addTo(this._map);
+						markers.push(dotMarker);
+					}
+
+					// Move to next day
+					currentDay++;
+					nextDayDistance = currentDay * this._dailyDistanceNM;
+				}
+
+				cumulativeDistance = legEndDistance;
+			}
+
+			this._dayMarkers.set(route.id, markers);
+		} else {
+			this._dayMarkers.set(route.id, []);
+		}
+	}
+
 	private _createWaypointMarker(position: LatLng, route: RouteDefinition, index: number): L.Marker {
 		const waypointNumber = index + 1; // Start from 1 like Windy
 
@@ -239,11 +315,12 @@ export class RouteEditorController {
 		});
 
 		marker.on('drag', (e) => {
-			// Update route line and distance labels in real-time during drag
+			// Update route line, distance labels, and day markers in real-time during drag
 			const newPosition = (e.target as L.Marker).getLatLng();
 			route.updateWaypoint(index, newPosition);
 			this._updateRouteLine(route);
 			this._updateDistanceLabels(route);
+			this._updateDayMarkers(route);
 		});
 
 		marker.on('dragend', (e) => {
@@ -251,6 +328,7 @@ export class RouteEditorController {
 			route.updateWaypoint(index, newPosition);
 			this._updateRouteLine(route);
 			this._updateDistanceLabels(route);
+			this._updateDayMarkers(route);
 
 			// Update progress marker if we have a current timestamp
 			if (this._currentTimestamp !== null) {
@@ -331,6 +409,83 @@ export class RouteEditorController {
 				className: 'custom-distance-label',
 				iconSize: [estimatedWidth, 20],
 				iconAnchor: [estimatedWidth / 2, 10]
+			}),
+			interactive: false
+		});
+	}
+
+	private _createDayMarker(position: LatLng, dayText: string, routeColor: string, startPoint: LatLng, endPoint: LatLng): L.Marker | null {
+		// Use a small font size for subtle day markers
+		const fontSize = 10;
+
+		// Calculate current zoom for visibility decisions
+		const currentZoom = this._map.getZoom();
+
+		// Hide day markers at very low zoom levels
+		if (currentZoom < 6) {
+			return null;
+		}
+
+		// Calculate the bearing/angle of the line (same as distance labels)
+		const lat1 = startPoint.lat * Math.PI / 180;
+		const lat2 = endPoint.lat * Math.PI / 180;
+		const deltaLng = (endPoint.lng - startPoint.lng) * Math.PI / 180;
+
+		const y = Math.sin(deltaLng) * Math.cos(lat2);
+		const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLng);
+		let angle = Math.atan2(y, x) * 180 / Math.PI;
+
+		// Subtract 90 degrees to make text parallel to line instead of perpendicular
+		angle -= 90;
+
+		// Ensure text is always readable (not upside down)
+		if (angle > 90 || angle < -90) {
+			angle += 180;
+		}
+
+		// Position text consistently away from the line (like distance labels but further)
+		const offsetX = 0; // Keep centered horizontally on the position
+		const offsetY = -18; // Larger offset than distance labels for separation
+
+		const labelHtml = `
+			<div class="route-day-marker" style="transform: rotate(${angle}deg) translate(${offsetX}px, ${offsetY}px);">
+				<span class="day-text" style="font-size: ${fontSize}px;">${dayText}</span>
+			</div>
+		`;
+
+		// Estimate text width for centering
+		const estimatedWidth = dayText.length * (fontSize * 0.6);
+
+		return L.marker(position, {
+			icon: L.divIcon({
+				html: labelHtml,
+				className: 'custom-day-marker',
+				iconSize: [estimatedWidth, fontSize + 2],
+				iconAnchor: [estimatedWidth / 2, (fontSize + 2) / 2]
+			}),
+			interactive: false
+		});
+	}
+
+	private _createDayDot(position: LatLng, routeColor: string): L.Marker | null {
+		// Calculate current zoom for visibility decisions
+		const currentZoom = this._map.getZoom();
+
+		// Hide day dots at very low zoom levels
+		if (currentZoom < 6) {
+			return null;
+		}
+
+		const dotHtml = `
+			<div class="route-day-dot" style="background-color: ${routeColor};"></div>
+		`;
+
+		return L.marker(position, {
+			icon: L.divIcon({
+				html: dotHtml,
+				className: 'custom-day-dot',
+				iconSize: [8, 8],
+				iconAnchor: [4, 3]
 			}),
 			interactive: false
 		});
@@ -420,6 +575,11 @@ export class RouteEditorController {
 		labels.forEach(label => this._map.removeLayer(label));
 		this._distanceLabels.delete(route.id);
 
+		// Remove day markers
+		const dayMarkers = this._dayMarkers.get(route.id) || [];
+		dayMarkers.forEach(marker => this._map.removeLayer(marker));
+		this._dayMarkers.delete(route.id);
+
 		// Remove progress marker
 		this._hideProgressMarker(route);
 	}
@@ -458,9 +618,10 @@ export class RouteEditorController {
 	}
 
 	private _onZoomChange(): void {
-		// Update all distance labels with new font sizes
+		// Update all distance labels and day markers with new font sizes/visibility
 		this._routes.forEach(route => {
 			this._updateDistanceLabels(route);
+			this._updateDayMarkers(route);
 		});
 	}
 }

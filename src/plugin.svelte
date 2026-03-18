@@ -437,5 +437,45 @@
         border: none;
         padding: 0;
     }
+
+    /* Day markers on route lines */
+    :global(.custom-day-marker) {
+        background: transparent !important;
+        border: none !important;
+        pointer-events: none;
+    }
+
+    :global(.route-day-marker) {
+        position: relative;
+        cursor: default;
+        user-select: none;
+        pointer-events: none;
+    }
+
+    :global(.day-text) {
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
+        white-space: nowrap;
+        font-family: system-ui, -apple-system, sans-serif;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+        background: none;
+        border: none;
+        padding: 0;
+    }
+
+    /* Day dots on route lines */
+    :global(.custom-day-dot) {
+        background: transparent !important;
+        border: none !important;
+        pointer-events: none;
+    }
+
+    :global(.route-day-dot) {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
 </style>
 

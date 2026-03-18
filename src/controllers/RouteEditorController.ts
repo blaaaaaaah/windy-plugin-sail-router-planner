@@ -426,29 +426,19 @@ export class RouteEditorController {
 			return null;
 		}
 
-		// Calculate the bearing/angle of the line (same as distance labels)
-		const lat1 = startPoint.lat * Math.PI / 180;
-		const lat2 = endPoint.lat * Math.PI / 180;
-		const deltaLng = (endPoint.lng - startPoint.lng) * Math.PI / 180;
+		// Calculate line direction to determine text placement
+		const deltaLat = endPoint.lat - startPoint.lat;
+		const deltaLng = endPoint.lng - startPoint.lng;
+		const lineAngle = Math.atan2(deltaLat, deltaLng) * 180 / Math.PI;
 
-		const y = Math.sin(deltaLng) * Math.cos(lat2);
-		const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLng);
-		let angle = Math.atan2(y, x) * 180 / Math.PI;
+		// If line is roughly vertical (-120° to -60° or 60° to 120°), place text to the right
+		const isVerticalish = (lineAngle > 60 && lineAngle < 120) || (lineAngle > -120 && lineAngle < -60);
 
-		// Subtract 90 degrees to make text parallel to line instead of perpendicular
-		angle -= 90;
-
-		// Ensure text is always readable (not upside down)
-		if (angle > 90 || angle < -90) {
-			angle += 180;
-		}
-
-		// Position text consistently away from the line (like distance labels but further)
-		const offsetX = 0; // Keep centered horizontally on the position
-		const offsetY = -18; // Larger offset than distance labels for separation
+		const offsetX = isVerticalish ? 12 : 0; // Place to the right if vertical (closer to line)
+		const offsetY = isVerticalish ? 0 : -18; // Place above if horizontal
 
 		const labelHtml = `
-			<div class="route-day-marker" style="transform: rotate(${angle}deg) translate(${offsetX}px, ${offsetY}px);">
+			<div class="route-day-marker" style="transform: translate(${offsetX}px, ${offsetY}px);">
 				<span class="day-text" style="font-size: ${fontSize}px;">${dayText}</span>
 			</div>
 		`;

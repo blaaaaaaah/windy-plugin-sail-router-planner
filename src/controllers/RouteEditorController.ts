@@ -14,6 +14,7 @@ export class RouteEditorController {
 	private _routeLayers = new Map<string, L.Polyline>();
 	private _waypointMarkers = new Map<string, L.Marker[]>();
 	private _progressMarkers = new Map<string, L.Marker>();
+	private _distanceLabels = new Map<string, L.Marker[]>();
 	private _currentTimestamp: number | null = null;
 
 	// Color cycling
@@ -77,6 +78,7 @@ export class RouteEditorController {
 		this._routeLayers.clear();
 		this._waypointMarkers.clear();
 		this._progressMarkers.clear();
+		this._distanceLabels.clear();
 		this._currentTimestamp = null;
 
 		console.log('RouteEditorController destroyed and cleaned up');
@@ -137,6 +139,7 @@ export class RouteEditorController {
 	private _updateRouteDisplay(route: RouteDefinition): void {
 		this._updateRouteLine(route);
 		this._updateWaypointMarkers(route);
+		this._updateDistanceLabels(route);
 	}
 
 	private _updateRouteLine(route: RouteDefinition): void {
@@ -179,6 +182,40 @@ export class RouteEditorController {
 		this._waypointMarkers.set(route.id, markers);
 	}
 
+	private _updateDistanceLabels(route: RouteDefinition): void {
+		const waypoints = route.waypoints;
+
+		// Remove existing distance labels
+		const existingLabels = this._distanceLabels.get(route.id) || [];
+		existingLabels.forEach(label => this._map.removeLayer(label));
+
+		// Create new distance labels if we have at least 2 waypoints
+		if (waypoints.length >= 2) {
+			const labels: L.Marker[] = [];
+			const legs = route.legs;
+
+			legs.forEach((leg, index) => {
+				// Calculate midpoint of the leg
+				const midpoint = {
+					lat: (leg.startPoint.lat + leg.endPoint.lat) / 2,
+					lng: (leg.startPoint.lng + leg.endPoint.lng) / 2
+				};
+
+				// Format distance in nautical miles - rounded, no decimals
+				const distanceText = `${Math.round(leg.distance)}nm`;
+
+				// Create distance label marker positioned at midpoint with CSS offset
+				const label = this._createDistanceLabel(midpoint, distanceText, route.color, leg.startPoint, leg.endPoint);
+				label.addTo(this._map);
+				labels.push(label);
+			});
+
+			this._distanceLabels.set(route.id, labels);
+		} else {
+			this._distanceLabels.set(route.id, []);
+		}
+	}
+
 	private _createWaypointMarker(position: LatLng, route: RouteDefinition, index: number): L.Marker {
 		const waypointNumber = index + 1; // Start from 1 like Windy
 
@@ -194,16 +231,18 @@ export class RouteEditorController {
 		});
 
 		marker.on('drag', (e) => {
-			// Update route line in real-time during drag
+			// Update route line and distance labels in real-time during drag
 			const newPosition = (e.target as L.Marker).getLatLng();
 			route.updateWaypoint(index, newPosition);
 			this._updateRouteLine(route);
+			this._updateDistanceLabels(route);
 		});
 
 		marker.on('dragend', (e) => {
 			const newPosition = (e.target as L.Marker).getLatLng();
 			route.updateWaypoint(index, newPosition);
 			this._updateRouteLine(route);
+			this._updateDistanceLabels(route);
 
 			// Update progress marker if we have a current timestamp
 			if (this._currentTimestamp !== null) {
@@ -224,6 +263,59 @@ export class RouteEditorController {
 		});
 
 		return marker;
+	}
+
+	private _createDistanceLabel(position: LatLng, distanceText: string, routeColor: string, startPoint: LatLng, endPoint: LatLng): L.Marker {
+		// Calculate the bearing/angle of the line for proper geographic rotation
+		const lat1 = startPoint.lat * Math.PI / 180;
+		const lat2 = endPoint.lat * Math.PI / 180;
+		const deltaLng = (endPoint.lng - startPoint.lng) * Math.PI / 180;
+
+		const y = Math.sin(deltaLng) * Math.cos(lat2);
+		const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLng);
+		let angle = Math.atan2(y, x) * 180 / Math.PI;
+
+		// Subtract 90 degrees to make text parallel to line instead of perpendicular
+		angle -= 90;
+
+		// Ensure text is always readable (not upside down)
+		if (angle > 90 || angle < -90) {
+			angle += 180;
+		}
+
+		// Position text consistently "under" or "to the right" of the line
+		// Use positive offset to ensure consistent side placement
+		const offsetX = 0; // Keep centered horizontally on the leg
+		const offsetY = 12; // Smaller offset, positive to place on consistent side
+
+		const labelHtml = `
+			<div class="route-distance-label" style="transform: rotate(${angle}deg) translate(${offsetX}px, ${offsetY}px);">
+				<span class="distance-text">${distanceText}</span>
+			</div>
+		`;
+
+		// Estimate text width for better centering
+		const estimatedWidth = distanceText.length * 6;
+
+		return L.marker(position, {
+			icon: L.divIcon({
+				html: labelHtml,
+				className: 'custom-distance-label',
+				iconSize: [estimatedWidth, 20],
+				iconAnchor: [estimatedWidth / 2, 10]
+			}),
+			interactive: false
+		});
+	}
+
+	private _calculateBearing(startPoint: LatLng, endPoint: LatLng): number {
+		const lat1 = startPoint.lat * Math.PI / 180;
+		const lat2 = endPoint.lat * Math.PI / 180;
+		const deltaLng = (endPoint.lng - startPoint.lng) * Math.PI / 180;
+
+		const y = Math.sin(deltaLng) * Math.cos(lat2);
+		const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLng);
+		return Math.atan2(y, x) * 180 / Math.PI;
 	}
 
 	private _createWindyStyleIcon(waypointNumber: number, color: string): L.DivIcon {
@@ -294,6 +386,11 @@ export class RouteEditorController {
 		const markers = this._waypointMarkers.get(route.id) || [];
 		markers.forEach(marker => this._map.removeLayer(marker));
 		this._waypointMarkers.delete(route.id);
+
+		// Remove distance labels
+		const labels = this._distanceLabels.get(route.id) || [];
+		labels.forEach(label => this._map.removeLayer(label));
+		this._distanceLabels.delete(route.id);
 
 		// Remove progress marker
 		this._hideProgressMarker(route);

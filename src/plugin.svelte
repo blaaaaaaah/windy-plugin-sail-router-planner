@@ -88,20 +88,16 @@
     let showTrueWind: boolean = true;
 
     function setShowTrueWind(value: boolean) {
-        console.log('setShowTrueWind called with:', value);
         showTrueWind = value;
 
         // Update URL to persist wind mode
         const activeRoute = routeEditor?.getActiveRoute();
-        console.log('activeRoute:', activeRoute ? 'exists' : 'null');
 
         if (activeRoute) {
             const serializedRoute = serializeRoute(activeRoute, value);
-            console.log('Updating URL with route + wind mode');
             setUrl(config.name, { route: serializedRoute });
         } else {
             // If no route, create minimal route with just wind mode
-            console.log('No active route, cannot save wind mode to URL');
         }
     }
 
@@ -121,7 +117,6 @@
 
 
             console.log('Forecast generated:', forecast.pointForecasts.length, 'points');
-            console.log('Updated currentForecast, route waypoints:', forecast.route?.waypoints?.length || 'undefined');
         } catch (error) {
             console.error('Failed to generate forecast:', error);
         } finally {
@@ -181,7 +176,6 @@
 
     function handleTimeHover(event: any) {
         const { timestamp, forecast } = event.detail;
-        console.log('Time hover:', new Date(timestamp), forecast);
 
         // Update both Windy's store and RouteEditor for immediate progress updates
         if (timestamp) {
@@ -416,6 +410,32 @@
         margin: 0;
         max-width: 320px;
         line-height: 1.5;
+    }
+
+    /* Distance labels on route lines */
+    :global(.custom-distance-label) {
+        background: transparent !important;
+        border: none !important;
+        pointer-events: none;
+    }
+
+    :global(.route-distance-label) {
+        position: relative;
+        cursor: default;
+        user-select: none;
+        pointer-events: none;
+    }
+
+    :global(.distance-text) {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 11px;
+        font-weight: 500;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+        white-space: nowrap;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: none;
+        border: none;
+        padding: 0;
     }
 </style>
 

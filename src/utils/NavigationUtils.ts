@@ -110,13 +110,97 @@ export function calculateRelativeDirection(directionFrom: number, boatCourse: nu
 
 
 /**
- * Interpolate position between two points
+ * Calculate great circle distance between two points in meters
+ * Uses the Haversine formula for accurate distance calculation on the sphere
+ */
+export function calculateGreatCircleDistance(start: LatLng, end: LatLng): number {
+	const R = 6371000; // Earth's radius in meters
+	const φ1 = start.lat * Math.PI / 180;
+	const φ2 = end.lat * Math.PI / 180;
+	const Δφ = (end.lat - start.lat) * Math.PI / 180;
+	const Δλ = (end.lng - start.lng) * Math.PI / 180;
+
+	const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+			Math.cos(φ1) * Math.cos(φ2) *
+			Math.sin(Δλ/2) * Math.sin(Δλ/2);
+	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+	return R * c;
+}
+
+/**
+ * Interpolate position between two points using great circle path
+ * For short distances (<100nm), falls back to simple linear interpolation for performance
  */
 export function interpolateLatLng(start: LatLng, end: LatLng, progress: number): LatLng {
-	const lat = start.lat + (end.lat - start.lat) * progress;
-	const lng = start.lng + (end.lng - start.lng) * progress;
-
 	// Create LatLng using Leaflet's constructor
 	const L = (window as any).L;
+
+	// For short distances, use simple linear interpolation for performance
+	const straightLineDistance = Math.sqrt(
+		Math.pow(end.lat - start.lat, 2) + Math.pow(end.lng - start.lng, 2)
+	);
+
+	if (straightLineDistance < 1.8) { // Roughly 100nm at mid-latitudes
+		const lat = start.lat + (end.lat - start.lat) * progress;
+		const lng = start.lng + (end.lng - start.lng) * progress;
+		return new L.LatLng(lat, lng);
+	}
+
+	// For longer distances, use great circle interpolation
+	return interpolateGreatCircle(start, end, progress);
+}
+
+/**
+ * Interpolate position along great circle path between two points
+ * Uses spherical interpolation (slerp) for accurate positioning
+ */
+export function interpolateGreatCircle(start: LatLng, end: LatLng, progress: number): LatLng {
+	const L = (window as any).L;
+
+	// Convert to radians
+	const φ1 = start.lat * Math.PI / 180;
+	const λ1 = start.lng * Math.PI / 180;
+	const φ2 = end.lat * Math.PI / 180;
+	const λ2 = end.lng * Math.PI / 180;
+
+	// Calculate the angular distance
+	const Δφ = φ2 - φ1;
+	const Δλ = λ2 - λ1;
+	const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+			Math.cos(φ1) * Math.cos(φ2) *
+			Math.sin(Δλ/2) * Math.sin(Δλ/2);
+	const δ = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+	// Handle edge cases
+	if (δ === 0) {
+		return new L.LatLng(start.lat, start.lng);
+	}
+
+	// Spherical interpolation
+	const A = Math.sin((1 - progress) * δ) / Math.sin(δ);
+	const B = Math.sin(progress * δ) / Math.sin(δ);
+
+	// Convert to Cartesian coordinates
+	const x1 = Math.cos(φ1) * Math.cos(λ1);
+	const y1 = Math.cos(φ1) * Math.sin(λ1);
+	const z1 = Math.sin(φ1);
+
+	const x2 = Math.cos(φ2) * Math.cos(λ2);
+	const y2 = Math.cos(φ2) * Math.sin(λ2);
+	const z2 = Math.sin(φ2);
+
+	// Interpolate in Cartesian space
+	const x = A * x1 + B * x2;
+	const y = A * y1 + B * y2;
+	const z = A * z1 + B * z2;
+
+	// Convert back to lat/lng
+	const φ = Math.atan2(z, Math.sqrt(x * x + y * y));
+	const λ = Math.atan2(y, x);
+
+	const lat = φ * 180 / Math.PI;
+	const lng = λ * 180 / Math.PI;
+
 	return new L.LatLng(lat, lng);
 }

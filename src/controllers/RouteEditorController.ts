@@ -2,6 +2,7 @@ import type { LatLng } from '../types/Coordinates';
 import { RouteDefinition } from '../types/RouteTypes';
 import { markers } from '@windy/map';
 import store from '@windy/store';
+import { calculateGreatCircleDistance, interpolateGreatCircle } from '../utils/NavigationUtils';
 
 export class RouteEditorController {
 	private _routes: RouteDefinition[] = [];
@@ -174,7 +175,10 @@ export class RouteEditorController {
 
 		// Create new line if we have at least 2 waypoints
 		if (waypoints.length >= 2) {
-			const polyline = L.polyline(waypoints, {
+			// Generate path points that follow great circle routes for long legs
+			const pathPoints = this._generateGreatCirclePath(waypoints);
+
+			const polyline = L.polyline(pathPoints, {
 				color: route.color,
 				weight: this._activeRoute?.id === route.id ? 4 : 2,
 				opacity: 0.8
@@ -183,6 +187,41 @@ export class RouteEditorController {
 			polyline.addTo(this._map);
 			this._routeLayers.set(route.id, polyline);
 		}
+	}
+
+	private _generateGreatCirclePath(waypoints: LatLng[]): LatLng[] {
+		const pathPoints: LatLng[] = [];
+
+		for (let i = 0; i < waypoints.length - 1; i++) {
+			const start = waypoints[i];
+			const end = waypoints[i + 1];
+
+			// Always add the start point
+			pathPoints.push(start);
+
+			// Calculate the distance between waypoints
+			const distance = calculateGreatCircleDistance(start, end) / 1852; // convert to nautical miles
+
+			// For legs longer than 500nm, create intermediate points along the great circle
+			if (distance > 500) {
+				// Calculate how many intermediate points we need (roughly every 100nm)
+				const numSegments = Math.ceil(distance / 100);
+
+				// Generate intermediate points along the great circle
+				for (let j = 1; j < numSegments; j++) {
+					const progress = j / numSegments;
+					const intermediatePoint = interpolateGreatCircle(start, end, progress);
+					pathPoints.push(intermediatePoint);
+				}
+			}
+		}
+
+		// Always add the final waypoint
+		if (waypoints.length > 0) {
+			pathPoints.push(waypoints[waypoints.length - 1]);
+		}
+
+		return pathPoints;
 	}
 
 	private _updateWaypointMarkers(route: RouteDefinition): void {

@@ -1,5 +1,5 @@
 import type { LatLng } from './Coordinates';
-import { toNauticalMiles, calculateCourse } from '../utils/NavigationUtils';
+import { toNauticalMiles, calculateCourse, calculateGreatCircleDistance, interpolateLatLng } from '../utils/NavigationUtils';
 
 export interface RouteLeg {
 	startTime: number; // timestamp
@@ -132,8 +132,8 @@ export class RouteDefinition {
 				// Calculate progress within this leg (0 to 1)
 				const legProgress = (timestamp - leg.startTime) / (leg.endTime - leg.startTime);
 
-				// Interpolate position within the leg
-				return this._interpolateLatLng(leg.startPoint, leg.endPoint, legProgress);
+				// Interpolate position within the leg using great circle path
+				return interpolateLatLng(leg.startPoint, leg.endPoint, legProgress);
 			}
 		}
 
@@ -162,8 +162,8 @@ export class RouteDefinition {
 				throw new Error(`Speed not defined for leg ${i}`);
 			}
 
-			// Calculate distance in nautical miles
-			const distance = toNauticalMiles(startPoint.distanceTo(endPoint));
+			// Calculate distance in nautical miles using great circle distance for accuracy
+			const distance = toNauticalMiles(calculateGreatCircleDistance(startPoint, endPoint));
 
 			// Calculate course (bearing) in degrees, 0-359 range
 			const course = calculateCourse(startPoint, endPoint);
@@ -190,11 +190,6 @@ export class RouteDefinition {
 		return legs;
 	}
 
-	private _interpolateLatLng(start: LatLng, end: LatLng, progress: number): LatLng {
-		const lat = start.lat + (end.lat - start.lat) * progress;
-		const lng = start.lng + (end.lng - start.lng) * progress;
-		return { lat, lng };
-	}
 
 
 	private _clearCache(): void {

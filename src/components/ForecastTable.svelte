@@ -454,9 +454,9 @@
             return null;
         }
 
-        const forecastHour = Math.floor(forecastData.forecastTimestamp / (1000 * 60 * 60)) * (1000 * 60 * 60);
-        const sailingHourRounded = Math.floor(sailingHour / (1000 * 60 * 60)) * (1000 * 60 * 60);
-        const hoursDiff = Math.abs(sailingHourRounded - forecastHour) / (1000 * 60 * 60);
+        // Calculate the absolute time difference in minutes first
+        const timeDiffMinutes = Math.abs(sailingHour - forecastData.forecastTimestamp) / (1000 * 60);
+        const hoursDiff = timeDiffMinutes / 60;
 
         const forecastTimeStr = new Date(forecastData.forecastTimestamp).toLocaleString('en-US', {
             month: 'short',
@@ -475,9 +475,9 @@
         });
 
         // Debug logging
-        console.log(`Freshness check: Sailing=${sailingTimeStr}, Forecast=${forecastTimeStr}, Diff=${hoursDiff}h`);
+        console.log(`Freshness check: Sailing=${sailingTimeStr}, Forecast=${forecastTimeStr}, Diff=${timeDiffMinutes.toFixed(1)}min (${hoursDiff.toFixed(1)}h)`);
 
-        if (hoursDiff < 1) {
+        if (timeDiffMinutes < 90) { // Less than 1.5 hours
             return {
                 level: 'fresh',
                 color: '#22c55e', // green

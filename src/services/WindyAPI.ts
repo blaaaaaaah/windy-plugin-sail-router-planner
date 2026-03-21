@@ -29,6 +29,29 @@ export class WindyAPI {
 		return await this.get(url);
 	}
 
+	async getForecastWindow(): Promise<{ start: number; end: number; premiumStart: number }> {
+		const W = (window as any).W;
+		if (!W || !W.products || !W.products.ecmwf) {
+			throw new Error('W.products.ecmwf not available');
+		}
+
+		// Load ECMWF manifest and calendar
+		const ecmwfMinifest = await W.products.ecmwf.loadMinifest();
+		const ecmwfCalendar = await W.products.ecmwf.getCalendar();
+
+		if (!ecmwfMinifest || !ecmwfCalendar) {
+			throw new Error('Failed to load ECMWF manifest or calendar');
+		}
+
+		const start = new Date(ecmwfMinifest.ref).getTime();
+		const end = ecmwfCalendar.end; // Full forecast window for leg calculations
+		const premiumStart = ecmwfCalendar.premiumStart; // For API calls
+
+		console.log(`Forecast window: ${new Date(start).toISOString()} to ${new Date(end).toISOString()}`);
+		console.log(`Premium boundary: ${new Date(premiumStart).toISOString()}`);
+		return { start, end, premiumStart };
+	}
+
 	private async buildRoutePlannerURL(startTime: number, endTime: number, waypoints: LatLng[]): Promise<string> {
 		// Convert waypoints to coordinate string
 		const coordsString = waypoints
@@ -84,7 +107,7 @@ export class WindyAPI {
 
 		// Build minifest string according to reverse-engineered format
 		const start = new Date(ecmwfMinifest.ref).getTime();
-		const end = ecmwfCalendar.premiumStart;
+		const end = ecmwfCalendar.premiumStart; // Use premiumStart for API calls
 
 		if (!end) {
 			throw new Error('ECMWF calendar premiumStart not available');

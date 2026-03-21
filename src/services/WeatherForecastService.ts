@@ -16,13 +16,27 @@ export class WeatherForecastService {
 			throw new Error('Route must have at least one leg');
 		}
 
-		// Calculate all legs and break long ones into parts
-		const allLegParts = this.calculateLegParts(legs);
+		// Get forecast window to optimize API calls
+		const forecastWindow = await this.windyAPI.getForecastWindow();
+
+		// Calculate all legs and break long ones into parts, respecting forecast window
+		const allLegParts = this.calculateLegParts(legs, forecastWindow);
 
 		// Get forecast for each leg part
 		const allPointForecasts: PointForecast[] = [];
-		for (const legPart of allLegParts) {
+		for (let i = 0; i < allLegParts.length; i++) {
+			const legPart = allLegParts[i];
+			console.log(`\n🚢 Processing leg part ${i+1}/${allLegParts.length}: ${new Date(legPart.startTime).toISOString()} to ${new Date(legPart.endTime).toISOString()}`);
+
 			const legForecast = await this.getLegForecast(legPart);
+			console.log(`📊 Leg part ${i+1} returned ${legForecast.length} forecasts`);
+
+			if (legForecast.length > 0) {
+				const firstForecast = legForecast[0];
+				const lastForecast = legForecast[legForecast.length - 1];
+				console.log(`📅 Forecast range: ${new Date(firstForecast.timestamp).toISOString()} to ${new Date(lastForecast.timestamp).toISOString()}`);
+			}
+
 			allPointForecasts.push(...legForecast);
 		}
 
@@ -35,32 +49,49 @@ export class WeatherForecastService {
 		};
 	}
 
-	private calculateLegParts(legs: RouteLeg[]): RouteLeg[] {
+	private calculateLegParts(legs: RouteLeg[], forecastWindow: { start: number; end: number }): RouteLeg[] {
 		const legParts: RouteLeg[] = [];
+
+		console.log(`Forecast window: ${new Date(forecastWindow.start).toISOString()} to ${new Date(forecastWindow.end).toISOString()}`);
 
 		for (const leg of legs) {
 			const legDurationHours = (leg.endTime - leg.startTime) / (1000 * 60 * 60);
-			const requiredParts = Math.ceil(legDurationHours / WeatherForecastService.MAX_LEG_DURATION_HOURS);
 
-			if (requiredParts === 1) {
-				// Leg is short enough, use as is
+			// Check if this leg is entirely beyond forecast window
+			if (leg.startTime > forecastWindow.end) {
+				console.log(`Leg starts ${new Date(leg.startTime).toISOString()} beyond forecast window - using as single part`);
+				legParts.push(leg);
+				continue;
+			}
+
+			// Check if this leg extends beyond forecast window
+			const legEndTime = Math.min(leg.endTime, forecastWindow.end);
+			const withinForecastDuration = (legEndTime - leg.startTime) / (1000 * 60 * 60);
+
+			// Only break up the portion within the forecast window
+			const requiredParts = Math.ceil(withinForecastDuration / WeatherForecastService.MAX_LEG_DURATION_HOURS);
+
+			if (requiredParts === 1 || leg.startTime > forecastWindow.end) {
+				// Leg is short enough or beyond forecast window, use as is
 				legParts.push(leg);
 			} else {
-				// Break leg into multiple parts
-				const partDuration = (leg.endTime - leg.startTime) / requiredParts;
+				console.log(`Breaking leg into ${requiredParts} parts within forecast window, plus remainder beyond`);
+
+				// Break leg into multiple parts within forecast window
+				const partDuration = (legEndTime - leg.startTime) / requiredParts;
 				for (let i = 0; i < requiredParts; i++) {
 					const startTime = leg.startTime + (i * partDuration);
 					const endTime = leg.startTime + ((i + 1) * partDuration);
 
 					// Calculate intermediate points
-					const progress = i / requiredParts;
-					const nextProgress = (i + 1) / requiredParts;
+					const totalLegProgress = (startTime - leg.startTime) / (leg.endTime - leg.startTime);
+					const nextTotalLegProgress = (endTime - leg.startTime) / (leg.endTime - leg.startTime);
 
-					const startPoint = interpolateLatLng(leg.startPoint, leg.endPoint, progress);
-					const endPoint = interpolateLatLng(leg.startPoint, leg.endPoint, nextProgress);
+					const startPoint = interpolateLatLng(leg.startPoint, leg.endPoint, totalLegProgress);
+					const endPoint = interpolateLatLng(leg.startPoint, leg.endPoint, nextTotalLegProgress);
 
-					// Calculate distance and course for this part
-					const partDistance = leg.distance / requiredParts;
+					// Calculate distance for this part
+					const partDistance = leg.distance * (nextTotalLegProgress - totalLegProgress);
 
 					legParts.push({
 						startPoint,
@@ -73,9 +104,31 @@ export class WeatherForecastService {
 						duration: endTime - startTime
 					});
 				}
+
+				// Add remainder beyond forecast window as single part if it exists
+				if (leg.endTime > forecastWindow.end) {
+					const remainderStart = forecastWindow.end;
+					const totalLegProgressStart = (remainderStart - leg.startTime) / (leg.endTime - leg.startTime);
+					const startPoint = interpolateLatLng(leg.startPoint, leg.endPoint, totalLegProgressStart);
+					const remainderDistance = leg.distance * (1 - totalLegProgressStart);
+
+					console.log(`Adding remainder beyond forecast window: ${new Date(remainderStart).toISOString()} to ${new Date(leg.endTime).toISOString()}`);
+
+					legParts.push({
+						startPoint: startPoint,
+						endPoint: leg.endPoint,
+						startTime: remainderStart,
+						endTime: leg.endTime,
+						distance: remainderDistance,
+						course: leg.course,
+						averageSpeed: leg.averageSpeed,
+						duration: leg.endTime - remainderStart
+					});
+				}
 			}
 		}
 
+		console.log(`Calculated ${legParts.length} leg parts from ${legs.length} original legs`);
 		return legParts;
 	}
 
@@ -326,10 +379,12 @@ export class WeatherForecastService {
 
 		// Generate hourly forecasts based on sailing time and distance coverage
 		const hourMs = 60 * 60 * 1000;
+		console.log(`🕐 Leg time range: ${new Date(leg.startTime).toISOString()} to ${new Date(leg.endTime).toISOString()}`);
+
 		for (let sailingTime = leg.startTime; sailingTime < leg.endTime; sailingTime += hourMs) {
-			// Calculate distance range covered during this hour
-			const hourStartDistance = this.getDistanceFromTime(leg, sailingTime);
-			const hourEndDistance = this.getDistanceFromTime(leg, Math.min(sailingTime + hourMs, leg.endTime));
+			// Calculate distance range covered during this hour (relative to leg start)
+			const hourStartDistance = this.getDistanceFromTimeRelativeToLeg(leg, sailingTime);
+			const hourEndDistance = this.getDistanceFromTimeRelativeToLeg(leg, Math.min(sailingTime + hourMs, leg.endTime));
 
 			// Find API data indexes that fall within this distance range
 			let matchingIndexes = this.getIndexesMatchingDistances(apiResponse.distances, hourStartDistance, hourEndDistance);
@@ -342,7 +397,7 @@ export class WeatherForecastService {
 				minute: '2-digit',
 				hour12: false
 			});
-			console.log(`\n=== Consolidation for ${sailingTimeStr} ===`);
+			console.log(`\n=== Consolidation for ${sailingTimeStr} (${new Date(sailingTime).toISOString()}) ===`);
 			console.log(`Distance range: ${(hourStartDistance/1852).toFixed(1)}nm to ${(hourEndDistance/1852).toFixed(1)}nm`);
 			console.log(`Found ${matchingIndexes.length} matching API data points:`, matchingIndexes);
 
@@ -456,6 +511,14 @@ export class WeatherForecastService {
 		const timeElapsedHours = timeElapsed / (1000 * 60 * 60);
 		const distanceCovered = timeElapsedHours * leg.averageSpeed; // nautical miles
 		return distanceCovered * 1852; // convert to meters to match API distances
+	}
+
+	private getDistanceFromTimeRelativeToLeg(leg: RouteLeg, timestamp: number): number {
+		// Calculate distance relative to leg start time (for API calls that start from leg beginning)
+		const timeElapsedSinceLegStart = timestamp - leg.startTime;
+		const timeElapsedHours = timeElapsedSinceLegStart / (1000 * 60 * 60);
+		const distanceCovered = timeElapsedHours * leg.averageSpeed; // nautical miles
+		return distanceCovered * 1852; // convert to meters to match API distances (starting from 0 for this leg)
 	}
 
 	private getIndexesMatchingDistances(apiDistances: number[], startDistance: number, endDistance: number): number[] {

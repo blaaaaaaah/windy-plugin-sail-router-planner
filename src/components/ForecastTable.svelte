@@ -449,6 +449,61 @@
         }
     }
 
+    function getForecastFreshness(forecastData: any, sailingHour: number): { level: string; color: string; tooltip: string } | null {
+        if (!forecastData?.forecastTimestamp) {
+            return null;
+        }
+
+        const forecastHour = Math.floor(forecastData.forecastTimestamp / (1000 * 60 * 60)) * (1000 * 60 * 60);
+        const sailingHourRounded = Math.floor(sailingHour / (1000 * 60 * 60)) * (1000 * 60 * 60);
+        const hoursDiff = Math.abs(sailingHourRounded - forecastHour) / (1000 * 60 * 60);
+
+        const forecastTimeStr = new Date(forecastData.forecastTimestamp).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: false
+        });
+
+        const sailingTimeStr = new Date(sailingHour).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: false
+        });
+
+        // Debug logging
+        console.log(`Freshness check: Sailing=${sailingTimeStr}, Forecast=${forecastTimeStr}, Diff=${hoursDiff}h`);
+
+        if (hoursDiff < 1) {
+            return {
+                level: 'fresh',
+                color: '#22c55e', // green
+                tooltip: `Fresh forecast from ${forecastTimeStr}`
+            };
+        } else if (hoursDiff < 6) {
+            return {
+                level: 'good',
+                color: '#eab308', // yellow
+                tooltip: `Forecast from ${forecastTimeStr} (${Math.round(hoursDiff)}h off)`
+            };
+        } else if (hoursDiff < 12) {
+            return {
+                level: 'stale',
+                color: '#f97316', // orange
+                tooltip: `Stale forecast from ${forecastTimeStr} (${Math.round(hoursDiff)}h off)`
+            };
+        } else {
+            return {
+                level: 'very-stale',
+                color: '#ef4444', // red
+                tooltip: `Very stale forecast from ${forecastTimeStr} (${Math.round(hoursDiff)}h off)`
+            };
+        }
+    }
+
     function getWaveDirection(forecastData: any): number | undefined {
         if (showTrueWind) {
             return forecastData?.northUp?.wavesDirection;
@@ -800,7 +855,17 @@
                         on:drop|preventDefault={(e) => handleDrop(e, index)}
                     >
                         <div class="time-column">
-                            <div class="time">{formatTime(data.timestamp)}</div>
+                            <div class="time-row">
+                                <div class="time">{formatTime(data.timestamp)}</div>
+                                {#if data.forecast && getForecastFreshness(data.forecast, data.timestamp)}
+                                    {@const freshness = getForecastFreshness(data.forecast, data.timestamp)}
+                                    {#if freshness.level !== 'fresh'}
+                                        <div class="freshness-indicator" style="color: {freshness.color}" title={freshness.tooltip}>
+                                            ⚠
+                                        </div>
+                                    {/if}
+                                {/if}
+                            </div>
                             <div class="date">{new Date(data.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                         </div>
 
@@ -1101,11 +1166,29 @@
         flex-shrink: 0;
         position: relative;
 
+        .time-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
         .time {
             font-weight: bold;
             font-size: 13px;
             color: #333;
             line-height: 1.2;
+        }
+
+        .freshness-indicator {
+            font-size: 12px;
+            cursor: help;
+            line-height: 1;
+            opacity: 0.8;
+
+            &:hover {
+                opacity: 1;
+                transform: scale(1.1);
+            }
         }
 
         .date {

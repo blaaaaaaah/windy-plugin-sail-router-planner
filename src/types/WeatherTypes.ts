@@ -15,7 +15,8 @@ export interface WeatherData {
 
 export interface PointForecast {
 	point: LatLng; // interpolated point at that time, using the "distances" API response
-	timestamp: number; // from windyAPI, one for each hour
+	timestamp: number; // calculated sailing time when boat will be at this position
+	forecastTimestamp: number; // original API timestamp for this forecast data
 	bearing: number; // from windyAPI bearings array, degrees 0-359
 	leg: RouteLeg; // reference to the current Leg
 	warnings: string[]; // from windy api

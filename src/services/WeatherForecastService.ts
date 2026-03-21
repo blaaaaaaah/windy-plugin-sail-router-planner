@@ -110,19 +110,75 @@ export class WeatherForecastService {
 		// Consolidate each hour's forecasts
 		const consolidatedForecasts: PointForecast[] = [];
 		for (const [hour, forecasts] of hourlyGroups) {
-			const averaged = this.averagePointForecasts(forecasts);
-			averaged.apparent = averaged.northUp ? this.convertToApparent(
-				averaged.northUp,
-				averaged.leg.averageSpeed,
-				averaged.leg.course
+			// If multiple forecasts for the same hour, average them
+			// This happens when we cover a distance range that spans multiple API data points
+			let consolidatedForecast: PointForecast;
+
+			if (forecasts.length === 1) {
+				consolidatedForecast = forecasts[0];
+			} else {
+				// Average multiple forecasts for this hour
+				consolidatedForecast = this.averagePointForecasts(forecasts);
+			}
+
+			// Calculate apparent wind if we have valid north-up data
+			consolidatedForecast.apparent = consolidatedForecast.northUp ? this.convertToApparent(
+				consolidatedForecast.northUp,
+				consolidatedForecast.leg.averageSpeed,
+				consolidatedForecast.leg.course
 			) : null;
-			consolidatedForecasts.push(averaged);
+
+			consolidatedForecasts.push(consolidatedForecast);
 		}
 
 		// Sort by timestamp
 		const result = consolidatedForecasts.sort((a, b) => a.timestamp - b.timestamp);
 		console.log(`Consolidated to ${result.length} hourly forecasts`);
 		return result;
+	}
+
+	private selectBestForecastForHour(hour: number, forecasts: PointForecast[]): PointForecast {
+		if (forecasts.length === 0) {
+			throw new Error('Cannot select from empty forecasts array');
+		}
+
+		if (forecasts.length === 1) {
+			return forecasts[0];
+		}
+
+		// Group forecasts by their forecastTimestamp to find matches
+		const timestampGroups = new Map<number, PointForecast[]>();
+		for (const forecast of forecasts) {
+			const forecastHour = Math.floor(forecast.forecastTimestamp / (1000 * 60 * 60)) * (1000 * 60 * 60);
+			if (!timestampGroups.has(forecastHour)) {
+				timestampGroups.set(forecastHour, []);
+			}
+			timestampGroups.get(forecastHour)!.push(forecast);
+		}
+
+		// Find the best matching timestamp group
+		let bestGroup: PointForecast[] | null = null;
+		let bestTimestampDiff = Infinity;
+
+		for (const [forecastHour, group] of timestampGroups) {
+			const timestampDiff = Math.abs(forecastHour - hour);
+			if (timestampDiff < bestTimestampDiff) {
+				bestTimestampDiff = timestampDiff;
+				bestGroup = group;
+			}
+		}
+
+		if (!bestGroup) {
+			// Fallback: use the first forecast if no good timestamp match
+			return forecasts[0];
+		}
+
+		// If we have multiple forecasts with the same timestamp, average them
+		if (bestGroup.length > 1) {
+			return this.averagePointForecasts(bestGroup);
+		}
+
+		return bestGroup[0];
 	}
 
 	private averagePointForecasts(forecasts: PointForecast[]): PointForecast {
@@ -180,11 +236,12 @@ export class WeatherForecastService {
 		return {
 			point: { lat: avgLat, lng: avgLng },
 			timestamp: template.timestamp,
+			forecastTimestamp: template.forecastTimestamp, // Keep original API timestamp for staleness detection
 			bearing: avgBearing,
 			leg: template.leg,
 			warnings: uniqueWarnings,
 			northUp: avgWeather,
-			apparent: avgWeather, // Will be recalculated in consolidateLegsForecasts TODO : change
+			apparent: null, // Will be recalculated in consolidateLegsForecasts
 			precipitations: avgPrecip,
 			weather: avgWeatherCode
 		};
@@ -265,59 +322,162 @@ export class WeatherForecastService {
 			throw new Error(`API response array length mismatch. Expected ${arrayLength}, got: ${mismatchedLengths.map(f => `${f.field}:${f.length}`).join(', ')}`);
 		}
 
-		console.log(`Processing ${arrayLength} forecast points for leg (${(leg.endTime - leg.startTime) / (1000 * 60 * 60).toFixed(1)}h)`);
+		console.log(`Processing ${arrayLength} forecast points for leg (${((leg.endTime - leg.startTime) / (1000 * 60 * 60)).toFixed(1)}h)`);
 
-		// Process each data point in the API response
-		// Filter to only include timestamps within the actual leg duration
-		for (let i = 0; i < apiResponse.timestamps.length; i++) {
-			const timestamp = apiResponse.timestamps[i];
+		// Generate hourly forecasts based on sailing time and distance coverage
+		const hourMs = 60 * 60 * 1000;
+		for (let sailingTime = leg.startTime; sailingTime < leg.endTime; sailingTime += hourMs) {
+			// Calculate distance range covered during this hour
+			const hourStartDistance = this.getDistanceFromTime(leg, sailingTime);
+			const hourEndDistance = this.getDistanceFromTime(leg, Math.min(sailingTime + hourMs, leg.endTime));
 
-			// Skip forecasts outside the leg time range
-			if (timestamp < leg.startTime || timestamp > leg.endTime) {
+			// Find API data indexes that fall within this distance range
+			let matchingIndexes = this.getIndexesMatchingDistances(apiResponse.distances, hourStartDistance, hourEndDistance);
+
+			// Debug logging
+			const sailingTimeStr = new Date(sailingTime).toLocaleString('en-US', {
+				month: 'short',
+				day: 'numeric',
+				hour: 'numeric',
+				minute: '2-digit',
+				hour12: false
+			});
+			console.log(`\n=== Consolidation for ${sailingTimeStr} ===`);
+			console.log(`Distance range: ${(hourStartDistance/1852).toFixed(1)}nm to ${(hourEndDistance/1852).toFixed(1)}nm`);
+			console.log(`Found ${matchingIndexes.length} matching API data points:`, matchingIndexes);
+
+			// If no exact matches, find the closest API data point
+			if (matchingIndexes.length === 0) {
+				const midDistance = (hourStartDistance + hourEndDistance) / 2;
+				let closestIndex = 0;
+				let closestDiff = Math.abs(apiResponse.distances[0] - midDistance);
+
+				for (let i = 1; i < apiResponse.distances.length; i++) {
+					const diff = Math.abs(apiResponse.distances[i] - midDistance);
+					if (diff < closestDiff) {
+						closestDiff = diff;
+						closestIndex = i;
+					}
+				}
+
+				matchingIndexes = [closestIndex];
+				console.log(`No exact matches - using closest: index ${closestIndex} at ${(apiResponse.distances[closestIndex]/1852).toFixed(1)}nm (${(closestDiff/1852).toFixed(1)}nm off)`);
+			}
+
+			if (matchingIndexes.length > 0) {
+				const forecastTimes = matchingIndexes.map(i => {
+					const time = new Date(apiResponse.timestamps[i]).toLocaleString('en-US', {
+						month: 'short',
+						day: 'numeric',
+						hour: 'numeric',
+						minute: '2-digit',
+						hour12: false
+					});
+					return `${i}: ${time} (${(apiResponse.distances[i]/1852).toFixed(1)}nm)`;
+				});
+				console.log(`API forecasts selected:`, forecastTimes);
+			}
+
+			if (matchingIndexes.length === 0) {
+				// No API data for this hour, create empty forecast
+				console.log(`⚠️  NO FORECAST DATA for ${sailingTimeStr} at ${(hourStartDistance/1852).toFixed(1)}nm-${(hourEndDistance/1852).toFixed(1)}nm`);
+
+				// Check what API distances are around this range
+				const nearbyDistances = apiResponse.distances
+					.map((d, i) => ({ index: i, distance: d/1852, time: new Date(apiResponse.timestamps[i]).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: false }) }))
+					.filter(d => Math.abs(d.distance - hourStartDistance/1852) < 20) // within 20nm
+					.slice(0, 5); // show first 5
+
+				console.log(`Nearby API data:`, nearbyDistances);
+
+				const position = this.interpolateLegPositionByTime(leg, sailingTime);
+				pointForecasts.push({
+					point: position,
+					timestamp: sailingTime, // Sailing hour timestamp (local time)
+					forecastTimestamp: sailingTime, // No actual forecast data, use sailing time
+					bearing: leg.course,
+					leg,
+					warnings: [],
+					northUp: null,
+					apparent: null,
+					precipitations: 0,
+					weather: 2 // default weather code
+				});
 				continue;
 			}
-	
-			// Interpolate position using distances and leg bounds
-			const point = this.interpolateLegPosition(leg, apiResponse.distances[i]);
 
-			// Extract weather data from API response (with null checks)
-			// Note: Windy API returns wind/gust speeds in m/s, these are converted to knots in the UI
+			// Create a forecast for each matching API data point
+			// These will be averaged later in consolidation if multiple exist for the same hour
+			for (const i of matchingIndexes) {
+				// Interpolate position based on sailing time (not API distance)
+				const point = this.interpolateLegPositionByTime(leg, sailingTime);
 
-			// Check if we have valid forecast data for this timestamp
-			// If key weather data is null, we have no forecast for this time
-			const hasValidData = apiResponse.data.gust[i] !== null && apiResponse.data.waves[i] !== null;
+				// Check if we have valid forecast data
+				const hasValidData = apiResponse.data.gust[i] !== null && apiResponse.data.waves[i] !== null;
 
-			const northUpWeather: WeatherData | null = hasValidData ? {
-				windSpeed: apiResponse.data.wind[i], // m/s from Windy API
-				windDirection: apiResponse.data.windDir[i],
-				gustsSpeed: apiResponse.data.gust[i], // m/s from Windy API
-				gustsDirection: apiResponse.data.windDir[i], // Assume same direction as wind
-				currentSpeed: 0, // TODO: API doesn't seem to have current data
-				currentDirection: 0,
-				wavesHeight: apiResponse.data.waves[i],
-				wavesPeriod: apiResponse.data.wavesPeriod[i],
-				wavesDirection: apiResponse.data.wavesDir[i]
-			} : null;
+				const northUpWeather: WeatherData | null = hasValidData ? {
+					windSpeed: apiResponse.data.wind[i], // m/s from Windy API
+					windDirection: apiResponse.data.windDir[i],
+					gustsSpeed: apiResponse.data.gust[i], // m/s from Windy API
+					gustsDirection: apiResponse.data.windDir[i], // Assume same direction as wind
+					currentSpeed: 0, // TODO: API doesn't seem to have current data
+					currentDirection: 0,
+					wavesHeight: apiResponse.data.waves[i],
+					wavesPeriod: apiResponse.data.wavesPeriod[i],
+					wavesDirection: apiResponse.data.wavesDir[i]
+				} : null;
 
-			// Parse warnings
-			const warnings = apiResponse.data.warn[i] ? [apiResponse.data.warn[i] as string] : [];
+				// Parse warnings
+				const warnings = apiResponse.data.warn[i] ? [apiResponse.data.warn[i] as string] : [];
 
-			const pointForecast: PointForecast = {
-				point,
-				timestamp,
-				bearing: apiResponse.bearings[i],
-				leg,
-				warnings,
-				northUp: northUpWeather,
-				apparent: null, // Will be calculated later in consolidation if northUp has data
-				precipitations: apiResponse.data.precip[i] || 0,
-				weather: apiResponse.data.icon[i] || 0
-			};
+				const pointForecast: PointForecast = {
+					point,
+					timestamp: sailingTime, // Sailing hour timestamp (local time)
+					forecastTimestamp: apiResponse.timestamps[i], // API timestamp
+					bearing: apiResponse.bearings[i],
+					leg,
+					warnings,
+					northUp: northUpWeather,
+					apparent: null, // Will be calculated later in consolidation if northUp has data
+					precipitations: apiResponse.data.precip[i] || 0,
+					weather: apiResponse.data.icon[i] || 0
+				};
 
-			pointForecasts.push(pointForecast);
+				pointForecasts.push(pointForecast);
+			}
 		}
 
 		return pointForecasts;
+	}
+
+	private getDistanceFromTime(leg: RouteLeg, timestamp: number): number {
+		// Calculate how far into the leg we are at this timestamp
+		const timeElapsed = timestamp - leg.startTime;
+		const timeElapsedHours = timeElapsed / (1000 * 60 * 60);
+		const distanceCovered = timeElapsedHours * leg.averageSpeed; // nautical miles
+		return distanceCovered * 1852; // convert to meters to match API distances
+	}
+
+	private getIndexesMatchingDistances(apiDistances: number[], startDistance: number, endDistance: number): number[] {
+		const indexes: number[] = [];
+		for (let i = 0; i < apiDistances.length; i++) {
+			const distance = apiDistances[i];
+			if (distance >= startDistance && distance <= endDistance) {
+				indexes.push(i);
+			}
+		}
+		return indexes;
+	}
+
+
+	private interpolateLegPositionByTime(leg: RouteLeg, timestamp: number): LatLng {
+		// Calculate progress through the leg based on time
+		const timeElapsed = timestamp - leg.startTime;
+		const totalTime = leg.endTime - leg.startTime;
+		const progress = Math.min(1, Math.max(0, timeElapsed / totalTime));
+
+		// Interpolate position based on progress
+		return interpolateLatLng(leg.startPoint, leg.endPoint, progress);
 	}
 
 	private interpolateLegPosition(leg: RouteLeg, distance: number): LatLng {

@@ -21,8 +21,11 @@
             hourlyData = generateHourlyData();
             waypointPositions = calculateWaypointPositions();
 
-            // Cache row positions after DOM updates
-            setTimeout(() => cacheRowPositions(), 0);
+            // Cache row positions after DOM updates and handle auto-scroll
+            setTimeout(() => {
+                cacheRowPositions();
+                autoScrollToDeparture();
+            }, 0);
         } else {
             // Clear data when no forecast
             hourlyData = [];
@@ -359,6 +362,44 @@
         });
     }
 
+    function autoScrollToDeparture() {
+        if (!scrollContainer || !forecast || rowPositions.length === 0) return;
+
+        // Only auto-scroll if currently at the top (user hasn't manually scrolled)
+        if (scrollContainer.scrollTop > 0) return;
+
+        const departureTime = forecast.route.departureTime;
+        const fourHoursBeforeDeparture = departureTime - (4 * 60 * 60 * 1000);
+
+        // Find the index of the forecast point closest to 4 hours before departure
+        let targetIndex = -1;
+        let closestTimeDiff = Infinity;
+
+        for (let i = 0; i < hourlyData.length; i++) {
+            const timeDiff = Math.abs(hourlyData[i].timestamp - fourHoursBeforeDeparture);
+            if (timeDiff < closestTimeDiff) {
+                closestTimeDiff = timeDiff;
+                targetIndex = i;
+            }
+        }
+
+        // Scroll to show the target row if found
+        if (targetIndex >= 0 && targetIndex < rowPositions.length) {
+            const targetRow = rowPositions[targetIndex];
+            const containerHeight = scrollContainer.clientHeight;
+
+            // Position the target row at the top of visible area to show 4h before departure prominently
+            const offsetFromTop = 0; // Show target row at the very top
+            const targetScrollTop = Math.max(0, targetRow.top - offsetFromTop);
+
+            console.log(`Auto-scrolling to ${new Date(fourHoursBeforeDeparture).toISOString()} (4h before departure)`);
+            scrollContainer.scrollTo({
+                top: targetScrollTop,
+                behavior: 'smooth'
+            });
+        }
+    }
+
     function handleScroll() {
         if (!scrollContainer || rowPositions.length === 0) return;
 
@@ -462,7 +503,7 @@
         });
 
         // Debug logging
-        console.log(`Freshness check: Sailing=${sailingTimeStr}, Forecast=${forecastTimeStr}, Diff=${timeDiffMinutes.toFixed(1)}min (${hoursDiff.toFixed(1)}h)`);
+        //console.log(`Freshness check: Sailing=${sailingTimeStr}, Forecast=${forecastTimeStr}, Diff=${timeDiffMinutes.toFixed(1)}min (${hoursDiff.toFixed(1)}h)`);
 
         if (timeDiffMinutes < 90) { // Less than 1.5 hours
             return {

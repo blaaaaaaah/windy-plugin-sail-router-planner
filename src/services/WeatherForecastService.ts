@@ -460,11 +460,18 @@ export class WeatherForecastService {
 	): PointForecast[] {
 		const pointForecasts: PointForecast[] = [];
 
-		// Generate hourly forecasts based on sailing time and distance coverage
+		// Generate hourly forecasts aligned to clock hours (XX:00), not leg boundaries
 		const hourMs = 60 * 60 * 1000;
 		console.log(`🕐 Leg time range: ${new Date(leg.startTime).toISOString()} to ${new Date(leg.endTime).toISOString()}`);
 
-		for (let sailingTime = leg.startTime; sailingTime < leg.endTime; sailingTime += hourMs) {
+		// Start from the first full hour within or after leg start
+		const firstHourInLeg = Math.ceil(leg.startTime / hourMs) * hourMs;
+		// End at the last full hour within or before leg end
+		const lastHourInLeg = Math.floor(leg.endTime / hourMs) * hourMs;
+
+		console.log(`🕐 Aligned hourly range: ${new Date(firstHourInLeg).toISOString()} to ${new Date(lastHourInLeg).toISOString()}`);
+
+		for (let sailingTime = firstHourInLeg; sailingTime <= lastHourInLeg; sailingTime += hourMs) {
 			// Use the provided matching function to find relevant API data
 			let matchingIndexes = matchingFn(sailingTime, hourMs);
 
@@ -495,15 +502,7 @@ export class WeatherForecastService {
 
 			if (matchingIndexes.length === 0) {
 				// No API data for this hour, create empty forecast
-				console.log(`⚠️  NO FORECAST DATA for ${sailingTimeStr} at ${(hourStartDistance/1852).toFixed(1)}nm-${(hourEndDistance/1852).toFixed(1)}nm`);
-
-				// Check what API distances are around this range
-				const nearbyDistances = apiResponse.distances
-					.map((d, i) => ({ index: i, distance: d/1852, time: new Date(apiResponse.timestamps[i]).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: false }) }))
-					.filter(d => Math.abs(d.distance - hourStartDistance/1852) < 20) // within 20nm
-					.slice(0, 5); // show first 5
-
-				console.log(`Nearby API data:`, nearbyDistances);
+				console.log(`⚠️  NO FORECAST DATA for ${sailingTimeStr}`);
 
 				const position = this.interpolateLegPositionByTime(leg, sailingTime);
 				pointForecasts.push({
@@ -527,8 +526,12 @@ export class WeatherForecastService {
 				// Interpolate position based on sailing time (not API distance)
 				const point = this.interpolateLegPositionByTime(leg, sailingTime);
 
-				// Check if we have valid forecast data
-				const hasValidData = apiResponse.data.gust[i] !== null && apiResponse.data.waves[i] !== null;
+				// Check if we have valid forecast data (invalid only if BOTH gusts and waves are null)
+				const hasValidData = apiResponse.data.gust[i] !== null || apiResponse.data.waves[i] !== null;
+
+				if (!hasValidData) {
+					console.log(`⚠️  Index ${i} has null weather data: wind=${apiResponse.data.wind[i]}, gust=${apiResponse.data.gust[i]}, waves=${apiResponse.data.waves[i]}`);
+				}
 
 				const northUpWeather: WeatherData | null = hasValidData ? {
 					windSpeed: apiResponse.data.wind[i], // m/s from Windy API

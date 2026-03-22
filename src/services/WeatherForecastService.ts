@@ -1,4 +1,4 @@
-import type { RouteDefinition, RouteLeg, RouteForecast, PointForecast, WeatherData, WindyAPIResponse, LatLng } from '../types';
+import type { RouteDefinition, RouteLeg, RouteForecast, PointForecast, WeatherData, WindyAPIResponse, LatLng, LegStats } from '../types';
 import { WindyAPI } from './WindyAPI';
 import { calculateApparentWind, calculateRelativeDirection, interpolateLatLng } from '../utils/NavigationUtils';
 
@@ -76,9 +76,13 @@ export class WeatherForecastService {
 		// Consolidate all forecasts
 		const consolidatedForecasts = this.consolidateLegsForecasts(allPointForecasts);
 
+		// Calculate leg statistics
+		const legStats = route.legs.map(leg => this.calculateLegWeatherStats(leg, consolidatedForecasts));
+
 		return {
 			route,
-			pointForecasts: consolidatedForecasts
+			pointForecasts: consolidatedForecasts,
+			legStats
 		};
 	}
 
@@ -798,5 +802,90 @@ export class WeatherForecastService {
 		}
 
 		return artificialPoints;
+	}
+
+	/**
+	 * Calculate weather statistics for a leg from forecast data
+	 */
+	calculateLegWeatherStats(leg: RouteLeg, forecastPoints: PointForecast[]): {
+		minWindSpeed: number;
+		avgWindSpeed: number;
+		maxWindSpeed: number;
+		minGust: number;
+		avgGust: number;
+		maxGust: number;
+	} | null {
+		// Filter forecast points that fall within this leg's timeframe
+		const legForecasts = forecastPoints.filter(point =>
+			point.timestamp >= leg.startTime &&
+			point.timestamp <= leg.endTime &&
+			point.northUp !== null
+		);
+
+		if (legForecasts.length === 0) {
+			// No forecast data for this leg, return null
+			return null;
+		}
+
+		// Extract wind speeds (convert from m/s to knots)
+		const windSpeeds = legForecasts.map(f => f.northUp!.windSpeed * 1.94384);
+		const gustSpeeds = legForecasts.map(f => f.northUp!.gustsSpeed * 1.94384);
+
+		// Extract wave data (heights in meters, periods in seconds)
+		const waveHeights = legForecasts.map(f => f.northUp!.wavesHeight);
+		const wavePeriods = legForecasts.map(f => f.northUp!.wavesPeriod);
+
+		// Calculate wind angle statistics
+		const windAngles = legForecasts.map(f => {
+			// Calculate the angle between wind direction and boat course
+			const windDirection = f.northUp!.windDirection;
+			const boatCourse = leg.course;
+
+			// Calculate relative wind angle (0-180 degrees)
+			let relativeAngle = Math.abs(windDirection - boatCourse);
+			if (relativeAngle > 180) {
+				relativeAngle = 360 - relativeAngle;
+			}
+
+			return relativeAngle;
+		});
+
+		// Classify each forecast point
+		let upwindCount = 0;
+		let reachingCount = 0;
+		let downwindCount = 0;
+
+		windAngles.forEach(angle => {
+			if (angle < 60) {
+				upwindCount++;
+			} else if (angle <= 120) {
+				reachingCount++;
+			} else {
+				downwindCount++;
+			}
+		});
+
+		const totalCount = windAngles.length;
+		const percentUpwind = (upwindCount / totalCount) * 100;
+		const percentReaching = (reachingCount / totalCount) * 100;
+		const percentDownwind = (downwindCount / totalCount) * 100;
+
+		return {
+			minWindSpeed: Math.min(...windSpeeds),
+			avgWindSpeed: windSpeeds.reduce((sum, speed) => sum + speed, 0) / windSpeeds.length,
+			maxWindSpeed: Math.max(...windSpeeds),
+			minGust: Math.min(...gustSpeeds),
+			avgGust: gustSpeeds.reduce((sum, speed) => sum + speed, 0) / gustSpeeds.length,
+			maxGust: Math.max(...gustSpeeds),
+			minWaveHeight: Math.min(...waveHeights),
+			avgWaveHeight: waveHeights.reduce((sum, height) => sum + height, 0) / waveHeights.length,
+			maxWaveHeight: Math.max(...waveHeights),
+			minWavePeriod: Math.min(...wavePeriods),
+			avgWavePeriod: wavePeriods.reduce((sum, period) => sum + period, 0) / wavePeriods.length,
+			maxWavePeriod: Math.max(...wavePeriods),
+			percentUpwind,
+			percentReaching,
+			percentDownwind
+		};
 	}
 }

@@ -339,15 +339,8 @@
             return null;
         }
 
-        // Mock weather data for now - TODO: Calculate from actual weather service data
-        const mockWeatherStats = {
-            minWindSpeed: 8 + Math.random() * 4,   // 8-12 kts
-            avgWindSpeed: 12 + Math.random() * 8,  // 12-20 kts
-            maxWindSpeed: 16 + Math.random() * 12, // 16-28 kts
-            minGust: 10 + Math.random() * 6,       // 10-16 kts
-            avgGust: 15 + Math.random() * 10,      // 15-25 kts
-            maxGust: 18 + Math.random() * 12       // 18-30 kts
-        };
+        // Get real weather statistics from forecast data
+        const legStats = forecast.legStats[waypointNumber - 1]; // legStats indexed by leg number
 
         // Format leg time (duration is in milliseconds)
         const totalMinutes = Math.floor(leg.duration / (1000 * 60));
@@ -357,12 +350,21 @@
 
         return {
             averageSpeed: leg.averageSpeed,
-            minWindSpeed: Math.round(mockWeatherStats.minWindSpeed),
-            avgWindSpeed: Math.round(mockWeatherStats.avgWindSpeed),
-            maxWindSpeed: Math.round(mockWeatherStats.maxWindSpeed),
-            minGust: Math.round(mockWeatherStats.minGust),
-            avgGust: Math.round(mockWeatherStats.avgGust),
-            maxGust: Math.round(mockWeatherStats.maxGust),
+            minWindSpeed: legStats ? Math.round(legStats.minWindSpeed) : 0,
+            avgWindSpeed: legStats ? Math.round(legStats.avgWindSpeed) : 0,
+            maxWindSpeed: legStats ? Math.round(legStats.maxWindSpeed) : 0,
+            minGust: legStats ? Math.round(legStats.minGust) : 0,
+            avgGust: legStats ? Math.round(legStats.avgGust) : 0,
+            maxGust: legStats ? Math.round(legStats.maxGust) : 0,
+            minWaveHeight: legStats ? legStats.minWaveHeight.toFixed(1) : '0.0',
+            avgWaveHeight: legStats ? legStats.avgWaveHeight.toFixed(1) : '0.0',
+            maxWaveHeight: legStats ? legStats.maxWaveHeight.toFixed(1) : '0.0',
+            minWavePeriod: legStats ? legStats.minWavePeriod.toFixed(1) : '0.0',
+            avgWavePeriod: legStats ? legStats.avgWavePeriod.toFixed(1) : '0.0',
+            maxWavePeriod: legStats ? legStats.maxWavePeriod.toFixed(1) : '0.0',
+            percentUpwind: legStats ? legStats.percentUpwind.toFixed(0) : '0',
+            percentReaching: legStats ? legStats.percentReaching.toFixed(0) : '0',
+            percentDownwind: legStats ? legStats.percentDownwind.toFixed(0) : '0',
             legTime: legTime,
             distance: `${leg.distance.toFixed(1)}nm`
         };
@@ -884,6 +886,54 @@
                                                 <div class="leg-item">
                                                     <label>MAX GUST</label>
                                                     <span class="value">{legData.maxGust}kts</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Row 4: Wave Height Statistics -->
+                                            <div class="leg-row">
+                                                <div class="leg-item">
+                                                    <label>MIN WAVE</label>
+                                                    <span class="value">{legData.minWaveHeight}m</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>AVG WAVE</label>
+                                                    <span class="value">{legData.avgWaveHeight}m</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>MAX WAVE</label>
+                                                    <span class="value">{legData.maxWaveHeight}m</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Row 5: Wave Period Statistics -->
+                                            <div class="leg-row">
+                                                <div class="leg-item">
+                                                    <label>MIN PERIOD</label>
+                                                    <span class="value">{legData.minWavePeriod}s</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>AVG PERIOD</label>
+                                                    <span class="value">{legData.avgWavePeriod}s</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>MAX PERIOD</label>
+                                                    <span class="value">{legData.maxWavePeriod}s</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Row 6: Wind Angle Statistics -->
+                                            <div class="leg-row">
+                                                <div class="leg-item">
+                                                    <label>% UPWIND</label>
+                                                    <span class="value">{legData.percentUpwind}%</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>% REACHING</label>
+                                                    <span class="value">{legData.percentReaching}%</span>
+                                                </div>
+                                                <div class="leg-item">
+                                                    <label>% DOWNWIND</label>
+                                                    <span class="value">{legData.percentDownwind}%</span>
                                                 </div>
                                             </div>
                                         {/if}

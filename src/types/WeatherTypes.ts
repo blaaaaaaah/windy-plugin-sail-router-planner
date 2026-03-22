@@ -1,6 +1,24 @@
 import type { LatLng } from './Coordinates';
 import type { RouteLeg, RouteDefinition } from './RouteTypes';
 
+export interface LegStats {
+	minWindSpeed: number;
+	avgWindSpeed: number;
+	maxWindSpeed: number;
+	minGust: number;
+	avgGust: number;
+	maxGust: number;
+	minWaveHeight: number;
+	avgWaveHeight: number;
+	maxWaveHeight: number;
+	minWavePeriod: number;
+	avgWavePeriod: number;
+	maxWavePeriod: number;
+	percentUpwind: number;
+	percentReaching: number;
+	percentDownwind: number;
+}
+
 export interface WeatherData {
 	windSpeed: number; // m/s (from Windy API), converted to knots for display
 	windDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
@@ -29,6 +47,7 @@ export interface PointForecast {
 export interface RouteForecast {
 	route: RouteDefinition; // reference to access legs, distances, times, etc
 	pointForecasts: PointForecast[];
+	legStats: (LegStats | null)[];
 }
 
 // Raw API response types

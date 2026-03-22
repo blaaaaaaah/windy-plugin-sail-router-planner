@@ -2,7 +2,7 @@ import type { LatLng } from '../types/Coordinates';
 import { RouteDefinition } from '../types/RouteTypes';
 import { markers } from '@windy/map';
 import store from '@windy/store';
-import { calculateGreatCircleDistance, interpolateGreatCircle } from '../utils/NavigationUtils';
+import { calculateGreatCircleDistance, interpolateGreatCircle, interpolateLatLng } from '../utils/NavigationUtils';
 
 export class RouteEditorController {
 	private _routes: RouteDefinition[] = [];
@@ -306,11 +306,8 @@ export class RouteEditorController {
 					const timeIntoLeg = nextDayTime - legStartTime;
 					const progressInLeg = timeIntoLeg / legDurationHours;
 
-					// Interpolate position
-					const markerPosition = {
-						lat: leg.startPoint.lat + (leg.endPoint.lat - leg.startPoint.lat) * progressInLeg,
-						lng: leg.startPoint.lng + (leg.endPoint.lng - leg.startPoint.lng) * progressInLeg
-					};
+					// Interpolate position using great circle interpolation for long passages
+					const markerPosition = interpolateLatLng(leg.startPoint, leg.endPoint, progressInLeg);
 
 					// Create day marker text label
 					const dayText = `${currentDay}d`;

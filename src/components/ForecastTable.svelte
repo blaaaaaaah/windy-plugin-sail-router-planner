@@ -27,10 +27,15 @@
                 autoScrollToDeparture();
             }, 0);
         } else {
-            // Clear data when no forecast
-            hourlyData = [];
-            waypointPositions = [];
+            // Generate placeholder data when loading, otherwise clear
+            hourlyData = generateHourlyData(); // Will generate placeholder if isLoading
+            waypointPositions = []; // No waypoints for placeholder data
             rowPositions = [];
+
+            // Cache row positions for placeholder data
+            if (hourlyData.length > 0) {
+                setTimeout(() => cacheRowPositions(), 0);
+            }
         }
     }
 
@@ -184,7 +189,15 @@
     
 
     function generateHourlyData() {
-        if (!forecast || !forecast.pointForecasts.length) return [];
+        if (!forecast) {
+            // If loading and no forecast yet, create empty placeholder rows
+            if (isLoading) {
+                return generatePlaceholderRows();
+            }
+            return [];
+        }
+
+        if (!forecast.pointForecasts.length) return [];
 
         const startTime = forecast.route.departureTime;
         const endTime = forecast.route.arrivalTime;
@@ -197,6 +210,27 @@
             hour: new Date(forecastPoint.timestamp).getHours(),
             day: new Date(forecastPoint.timestamp).getDate()
         }));
+    }
+
+    function generatePlaceholderRows() {
+        // Generate 24 hours of placeholder data starting from now
+        const now = Date.now();
+        const nextHour = Math.ceil(now / (60 * 60 * 1000)) * (60 * 60 * 1000);
+        const placeholderRows = [];
+
+        for (let i = 0; i < 24; i++) {
+            const timestamp = nextHour + (i * 60 * 60 * 1000);
+            placeholderRows.push({
+                timestamp,
+                isInRoute: false, // All placeholder rows are not in route
+                forecast: null, // No actual forecast data
+                hour: new Date(timestamp).getHours(),
+                day: new Date(timestamp).getDate(),
+                isPlaceholder: true
+            });
+        }
+
+        return placeholderRows;
     }
 
     function findClosestForecastPoint(targetTime: number) {
@@ -1049,6 +1083,29 @@
         bottom: 0;
         background: rgba(248, 249, 250, 0.8);
         z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .forecast-table-container.loading::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 24px;
+        height: 24px;
+        border: 2px solid #ddd;
+        border-top: 2px solid #007cba;
+        border-radius: 50%;
+        z-index: 101;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: translate(-50%, -50%) rotate(0deg); }
+        to { transform: translate(-50%, -50%) rotate(360deg); }
     }
 
     .table-container {

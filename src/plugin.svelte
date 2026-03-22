@@ -36,7 +36,7 @@
 
 
     <!-- Forecast Table -->
-    {#if currentForecast}
+    {#if hasActiveRoute}
         <ForecastTable
             forecast={currentForecast}
             isLoading={isLoadingForecast}
@@ -79,6 +79,7 @@
     // Forecast data
     let currentForecast: RouteForecast|null = null;
     let isLoadingForecast: boolean = false;
+    let hasActiveRoute: boolean = false;
 
     // Weather service instances
     let windyAPI: WindyAPI | null = null;
@@ -149,6 +150,9 @@
         setUrl(config.name, { route: serializedRoute });
 
         logWindyRPlannerRoute(route);
+
+        // Update route state
+        hasActiveRoute = route.waypoints.length >= 2;
 
         // Generate forecast when route has 2+ waypoints
         if (route.waypoints.length >= 2) {

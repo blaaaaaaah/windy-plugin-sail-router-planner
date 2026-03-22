@@ -18,12 +18,25 @@ export class WeatherForecastService {
 
 		// Get forecast window to optimize API calls
 		const forecastWindow = await this.windyAPI.getForecastWindow();
+		const now = Date.now();
+		const startPoint = route.waypoints[0];
+		const endPoint = route.waypoints[route.waypoints.length - 1];
 
-		// Calculate all legs and break long ones into parts, respecting forecast window
+		const allPointForecasts: PointForecast[] = [];
+
+		// 1. PRE-DEPARTURE: Get forecast from next full hour until route start (if route starts in future)
+		if (route.departureTime > now) {
+			// Start from the next full hour instead of current time
+			const nextHour = Math.ceil(now / (60 * 60 * 1000)) * (60 * 60 * 1000);
+			console.log(`\n⏰ Getting pre-departure forecast: ${new Date(nextHour).toISOString()} to ${new Date(route.departureTime).toISOString()}`);
+			const preDepartureForecast = await this.getPointForecast(startPoint, nextHour, route.departureTime);
+			allPointForecasts.push(...preDepartureForecast);
+		}
+
+		// 2. ROUTE LEGS: Calculate all legs and break long ones into parts
 		const allLegParts = this.calculateLegParts(legs, forecastWindow);
 
 		// Get forecast for each leg part
-		const allPointForecasts: PointForecast[] = [];
 		for (let i = 0; i < allLegParts.length; i++) {
 			const legPart = allLegParts[i];
 			console.log(`\n🚢 Processing leg part ${i+1}/${allLegParts.length}: ${new Date(legPart.startTime).toISOString()} to ${new Date(legPart.endTime).toISOString()}`);
@@ -38,6 +51,26 @@ export class WeatherForecastService {
 			}
 
 			allPointForecasts.push(...legForecast);
+		}
+
+		// 3. POST-ARRIVAL: Get forecast after route end if within forecast window
+		if (route.arrivalTime < forecastWindow.end) {
+			console.log(`\n🏁 Getting post-arrival forecast: ${new Date(route.arrivalTime).toISOString()} to ${new Date(forecastWindow.end).toISOString()}`);
+			const postArrivalForecast = await this.getPointForecast(endPoint, route.arrivalTime, forecastWindow.end);
+			allPointForecasts.push(...postArrivalForecast);
+		}
+
+		// 4. ARTIFICIAL POST-ARRIVAL: If we don't have enough post-arrival data, create artificial points
+		const postArrivalDataCount = allPointForecasts.filter(f => f.timestamp > route.arrivalTime).length;
+		if (postArrivalDataCount < 6) {
+			console.log(`\n🔧 Creating ${6 - postArrivalDataCount} artificial post-arrival points`);
+			const artificialPoints = this.createArtificialPostArrivalPoints(
+				allPointForecasts,
+				endPoint,
+				route.arrivalTime,
+				6 - postArrivalDataCount
+			);
+			allPointForecasts.push(...artificialPoints);
 		}
 
 		// Consolidate all forecasts
@@ -174,12 +207,13 @@ export class WeatherForecastService {
 				consolidatedForecast = this.averagePointForecasts(forecasts);
 			}
 
-			// Calculate apparent wind if we have valid north-up data
-			consolidatedForecast.apparent = consolidatedForecast.northUp ? this.convertToApparent(
-				consolidatedForecast.northUp,
-				consolidatedForecast.leg.averageSpeed,
-				consolidatedForecast.leg.course
-			) : null;
+			// Calculate apparent wind if we have valid north-up data AND a leg (not stationary)
+			consolidatedForecast.apparent = (consolidatedForecast.northUp && consolidatedForecast.leg)
+				? this.convertToApparent(
+					consolidatedForecast.northUp,
+					consolidatedForecast.leg.averageSpeed,
+					consolidatedForecast.leg.course
+				) : null;
 
 			consolidatedForecasts.push(consolidatedForecast);
 		}
@@ -321,10 +355,8 @@ export class WeatherForecastService {
 
 
 
-	private parseLegForecastResponse(leg: RouteLeg, apiResponse: WindyAPIResponse): PointForecast[] {
-		const pointForecasts: PointForecast[] = [];
-
-		console.log('Parsing leg API response, checking required fields...');
+	private validateAPIResponseStructure(apiResponse: WindyAPIResponse): void {
+		console.log('Validating API response structure...');
 
 		// Safety checks for top-level fields
 		const topLevelFields = ['timestamps', 'distances', 'bearings', 'data'];
@@ -375,33 +407,23 @@ export class WeatherForecastService {
 			throw new Error(`API response array length mismatch. Expected ${arrayLength}, got: ${mismatchedLengths.map(f => `${f.field}:${f.length}`).join(', ')}`);
 		}
 
+		console.log(`API response validation passed - ${arrayLength} data points`);
+	}
+
+	private parseLegForecastResponse(leg: RouteLeg, apiResponse: WindyAPIResponse): PointForecast[] {
+		// Validate API response structure
+		this.validateAPIResponseStructure(apiResponse);
+
+		const arrayLength = apiResponse.timestamps.length;
 		console.log(`Processing ${arrayLength} forecast points for leg (${((leg.endTime - leg.startTime) / (1000 * 60 * 60)).toFixed(1)}h)`);
 
-		// Generate hourly forecasts based on sailing time and distance coverage
-		const hourMs = 60 * 60 * 1000;
-		console.log(`🕐 Leg time range: ${new Date(leg.startTime).toISOString()} to ${new Date(leg.endTime).toISOString()}`);
-
-		for (let sailingTime = leg.startTime; sailingTime < leg.endTime; sailingTime += hourMs) {
-			// Calculate distance range covered during this hour (relative to leg start)
+		// Distance-based matching function for regular legs
+		const distanceMatchingFn = (sailingTime: number, hourMs: number) => {
 			const hourStartDistance = this.getDistanceFromTimeRelativeToLeg(leg, sailingTime);
 			const hourEndDistance = this.getDistanceFromTimeRelativeToLeg(leg, Math.min(sailingTime + hourMs, leg.endTime));
-
-			// Find API data indexes that fall within this distance range
 			let matchingIndexes = this.getIndexesMatchingDistances(apiResponse.distances, hourStartDistance, hourEndDistance);
 
-			// Debug logging
-			const sailingTimeStr = new Date(sailingTime).toLocaleString('en-US', {
-				month: 'short',
-				day: 'numeric',
-				hour: 'numeric',
-				minute: '2-digit',
-				hour12: false
-			});
-			console.log(`\n=== Consolidation for ${sailingTimeStr} (${new Date(sailingTime).toISOString()}) ===`);
-			console.log(`Distance range: ${(hourStartDistance/1852).toFixed(1)}nm to ${(hourEndDistance/1852).toFixed(1)}nm`);
-			console.log(`Found ${matchingIndexes.length} matching API data points:`, matchingIndexes);
-
-			// If no exact matches, find the closest API data point
+			// If no exact matches, find the closest by distance
 			if (matchingIndexes.length === 0) {
 				const midDistance = (hourStartDistance + hourEndDistance) / 2;
 				let closestIndex = 0;
@@ -416,8 +438,46 @@ export class WeatherForecastService {
 				}
 
 				matchingIndexes = [closestIndex];
+				console.log(`Distance range: ${(hourStartDistance/1852).toFixed(1)}nm to ${(hourEndDistance/1852).toFixed(1)}nm`);
 				console.log(`No exact matches - using closest: index ${closestIndex} at ${(apiResponse.distances[closestIndex]/1852).toFixed(1)}nm (${(closestDiff/1852).toFixed(1)}nm off)`);
 			}
+
+			return matchingIndexes;
+		};
+
+		// Use shared hourly processing logic with distance matching
+		return this.processHourlyForecastsFromAPI(leg, apiResponse, distanceMatchingFn);
+	}
+
+	/**
+	 * Shared logic to process API response into hourly forecasts
+	 * Used by both regular legs and point forecasts
+	 */
+	private processHourlyForecastsFromAPI(
+		leg: RouteLeg,
+		apiResponse: WindyAPIResponse,
+		matchingFn: (sailingTime: number, hourMs: number) => number[]
+	): PointForecast[] {
+		const pointForecasts: PointForecast[] = [];
+
+		// Generate hourly forecasts based on sailing time and distance coverage
+		const hourMs = 60 * 60 * 1000;
+		console.log(`🕐 Leg time range: ${new Date(leg.startTime).toISOString()} to ${new Date(leg.endTime).toISOString()}`);
+
+		for (let sailingTime = leg.startTime; sailingTime < leg.endTime; sailingTime += hourMs) {
+			// Use the provided matching function to find relevant API data
+			let matchingIndexes = matchingFn(sailingTime, hourMs);
+
+			// Debug logging
+			const sailingTimeStr = new Date(sailingTime).toLocaleString('en-US', {
+				month: 'short',
+				day: 'numeric',
+				hour: 'numeric',
+				minute: '2-digit',
+				hour12: false
+			});
+			console.log(`\n=== Consolidation for ${sailingTimeStr} (${new Date(sailingTime).toISOString()}) ===`);
+			console.log(`Found ${matchingIndexes.length} matching API data points:`, matchingIndexes);
 
 			if (matchingIndexes.length > 0) {
 				const forecastTimes = matchingIndexes.map(i => {
@@ -586,5 +646,154 @@ export class WeatherForecastService {
 			wavesPeriod: northUp.wavesPeriod,
 			wavesDirection: calculateRelativeDirection(northUp.wavesDirection, boatCourse)
 		};
+	}
+
+	/**
+	 * Get forecast for a single point (stationary) over a time period
+	 * Creates a fake leg where start and end are the same point
+	 */
+	async getPointForecast(point: LatLng, startTime: number, endTime: number): Promise<PointForecast[]> {
+		console.log(`🎯 Getting point forecast for ${point.lat},${point.lng} from ${new Date(startTime).toISOString()} to ${new Date(endTime).toISOString()}`);
+
+		try {
+			// Create fake leg with slightly offset end point (Windy API doesn't like identical start/end)
+			const L = (window as any).L;
+			const startPoint = point;
+			const endPoint = new L.LatLng(point.lat + 0.01, point.lng + 0.01);
+			const waypoints = [startPoint, endPoint];
+
+			// Call route planner API with dst and dst2 parameters
+			const apiResponse = await this.windyAPI.getRoutePlanner(startTime, endTime, waypoints);
+
+			// Validate API response structure
+			this.validateAPIResponseStructure(apiResponse);
+
+			// Convert API response to PointForecast array
+			const pointForecasts: PointForecast[] = [];
+
+			// Filter to only include timestamps within our desired time range
+			for (let i = 0; i < apiResponse.timestamps.length; i++) {
+				const timestamp = apiResponse.timestamps[i];
+
+				// Only include forecasts within our time range
+				if (timestamp >= startTime && timestamp <= endTime) {
+					const northUpWeather: WeatherData = {
+						windSpeed: apiResponse.data.wind[i],
+						windDirection: apiResponse.data.windDir[i],
+						gustsSpeed: apiResponse.data.gust[i],
+						gustsDirection: apiResponse.data.windDir[i], // API doesn't provide separate gust direction
+						currentSpeed: 0, // Not typically available in route planner API
+						currentDirection: 0,
+						wavesHeight: apiResponse.data.waves[i],
+						wavesPeriod: apiResponse.data.wavesPeriod[i],
+						wavesDirection: apiResponse.data.wavesDir[i]
+					};
+
+					const pointForecast: PointForecast = {
+						point, // Always the same point for stationary forecast
+						timestamp, // Use the API timestamp directly
+						forecastTimestamp: apiResponse.timestamps[i],
+						bearing: 0, // No bearing for stationary points
+						leg: null, // No leg reference for point forecasts
+						warnings: apiResponse.data.warn[i] ? [apiResponse.data.warn[i] as string] : [],
+						northUp: northUpWeather,
+						apparent: null, // No apparent wind for stationary points
+						precipitations: apiResponse.data.precip[i] || 0,
+						weather: apiResponse.data.icon[i] || 0
+					};
+
+					pointForecasts.push(pointForecast);
+				}
+			}
+
+			console.log(`📍 Point forecast returned ${pointForecasts.length} forecasts for time range`);
+
+			// Process point forecasts using same logic as regular legs but with stationary "leg"
+			const stationaryLeg: RouteLeg = {
+				startTime,
+				startPoint: point,
+				endPoint: point, // Same point for stationary
+				course: 0,
+				distance: 0,
+				averageSpeed: 0,
+				endTime,
+				duration: endTime - startTime
+			};
+
+			// Time-based matching function for point forecasts
+			const timeMatchingFn = (sailingTime: number, hourMs: number) => {
+				// For point forecasts, always find closest API timestamp to this sailing time
+				let closestIndex = 0;
+				let closestDiff = Math.abs(apiResponse.timestamps[0] - sailingTime);
+
+				for (let i = 1; i < apiResponse.timestamps.length; i++) {
+					const diff = Math.abs(apiResponse.timestamps[i] - sailingTime);
+					if (diff < closestDiff) {
+						closestDiff = diff;
+						closestIndex = i;
+					}
+				}
+
+				console.log(`Time matching - using closest: index ${closestIndex} at ${new Date(apiResponse.timestamps[closestIndex]).toISOString()} (${(closestDiff/60000).toFixed(1)}min off)`);
+				return [closestIndex];
+			};
+
+			// Reuse the same parsing logic as regular legs with time matching
+			const processedForecasts = this.processHourlyForecastsFromAPI(stationaryLeg, apiResponse, timeMatchingFn);
+			console.log(`📍 After hourly processing: ${processedForecasts.length} forecasts`);
+
+			return processedForecasts;
+
+		} catch (error) {
+			console.error('Point forecast error:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Create artificial post-arrival forecast points using the last available forecast data
+	 */
+	private createArtificialPostArrivalPoints(
+		allForecasts: PointForecast[],
+		endPoint: LatLng,
+		arrivalTime: number,
+		count: number
+	): PointForecast[] {
+		// Find the last forecast point with actual weather data
+		const lastForecastWithData = allForecasts
+			.filter(f => f.northUp !== null)
+			.sort((a, b) => a.timestamp - b.timestamp)
+			.pop();
+
+		if (!lastForecastWithData) {
+			console.warn('No forecast data available to create artificial points');
+			return [];
+		}
+
+		console.log(`Creating ${count} artificial points using last forecast data from ${new Date(lastForecastWithData.timestamp).toISOString()}`);
+
+		const artificialPoints: PointForecast[] = [];
+		const hourMs = 60 * 60 * 1000;
+
+		for (let i = 1; i <= count; i++) {
+			const timestamp = arrivalTime + (i * hourMs);
+
+			const artificialPoint: PointForecast = {
+				point: endPoint, // At the destination
+				timestamp,
+				forecastTimestamp: lastForecastWithData.forecastTimestamp, // Use same forecast timestamp
+				bearing: 0, // No bearing for stationary points
+				leg: null, // No leg reference
+				warnings: [], // No warnings for artificial points
+				northUp: { ...lastForecastWithData.northUp! }, // Copy the weather data
+				apparent: null, // No apparent wind for stationary points
+				precipitations: lastForecastWithData.precipitations,
+				weather: lastForecastWithData.weather
+			};
+
+			artificialPoints.push(artificialPoint);
+		}
+
+		return artificialPoints;
 	}
 }

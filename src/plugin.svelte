@@ -125,7 +125,6 @@
     }
 
 
-
     export const onopen = (params: any) => {
         console.log('=== PLUGIN ONOPEN ===', params);
 
@@ -213,6 +212,7 @@
         weatherService = new WeatherForecastService(windyAPI);
 
         console.log('Weather services initialized');
+
     });
 
     onDestroy(() => {

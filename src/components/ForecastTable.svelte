@@ -181,32 +181,19 @@
     
 
     function generateHourlyData() {
-        if (!forecast) return [];
+        if (!forecast || !forecast.pointForecasts.length) return [];
 
         const startTime = forecast.route.departureTime;
         const endTime = forecast.route.arrivalTime;
 
-        // Start 6 hours before route start, end 6 hours after route end
-        const dataStart = startTime - (6 * 60 * 60 * 1000);
-        const dataEnd = endTime + (6 * 60 * 60 * 1000);
-
-        const hourlyPoints = [];
-        const hourMs = 60 * 60 * 1000;
-
-        for (let time = dataStart; time <= dataEnd; time += hourMs) {
-            // Find closest forecast point
-            const forecastPoint = findClosestForecastPoint(time);
-
-            hourlyPoints.push({
-                timestamp: time,
-                isInRoute: time >= startTime && time <= endTime,
-                forecast: forecastPoint,
-                hour: new Date(time).getHours(),
-                day: new Date(time).getDate()
-            });
-        }
-
-        return hourlyPoints;
+        // Use the actual forecast points directly - they're already hourly
+        return forecast.pointForecasts.map(forecastPoint => ({
+            timestamp: forecastPoint.timestamp,
+            isInRoute: forecastPoint.timestamp >= startTime && forecastPoint.timestamp <= endTime,
+            forecast: forecastPoint,
+            hour: new Date(forecastPoint.timestamp).getHours(),
+            day: new Date(forecastPoint.timestamp).getDate()
+        }));
     }
 
     function findClosestForecastPoint(targetTime: number) {

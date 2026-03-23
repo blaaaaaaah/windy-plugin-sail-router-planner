@@ -460,7 +460,7 @@ export class RouteEditorController {
 		const currentZoom = this._map.getZoom();
 
 		// Hide day markers at very low zoom levels
-		if (currentZoom < 6) {
+		if (currentZoom < 4) {
 			return null;
 		}
 
@@ -500,7 +500,7 @@ export class RouteEditorController {
 		const currentZoom = this._map.getZoom();
 
 		// Hide day dots at very low zoom levels
-		if (currentZoom < 6) {
+		if (currentZoom < 4) {
 			return null;
 		}
 

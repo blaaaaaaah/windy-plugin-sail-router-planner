@@ -1,181 +1,240 @@
-# Windy Sailing Route Planner Plugin 🏁
+# Windy Sailing Weather Forecast Plugin ⛵
 
-A comprehensive sailing route planner plugin for Windy that provides advanced weather routing capabilities with sailing-specific features.
+A comprehensive sailing weather forecast plugin for Windy that provides advanced route planning with detailed weather analysis and sailing-specific features.
 
 ## 🚀 Current Status
 
-**✅ FULLY FUNCTIONAL** - Complete sailing route planner with weather integration
+**✅ FULLY FUNCTIONAL** - Production-ready sailing weather forecast system
 
 - 🌐 **Live Development Server**: Running at `https://0.0.0.0:9999`
 - 🔄 **Hot Reload**: Real-time building with Rollup
-- ⚡ **Ready to Use**: All core features implemented and working
+- ⚡ **Ready for Production**: All core features implemented and polished
 
-## ✨ Features
+## ✨ Key Features
 
-### 🗺️ Route Planning
-- **Interactive Route Creation**: Click on the map to create sailing routes with multiple waypoints
-- **URL Import**: Import routes from Windy's route planner URLs for instant analysis
-- **Visual Route Editor**: Drag waypoints to modify routes with real-time visual feedback
-- **Multi-Color Routes**: Different colored routes for easy identification
-- **Waypoint Management**: Add, move, and delete waypoints with hover controls
+### 🗺️ Interactive Route Planning
+- **Click-to-Create Routes**: Click on map to add waypoints with real-time visualization
+- **Great Circle Navigation**: Accurate long-distance routing using Earth's curvature
+- **Visual Route Editor**: Drag waypoints to modify routes with live feedback
+- **Distance Labels**: Automatic nautical mile distance display on route segments
+- **Day Markers**: Visual 24-hour interval markers (1d, 2d, 3d) along multi-day routes
 
-### 🌤️ Weather Integration
-- **Advanced Weather Forecasting**: Get detailed weather forecasts for entire sailing routes
-- **Apparent Wind Calculations**: Automatic conversion from true wind to apparent wind based on boat speed and heading
-- **Per-Leg Processing**: Individual weather analysis for each route segment with accurate timing
-- **Long Passage Support**: Automatic handling of multi-day passages (routes >67 hours split automatically)
-- **Hourly Consolidation**: Multiple forecasts averaged into hourly data for optimal sailing decisions
+### 🌤️ Comprehensive Weather Forecasting
+- **Detailed Forecast Table**: Hour-by-hour weather analysis for entire passage
+- **True & Apparent Wind**: Toggle between true wind and apparent wind relative to boat
+- **Multi-Day Support**: Handles passages of any length with proper time management
+- **Pre/Post Departure**: Shows weather 4 hours before and after passage
+- **Real-Time Weather Stats**: Complete leg analysis with min/max/avg values
 
-### 🧭 Sailing-Specific Features
-- **True-to-Apparent Wind Conversion**: Vector-based calculations for accurate apparent wind
-- **Relative Wind Directions**: Wind angles relative to boat heading for sail trim decisions
-- **Course Calculations**: Proper bearing calculations with 0-359° nautical convention
-- **Distance in Nautical Miles**: All distances converted to standard sailing units
-- **Route Timing**: Precise timing calculations based on individual leg speeds
+### 📊 Sailing-Specific Analytics
+- **Leg Weather Statistics**: Comprehensive analysis per route segment
+  - Wind speeds (min/avg/max) and gusts
+  - Wave heights and periods
+  - Wind angle distribution (% upwind/reaching/downwind)
+- **Passage Timing**: Multi-day leg durations (e.g., "2d 6h", "8h 30m")
+- **Speed Management**: Customizable speed per leg with real-time recalculation
+- **Departure Time Control**: Adjustable departure with forecast regeneration
+
+### 🎨 Professional User Interface
+- **Responsive Layout**: Optimized for both desktop and mobile
+- **Loading States**: Professional loading animations with progress feedback
+- **Date Formatting**: Intuitive "Wed 25" format using browser locale
+- **Auto-Scroll**: Smart positioning to show departure time prominently
+- **Visual Freshness**: Color-coded forecast freshness indicators
 
 ## 🎯 Quick Start
 
-### 1. Start Development Server
+### 1. Launch the Plugin
 ```bash
 npm start
-# Server starts at https://0.0.0.0:9999
+# Development server: https://0.0.0.0:9999
+# Load in Windy: https://www.windy.com/developer-mode
 ```
 
-### 2. Create a Route (Interactive)
-1. Click **"Start New Route"** button
-2. Click on the map to add waypoints
-3. See route visualization in real-time
-4. Drag waypoints to modify the route
-5. Hover over waypoints to delete them
+### 2. Create Your Route
+1. Click on the map to add waypoints
+2. Watch route visualization appear in real-time
+3. Drag waypoints to adjust course
+4. Set individual leg speeds as needed
+5. Adjust departure time if required
 
-### 3. Import Existing Route (URL-Based)
-1. Paste a Windy route planner URL in the input field
-2. Click **"Parse Route"** to extract waypoints
-3. Click **"Get Forecast"** for complete weather analysis
-4. View results in console and summary display
+### 3. Analyze Weather Forecast
+- **Hourly Timeline**: Scroll through hour-by-hour forecasts
+- **True/Apparent Toggle**: Switch wind perspective as needed
+- **Leg Statistics**: Expand waypoints for detailed analytics
+- **Map Integration**: Hover forecast rows to see position on map
+- **Layer Control**: Click wind/wave icons to change map overlay
 
-### 4. View Weather Results
-- **Summary**: Check "Last Result" section for forecast overview
-- **Detailed Data**: Open browser console for complete weather data
-- **Apparent Wind**: All forecasts include apparent wind calculations
+## 🧭 Advanced Features
 
-## 📋 Example Test Route
+### Route Management
+- **Multi-Color Routes**: Visual distinction for multiple routes
+- **Waypoint Controls**: Hover to delete, drag to reposition
+- **Route Persistence**: URL-based route saving and sharing
+- **Real-Time Updates**: Instant recalculation on any change
 
-Pre-loaded in the plugin for testing:
-```
-https://www.windy.com/route-planner/boat/2.8726,-84.8206;-0.2539,-86.6167;-0.1687,-88.8618;-0.7887,-90.2270;1.0536,-89.9273;2.8996,-91.9098;0.6286,-94.1834?-1.115,-90.163,6,p:cities
-```
+### Weather Integration
+- **Windy API**: Direct integration with Windy's forecast models
+- **Data Validation**: Robust handling of missing or incomplete data
+- **Time Alignment**: Forecasts aligned to clock hours (XX:00)
+- **Forecast Consolidation**: Smart averaging for optimal accuracy
 
-**Route Details**: 7-waypoint passage with complex navigation - perfect for testing all features.
+### Sailing Calculations
+- **Apparent Wind Vector**: Proper vector addition for apparent wind
+- **Course Calculations**: True bearings with 0-359° convention
+- **Wind Angles**: Relative angles for sail trim decisions
+- **Distance Accuracy**: Great circle distances in nautical miles
+
+## 📋 Forecast Table Features
+
+### Weather Data Display
+- **Wind Speed & Direction**: True and apparent wind with visual indicators
+- **Wave Information**: Height, period, and direction relative to course
+- **Weather Conditions**: Icons and precipitation data
+- **Visibility & Conditions**: Complete weather picture for sailing
+
+### Navigation Information
+- **Time & Position**: Precise timing and coordinates for each forecast point
+- **Course & Speed**: Bearing and boat speed for each leg segment
+- **Progress Tracking**: Visual progress through passage timeline
+
+### Interactive Controls
+- **Hover Preview**: Mouse over forecast rows for map preview
+- **Time Scrubbing**: Navigate through forecast timeline
+- **Speed Adjustment**: Modify leg speeds with instant recalculation
+- **Departure Control**: Change start time with forecast regeneration
 
 ## 🔧 Technical Architecture
 
-### 📁 File Structure
+### Core Components
 ```
 src/
-├── plugin.svelte                 # Main UI with route parsing and forecasting
-├── pluginConfig.ts               # Plugin metadata and settings
+├── plugin.svelte                    # Main UI component
+├── components/
+│   └── ForecastTable.svelte        # Detailed weather forecast display
 ├── controllers/
-│   └── RouteEditorController.ts  # Interactive map route management
+│   └── RouteEditorController.ts    # Interactive route management
 ├── services/
-│   ├── WindyAPI.ts              # Complete Windy API integration
-│   └── WeatherForecastService.ts # Advanced forecast service
+│   ├── WindyAPI.ts                 # Windy API integration
+│   └── WeatherForecastService.ts   # Forecast processing & statistics
 ├── types/
-│   ├── RouteTypes.ts            # Route definitions with navigation
-│   ├── WeatherTypes.ts          # Weather data structures
-│   └── Coordinates.ts           # Leaflet coordinate integration
+│   ├── RouteTypes.ts               # Route and navigation types
+│   ├── WeatherTypes.ts             # Weather data structures
+│   └── Coordinates.ts              # Geographic coordinate types
 └── utils/
-    ├── NavigationUtils.ts       # Sailing calculations (apparent wind, etc.)
-    └── TimeUtils.ts             # Date formatting utilities
+    ├── NavigationUtils.ts          # Sailing calculations
+    └── RouteSerializer.ts          # Route URL encoding/decoding
 ```
 
-### 🏗️ Architecture Flow
+### Data Flow
 ```
-UI Interaction → Route Controller → Weather Service → Windy API
-     ↓                ↓                 ↓
-Route Editing → Waypoint Management → Per-Leg Forecasts
-     ↓                ↓                 ↓
-Visual Updates → Real-time Feedback → Apparent Wind Calculations
-```
-
-## 🧪 Development Features
-
-### Hot Reload Development
-- **Real-time Building**: Changes automatically compiled and served
-- **Browser Integration**: Connect to Windy development environment
-- **Console Debugging**: Detailed logging for development and testing
-
-### Code Quality
-- **TypeScript**: Full type safety throughout the codebase
-- **Modular Design**: Clear separation of concerns between layers
-- **Error Handling**: Comprehensive error checking and user feedback
-
-## 📊 Weather Data Output Example
-
-```javascript
-Point 0: {
-  time: "2026-03-08T11:40:59.000Z",
-  position: "2.8726, -84.8206",
-  bearing: "245°",
-  northUpWind: "12.3 knots @ 078°",      // True wind (north up)
-  apparentWind: "15.7 knots @ 156°",     // Apparent wind for sailing
-  leg: "245° course"                     // Current leg information
-}
+User Interaction → Route Controller → Weather Service → Forecast Table
+      ↓                   ↓                ↓             ↓
+  Map Clicks    → Route Visualization → API Calls → Weather Display
+      ↓                   ↓                ↓             ↓
+  Waypoints     → Distance Labels   → Leg Stats → Interactive UI
 ```
 
-## 🔮 Future Enhancements
+## 📈 Weather Statistics
 
-### Phase 2+ Planned Features
-- **Visual Forecast Display**: Graphical weather visualization on map
-- **Route Optimization**: AI-powered routing suggestions based on weather
-- **Export Capabilities**: Save routes and forecasts in standard formats
-- **Multi-Model Weather**: Integration with additional weather models
-- **Performance Optimization**: Caching and optimized API calls
+### Per-Leg Analysis
+- **Wind Statistics**: Min/avg/max speeds and gusts
+- **Wave Analysis**: Height and period ranges
+- **Wind Angles**: Sailing point percentages
+  - Upwind: <60° relative to wind
+  - Reaching: 60-120° relative to wind
+  - Downwind: 120°+ relative to wind
 
-### Technical Improvements
-- **Current Data Integration**: When API provides ocean current data
-- **Advanced Weather Parameters**: Additional weather parameters as available
-- **UI Enhancements**: More sophisticated forecast visualization
-- **Mobile Optimization**: Enhanced mobile user experience
+### Forecast Quality
+- **Freshness Indicators**: Color-coded forecast age
+- **Data Validation**: Robust handling of missing data
+- **Time Accuracy**: Hour-aligned forecasts for consistency
 
-## 🛠️ Development Setup
+## 🌊 Example Use Cases
+
+### Ocean Passages
+- Plan multi-day Atlantic or Pacific crossings
+- Analyze weather windows for optimal departure
+- Monitor wind patterns and wave conditions
+- Track progress with day markers along route
+
+### Coastal Cruising
+- Day sailing with precise timing
+- Harbor-to-harbor passage planning
+- Weather analysis for safe arrival windows
+- Fuel/food planning with accurate timing
+
+### Racing & Performance
+- Optimize routing for weather advantages
+- Analyze apparent wind for sail selection
+- Compare different departure times
+- Study wind angle distribution for strategy
+
+## 🔮 Technical Highlights
+
+### Advanced Algorithms
+- **Great Circle Navigation**: Earth-curvature-aware routing
+- **Vector Wind Calculations**: Proper apparent wind computation
+- **Statistical Analysis**: Comprehensive leg weather statistics
+- **Time Management**: Precise passage timing calculations
+
+### User Experience
+- **Responsive Design**: Seamless desktop and mobile experience
+- **Real-Time Feedback**: Instant visual updates on changes
+- **Professional Polish**: Loading states, animations, error handling
+- **Intuitive Controls**: Natural sailing workflow integration
+
+### Integration Quality
+- **Windy API Expertise**: Deep integration with Windy's systems
+- **Plugin Standards**: Follows Windy plugin development best practices
+- **Performance Optimized**: Efficient API usage and data processing
+- **Error Resilience**: Graceful handling of edge cases and API limitations
+
+## 🛠️ Development
 
 ### Prerequisites
-- Node.js (v18+)
-- npm or yarn
-- Windy plugin development environment access
+- Node.js 18+
+- Windy plugin development access
+- Basic sailing/navigation knowledge helpful
 
-### Key Commands
+### Commands
 ```bash
-npm start          # Start development server
+npm start          # Development server
 npm run build      # Production build
-npm run lint       # Code linting (if configured)
+git status         # Check changes
+git commit         # Commit improvements
 ```
 
-### Loading in Windy
-1. Start the development server: `npm start`
-2. Navigate to [Windy Developer Mode](https://www.windy.com/developer-mode)
-3. Load plugin from: `https://localhost:9999/plugin.js`
-4. Plugin appears in right panel as "Sail Router Planner"
+### Plugin Loading
+1. Start development: `npm start`
+2. Open Windy: `https://www.windy.com/developer-mode`
+3. Load plugin: `https://localhost:9999/plugin.js`
+4. Access via: Plugins menu → "Sail Router Planner"
 
-## 📈 Implementation Progress
+## 🏆 Project Status
 
-### ✅ Phase 1: Technical Foundation - COMPLETE
-- [x] Weather Service Architecture
-- [x] Windy API Integration
-- [x] Navigation Calculations
-- [x] Route Management System
-- [x] Interactive Map Integration
-- [x] Apparent Wind Calculations
+### ✅ Completed Features (Production Ready)
+- [x] Interactive route creation and editing
+- [x] Comprehensive weather forecast table
+- [x] True/apparent wind calculations and toggle
+- [x] Multi-day passage support with day markers
+- [x] Detailed per-leg weather statistics
+- [x] Professional UI with loading states
+- [x] Great circle navigation accuracy
+- [x] Browser locale date formatting
+- [x] Responsive layout optimization
+- [x] Route URL persistence and sharing
 
-### 🚧 Phase 2: UI Enhancement - IN PLANNING
-- [ ] Visual Forecast Display
-- [ ] Enhanced Route Visualization
-- [ ] Export/Import Capabilities
-- [ ] Mobile UI Optimization
+### 🎯 Quality Achievements
+- [x] Production-grade error handling
+- [x] Comprehensive TypeScript typing
+- [x] Professional visual polish
+- [x] Sailing-specific feature set
+- [x] Performance optimization
+- [x] Mobile responsiveness
 
 ---
 
-**🏁 Ready for sailing route planning with advanced weather integration!**
+**🌊 Professional sailing weather routing at your fingertips!**
 
-*This plugin demonstrates state-of-the-art integration with Windy's APIs to provide professional-grade sailing weather routing capabilities.*
+*This plugin represents a complete sailing weather forecast solution, built with deep Windy API integration and professional sailing workflow understanding.*

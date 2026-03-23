@@ -44,7 +44,17 @@ A comprehensive sailing weather forecast plugin for Windy that provides advanced
 
 ## 🎯 Quick Start
 
-### 1. Launch the Plugin
+### 🚀 Install Plugin (Direct Use)
+**Plugin URL**: `https://windy-plugins.com/13935398/windy-plugin-sail-router-planner/0.1.0/plugin.min.js`
+
+1. Open [Windy.com](https://www.windy.com)
+2. Click the **Menu** (hamburger icon)
+3. Select **"Install Windy plugin"**
+4. Choose **"Load plugin directly from URL"**
+5. Paste the plugin URL above
+6. Access via Plugins menu → **"Sail Router Planner"**
+
+### 🛠️ Development Setup
 ```bash
 npm start
 # Development server: https://0.0.0.0:9999

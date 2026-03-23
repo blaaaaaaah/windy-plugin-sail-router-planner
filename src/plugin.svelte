@@ -34,25 +34,26 @@
         </div>
     </div>
 
+    <div class="forecast-container">
 
-    <!-- Forecast Table -->
-    {#if hasActiveRoute}
-        <ForecastTable
-            forecast={currentForecast}
-            isLoading={isLoadingForecast}
-            showTrueWind={showTrueWind}
-            on:timeHover={handleTimeHover}
-            on:metricClick={handleMetricClick}
-            on:routeUpdated={handleRouteUpdated}
-        />
-    {:else}
-        <div class="forecast-placeholder">
-            <div class="placeholder-icon">🗺️</div>
-            <h3>No route created yet</h3>
-            <p>Draw a route on the map by clicking to add waypoints. You need at least 2 waypoints to generate a weather forecast.</p>
-        </div>
-    {/if}
-
+        <!-- Forecast Table -->
+        {#if hasActiveRoute}
+            <ForecastTable
+                forecast={currentForecast}
+                isLoading={isLoadingForecast}
+                showTrueWind={showTrueWind}
+                on:timeHover={handleTimeHover}
+                on:metricClick={handleMetricClick}
+                on:routeUpdated={handleRouteUpdated}
+            />
+        {:else}
+            <div class="forecast-placeholder">
+                <div class="placeholder-icon">🗺️</div>
+                <h3>No route created yet</h3>
+                <p>Draw a route on the map by clicking to add waypoints. You need at least 2 waypoints to generate a weather forecast.</p>
+            </div>
+        {/if}
+    </div>
 </section>
 <script lang="ts">
     import bcast from "@windy/broadcast";
@@ -241,6 +242,18 @@
     /* Remove default plugin content padding */
     .plugin__content {
         padding: 0 !important;
+    }
+
+    .plugin__title {
+        padding: 10px !important;
+        margin-bottom: 0px !important;
+    }
+
+    .forecast-container {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        margin-top: 85px;
     }
 
     .settings-icon {

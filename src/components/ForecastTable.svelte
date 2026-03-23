@@ -1141,34 +1141,6 @@
         pointer-events: none;
     }
 
-    .forecast-table-container.loading::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(248, 249, 250, 0.8);
-        z-index: 100;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .forecast-table-container.loading::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 24px;
-        height: 24px;
-        border: 2px solid #ddd;
-        border-top: 2px solid #007cba;
-        border-radius: 50%;
-        z-index: 101;
-        animation: spin 1s linear infinite;
-    }
 
     @keyframes spin {
         from { transform: translate(-50%, -50%) rotate(0deg); }

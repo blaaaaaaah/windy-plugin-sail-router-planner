@@ -622,6 +622,13 @@
         });
     }
 
+    function formatDayDate(timestamp: number): string {
+        return new Date(timestamp).toLocaleDateString(undefined, {
+            weekday: 'short',
+            day: 'numeric'
+        });
+    }
+
     function toLocalDatetimeString(timestamp: number): string {
         const date = new Date(timestamp);
         const year = date.getFullYear();
@@ -805,9 +812,9 @@
                                             {@const leg = forecast.route.legs[waypoint.number - 1]}
                                             <div class="leg-datetime">
                                                 {#if waypoint.number === 1}
-                                                    Departure: {new Date(leg.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {formatTime(leg.startTime)}
+                                                    Departure: {formatDayDate(leg.startTime)} {formatTime(leg.startTime)}
                                                 {:else}
-                                                    Leg {waypoint.number}: {new Date(leg.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {formatTime(leg.startTime)}
+                                                    Leg {waypoint.number}: {formatDayDate(leg.startTime)} {formatTime(leg.startTime)}
                                                 {/if}
                                             </div>
                                             <div class="leg-distance">{leg.distance.toFixed(1)}nm</div>
@@ -816,7 +823,7 @@
                                         {:else}
                                             {#if waypoint.number === forecast.route.waypoints.length}
                                                 <div class="leg-datetime">
-                                                    Arrival: {new Date(forecast.route.arrivalTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {formatTime(forecast.route.arrivalTime)}
+                                                    Arrival: {formatDayDate(forecast.route.arrivalTime)} {formatTime(forecast.route.arrivalTime)}
                                                 </div>
                                             {:else}
                                                 <div class="leg-placeholder">No leg data</div>
@@ -988,7 +995,7 @@
                                     {/if}
                                 {/if}
                             </div>
-                            <div class="date">{new Date(data.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                            <div class="date">{formatDayDate(data.timestamp)}</div>
                         </div>
 
                         <div class="weather-column">

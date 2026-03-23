@@ -5,14 +5,14 @@ const config: ExternalPluginConfig = {
     version: '0.1.0',
     icon: '⛵',
     title: 'Sail Router Planner',
-    description: 'Test access to Windy route planning APIs for sailing calculations.',
-    author: 'Sailing Plugin Developer',
-    repository: 'https://github.com/windycom/windy-plugin-template',
+    description: 'Route planning for sailors.',
+    author: 'Thomas Dubois',
+    repository: 'https://github.com/blaaaaaaah/windy-plugin-sail-router-planner',
     desktopUI: 'rhpane',
     mobileUI: 'fullscreen',
     routerPath: '/sail-router-planner/:route?',
     listenToSingleclick: true,
-    private: true,
+    private: false,
 };
 
 export default config;

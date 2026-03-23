@@ -344,9 +344,19 @@
 
         // Format leg time (duration is in milliseconds)
         const totalMinutes = Math.floor(leg.duration / (1000 * 60));
-        const hours = Math.floor(totalMinutes / 60);
+        const totalHours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
-        const legTime = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+        let legTime;
+        if (totalHours >= 24) {
+            const days = Math.floor(totalHours / 24);
+            const remainingHours = totalHours % 24;
+            legTime = remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
+        } else if (totalHours > 0) {
+            legTime = minutes > 0 ? `${totalHours}h ${minutes}m` : `${totalHours}h`;
+        } else {
+            legTime = `${minutes}m`;
+        }
 
         return {
             averageSpeed: leg.averageSpeed,

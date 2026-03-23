@@ -10,7 +10,7 @@ jobs:
             WINDY_API_KEY: '${{ secrets.WINDY_API_KEY }}'
             FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - name: Build
               run: |
                   npm install

@@ -24,12 +24,22 @@ export class WeatherForecastService {
 
 		const allPointForecasts: PointForecast[] = [];
 
-		// 1. PRE-DEPARTURE: Get forecast from next full hour until route start (if route starts in future)
-		if (route.departureTime > now) {
-			// Start from the next full hour instead of current time
-			const nextHour = Math.ceil(now / (60 * 60 * 1000)) * (60 * 60 * 1000);
-			console.log(`\n⏰ Getting pre-departure forecast: ${new Date(nextHour).toISOString()} to ${new Date(route.departureTime).toISOString()}`);
-			const preDepartureForecast = await this.getPointForecast(startPoint, nextHour, route.departureTime);
+		// 1. PRE-DEPARTURE: Get forecast before route start
+		const hourMs = 60 * 60 * 1000;
+		const isCurrentDeparture = Math.abs(route.departureTime - now) < hourMs; // If departure is within 1 hour of now
+
+		let preDepartureStartTime: number;
+		if (isCurrentDeparture) {
+			// Departure is now (default) - get 6 hours of historical data
+			preDepartureStartTime = route.departureTime - (6 * hourMs);
+		} else {
+			// Future departure - get forecast from next full hour until route start
+			preDepartureStartTime = Math.ceil(now / hourMs) * hourMs;
+		}
+
+		if (isCurrentDeparture || route.departureTime > now) {
+			console.log(`\n⏰ Getting pre-departure forecast: ${new Date(preDepartureStartTime).toISOString()} to ${new Date(route.departureTime).toISOString()}`);
+			const preDepartureForecast = await this.getPointForecast(startPoint, preDepartureStartTime, route.departureTime);
 			allPointForecasts.push(...preDepartureForecast);
 		}
 
@@ -228,49 +238,6 @@ export class WeatherForecastService {
 		return result;
 	}
 
-	private selectBestForecastForHour(hour: number, forecasts: PointForecast[]): PointForecast {
-		if (forecasts.length === 0) {
-			throw new Error('Cannot select from empty forecasts array');
-		}
-
-		if (forecasts.length === 1) {
-			return forecasts[0];
-		}
-
-		// Group forecasts by their forecastTimestamp to find matches
-		const timestampGroups = new Map<number, PointForecast[]>();
-		for (const forecast of forecasts) {
-			const forecastHour = Math.floor(forecast.forecastTimestamp / (1000 * 60 * 60)) * (1000 * 60 * 60);
-			if (!timestampGroups.has(forecastHour)) {
-				timestampGroups.set(forecastHour, []);
-			}
-			timestampGroups.get(forecastHour)!.push(forecast);
-		}
-
-		// Find the best matching timestamp group
-		let bestGroup: PointForecast[] | null = null;
-		let bestTimestampDiff = Infinity;
-
-		for (const [forecastHour, group] of timestampGroups) {
-			const timestampDiff = Math.abs(forecastHour - hour);
-			if (timestampDiff < bestTimestampDiff) {
-				bestTimestampDiff = timestampDiff;
-				bestGroup = group;
-			}
-		}
-
-		if (!bestGroup) {
-			// Fallback: use the first forecast if no good timestamp match
-			return forecasts[0];
-		}
-
-		// If we have multiple forecasts with the same timestamp, average them
-		if (bestGroup.length > 1) {
-			return this.averagePointForecasts(bestGroup);
-		}
-
-		return bestGroup[0];
-	}
 
 	private averagePointForecasts(forecasts: PointForecast[]): PointForecast {
 		if (forecasts.length === 0) {
@@ -572,13 +539,6 @@ export class WeatherForecastService {
 		return pointForecasts;
 	}
 
-	private getDistanceFromTime(leg: RouteLeg, timestamp: number): number {
-		// Calculate how far into the leg we are at this timestamp
-		const timeElapsed = timestamp - leg.startTime;
-		const timeElapsedHours = timeElapsed / (1000 * 60 * 60);
-		const distanceCovered = timeElapsedHours * leg.averageSpeed; // nautical miles
-		return distanceCovered * 1852; // convert to meters to match API distances
-	}
 
 	private getDistanceFromTimeRelativeToLeg(leg: RouteLeg, timestamp: number): number {
 		// Calculate distance relative to leg start time (for API calls that start from leg beginning)
@@ -610,16 +570,6 @@ export class WeatherForecastService {
 		return interpolateLatLng(leg.startPoint, leg.endPoint, progress);
 	}
 
-	private interpolateLegPosition(leg: RouteLeg, distance: number): LatLng {
-		// Convert distance from meters to nautical miles to match leg distances
-		const distanceNM = distance / 1852;
-
-		// Calculate progress within this leg (0 to 1)
-		const legProgress = Math.min(1, Math.max(0, distanceNM / leg.distance));
-
-		// Interpolate position within the leg
-		return interpolateLatLng(leg.startPoint, leg.endPoint, legProgress);
-	}
 
 
 	private convertToApparent(northUp: WeatherData, boatSpeed: number, boatCourse: number): WeatherData {
@@ -675,61 +625,16 @@ export class WeatherForecastService {
 			// Validate API response structure
 			this.validateAPIResponseStructure(apiResponse);
 
-			// Convert API response to PointForecast array
+			// Convert API response to PointForecast array - aligned to hourly timestamps
 			const pointForecasts: PointForecast[] = [];
+			const hourMs = 60 * 60 * 1000;
 
-			// Filter to only include timestamps within our desired time range
-			for (let i = 0; i < apiResponse.timestamps.length; i++) {
-				const timestamp = apiResponse.timestamps[i];
+			// Process hourly forecasts aligned to clock hours
+			const firstHour = Math.floor(startTime / hourMs) * hourMs;
+			const lastHour = Math.floor(endTime / hourMs) * hourMs;
 
-				// Only include forecasts within our time range
-				if (timestamp >= startTime && timestamp <= endTime) {
-					const northUpWeather: WeatherData = {
-						windSpeed: apiResponse.data.wind[i],
-						windDirection: apiResponse.data.windDir[i],
-						gustsSpeed: apiResponse.data.gust[i],
-						gustsDirection: apiResponse.data.windDir[i], // API doesn't provide separate gust direction
-						currentSpeed: 0, // Not typically available in route planner API
-						currentDirection: 0,
-						wavesHeight: apiResponse.data.waves[i],
-						wavesPeriod: apiResponse.data.wavesPeriod[i],
-						wavesDirection: apiResponse.data.wavesDir[i]
-					};
-
-					const pointForecast: PointForecast = {
-						point, // Always the same point for stationary forecast
-						timestamp, // Use the API timestamp directly
-						forecastTimestamp: apiResponse.timestamps[i],
-						bearing: 0, // No bearing for stationary points
-						leg: null, // No leg reference for point forecasts
-						warnings: apiResponse.data.warn[i] ? [apiResponse.data.warn[i] as string] : [],
-						northUp: northUpWeather,
-						apparent: null, // No apparent wind for stationary points
-						precipitations: apiResponse.data.precip[i] || 0,
-						weather: apiResponse.data.icon[i] || 0
-					};
-
-					pointForecasts.push(pointForecast);
-				}
-			}
-
-			console.log(`📍 Point forecast returned ${pointForecasts.length} forecasts for time range`);
-
-			// Process point forecasts using same logic as regular legs but with stationary "leg"
-			const stationaryLeg: RouteLeg = {
-				startTime,
-				startPoint: point,
-				endPoint: point, // Same point for stationary
-				course: 0,
-				distance: 0,
-				averageSpeed: 0,
-				endTime,
-				duration: endTime - startTime
-			};
-
-			// Time-based matching function for point forecasts
-			const timeMatchingFn = (sailingTime: number, hourMs: number) => {
-				// For point forecasts, always find closest API timestamp to this sailing time
+			for (let sailingTime = firstHour; sailingTime <= lastHour; sailingTime += hourMs) {
+				// Find closest API timestamp to this hour
 				let closestIndex = 0;
 				let closestDiff = Math.abs(apiResponse.timestamps[0] - sailingTime);
 
@@ -741,15 +646,39 @@ export class WeatherForecastService {
 					}
 				}
 
-				console.log(`Time matching - using closest: index ${closestIndex} at ${new Date(apiResponse.timestamps[closestIndex]).toISOString()} (${(closestDiff/60000).toFixed(1)}min off)`);
-				return [closestIndex];
-			};
+				// Check if we have valid forecast data
+				const hasValidData = apiResponse.data.gust[closestIndex] !== null || apiResponse.data.waves[closestIndex] !== null;
 
-			// Reuse the same parsing logic as regular legs with time matching
-			const processedForecasts = this.processHourlyForecastsFromAPI(stationaryLeg, apiResponse, timeMatchingFn);
-			console.log(`📍 After hourly processing: ${processedForecasts.length} forecasts`);
+				const northUpWeather: WeatherData | null = hasValidData ? {
+					windSpeed: apiResponse.data.wind[closestIndex],
+					windDirection: apiResponse.data.windDir[closestIndex],
+					gustsSpeed: apiResponse.data.gust[closestIndex],
+					gustsDirection: apiResponse.data.windDir[closestIndex], // API doesn't provide separate gust direction
+					currentSpeed: 0, // Not typically available in route planner API
+					currentDirection: 0,
+					wavesHeight: apiResponse.data.waves[closestIndex],
+					wavesPeriod: apiResponse.data.wavesPeriod[closestIndex],
+					wavesDirection: apiResponse.data.wavesDir[closestIndex]
+				} : null;
 
-			return processedForecasts;
+				const pointForecast: PointForecast = {
+					point, // Always the same point for stationary forecast
+					timestamp: sailingTime, // Use aligned hour timestamp
+					forecastTimestamp: apiResponse.timestamps[closestIndex],
+					bearing: 0, // No bearing for stationary points
+					leg: null, // No leg reference for point forecasts
+					warnings: apiResponse.data.warn[closestIndex] ? [apiResponse.data.warn[closestIndex] as string] : [],
+					northUp: northUpWeather,
+					apparent: null, // No apparent wind for stationary points
+					precipitations: apiResponse.data.precip[closestIndex] || 0,
+					weather: apiResponse.data.icon[closestIndex] || 0
+				};
+
+				pointForecasts.push(pointForecast);
+			}
+
+			console.log(`📍 Point forecast returned ${pointForecasts.length} hourly forecasts`);
+			return pointForecasts;
 
 		} catch (error) {
 			console.error('Point forecast error:', error);

@@ -633,7 +633,7 @@ export class WeatherForecastService {
 			const firstHour = Math.floor(startTime / hourMs) * hourMs;
 			const lastHour = Math.floor(endTime / hourMs) * hourMs;
 
-			for (let sailingTime = firstHour; sailingTime <= lastHour; sailingTime += hourMs) {
+			for (let sailingTime = firstHour; sailingTime < lastHour; sailingTime += hourMs) {
 				// Find closest API timestamp to this hour
 				let closestIndex = 0;
 				let closestDiff = Math.abs(apiResponse.timestamps[0] - sailingTime);

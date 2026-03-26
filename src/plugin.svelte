@@ -181,10 +181,9 @@
     function handleTimeHover(event: any) {
         const { timestamp, forecast } = event.detail;
 
-        // Update both Windy's store and RouteEditor for immediate progress updates
+        // Update Windy's store - marker will react to this change
         if (timestamp) {
             store.set('timestamp', timestamp);
-            routeEditor?.setTimestamp(timestamp);
         }
     }
 
@@ -216,8 +215,19 @@
         windyAPI = new WindyAPI();
         weatherService = new WeatherForecastService(windyAPI);
 
+        // Subscribe to timestamp changes to update route marker position
+        const unsubscribeTimestamp = store.on('timestamp', (timestamp: number) => {
+            if (routeEditor) {
+                routeEditor.setTimestamp(timestamp);
+            }
+        });
+
         console.log('Weather services initialized');
 
+        // Store unsubscribe function for cleanup
+        return () => {
+            unsubscribeTimestamp();
+        };
     });
 
     onDestroy(() => {

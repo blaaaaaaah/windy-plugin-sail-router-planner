@@ -1,7 +1,7 @@
 import type { LatLng } from '../types/Coordinates';
 import { RouteDefinition } from '../types/RouteTypes';
 import { markers } from '@windy/map';
-import store from '@windy/store';
+
 import { calculateGreatCircleDistance, interpolateGreatCircle, interpolateLatLng } from '../utils/NavigationUtils';
 
 export class RouteEditorController {

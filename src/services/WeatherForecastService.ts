@@ -221,13 +221,30 @@ export class WeatherForecastService {
 				consolidatedForecast = this.averagePointForecasts(forecasts);
 			}
 
-			// Calculate apparent wind if we have valid north-up data AND a leg (not stationary)
-			consolidatedForecast.apparent = (consolidatedForecast.northUp && consolidatedForecast.leg)
-				? this.convertToApparent(
+			// Calculate apparent wind if we have valid north-up data
+			if (consolidatedForecast.northUp && consolidatedForecast.leg) {
+				// For moving legs, calculate apparent wind based on boat motion
+				consolidatedForecast.apparent = this.convertToApparent(
 					consolidatedForecast.northUp,
 					consolidatedForecast.leg.averageSpeed,
 					consolidatedForecast.leg.course
-				) : null;
+				);
+			} else if (consolidatedForecast.northUp && !consolidatedForecast.leg) {
+				// For stationary points (pre-departure, post-arrival), create apparent wind with boat at anchor
+				consolidatedForecast.apparent = {
+					windSpeed: consolidatedForecast.northUp.windSpeed, // Same speed as true wind
+					windDirection: 0, // Always from bow (0°) for anchored boat
+					gustsSpeed: consolidatedForecast.northUp.gustsSpeed, // Same speed as true gusts
+					gustsDirection: 0, // Always from bow (0°) for anchored boat
+					currentSpeed: consolidatedForecast.northUp.currentSpeed,
+					currentDirection: 0, // Current relative to bow
+					wavesHeight: consolidatedForecast.northUp.wavesHeight,
+					wavesPeriod: consolidatedForecast.northUp.wavesPeriod,
+					wavesDirection: 0 // Waves relative to bow
+				};
+			} else {
+				consolidatedForecast.apparent = null;
+			}
 
 			consolidatedForecasts.push(consolidatedForecast);
 		}
@@ -669,7 +686,7 @@ export class WeatherForecastService {
 					leg: null, // No leg reference for point forecasts
 					warnings: apiResponse.data.warn[closestIndex] ? [apiResponse.data.warn[closestIndex] as string] : [],
 					northUp: northUpWeather,
-					apparent: null, // No apparent wind for stationary points
+					apparent: null, // Will be calculated in consolidation
 					precipitations: apiResponse.data.precip[closestIndex] || 0,
 					weather: apiResponse.data.icon[closestIndex] || 0
 				};

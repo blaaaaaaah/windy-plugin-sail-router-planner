@@ -1,5 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
+    import { metrics } from '@windy/metrics';
     import type { RouteForecast } from '../types/WeatherTypes';
 
     export let forecast: RouteForecast | null = null;
@@ -350,9 +351,9 @@
             minGust: legStats ? Math.round(legStats.minGust) : 0,
             avgGust: legStats ? Math.round(legStats.avgGust) : 0,
             maxGust: legStats ? Math.round(legStats.maxGust) : 0,
-            minWaveHeight: legStats ? legStats.minWaveHeight.toFixed(1) : '0.0',
-            avgWaveHeight: legStats ? legStats.avgWaveHeight.toFixed(1) : '0.0',
-            maxWaveHeight: legStats ? legStats.maxWaveHeight.toFixed(1) : '0.0',
+            minWaveHeight: legStats ? formatWaveHeight(legStats.minWaveHeight) : '--',
+            avgWaveHeight: legStats ? formatWaveHeight(legStats.avgWaveHeight) : '--',
+            maxWaveHeight: legStats ? formatWaveHeight(legStats.maxWaveHeight) : '--',
             minWavePeriod: legStats ? legStats.minWavePeriod.toFixed(1) : '0.0',
             avgWavePeriod: legStats ? legStats.avgWavePeriod.toFixed(1) : '0.0',
             maxWavePeriod: legStats ? legStats.maxWavePeriod.toFixed(1) : '0.0',
@@ -595,6 +596,14 @@
 
             return `${Math.abs(relative).toFixed(0)}° ${relative >= 0 ? 'S' : 'P'}`;
         }
+    }
+
+    function formatPrecipitation(mmValue: number): string {
+        return W.metrics.rain.convertValue(mmValue);
+    }
+
+    function formatWaveHeight(meterValue: number): string {
+        return W.metrics.waves.convertValue(meterValue);
     }
 
 
@@ -877,15 +886,15 @@
                                             <div class="leg-row">
                                                 <div class="leg-item">
                                                     <label>MIN WAVE</label>
-                                                    <span class="value">{legData.minWaveHeight}m</span>
+                                                    <span class="value">{legData.minWaveHeight}</span>
                                                 </div>
                                                 <div class="leg-item">
                                                     <label>AVG WAVE</label>
-                                                    <span class="value">{legData.avgWaveHeight}m</span>
+                                                    <span class="value">{legData.avgWaveHeight}</span>
                                                 </div>
                                                 <div class="leg-item">
                                                     <label>MAX WAVE</label>
-                                                    <span class="value">{legData.maxWaveHeight}m</span>
+                                                    <span class="value">{legData.maxWaveHeight}</span>
                                                 </div>
                                             </div>
 
@@ -971,7 +980,7 @@
                                 alt="Weather"
                                 class="weather-icon"
                             />
-                            <div class="rain-value">{data.forecast?.precipitations?.toFixed(1) || '0'}mm</div>
+                            <div class="rain-value">{data.forecast?.precipitations != null ? formatPrecipitation(data.forecast.precipitations) : '--'}</div>
                         </div>
 
                         <div class="wind-column" style="background: {createGradientBackground(
@@ -1047,7 +1056,7 @@
                             getWaveColor
                         )}">
                             <div class="metric-value wave-value">
-                                {data.forecast?.northUp?.wavesHeight?.toFixed(1) || '--'}m
+                                {data.forecast?.northUp?.wavesHeight != null ? formatWaveHeight(data.forecast.northUp.wavesHeight) : '--'}
                                 {#if getWaveDirection(data.forecast) !== undefined}
                                     <div class="direction-container">
                                         <svg class="wave-dir" width="18" height="24" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWaveDirection(data.forecast) + 180}deg)">
@@ -1080,7 +1089,7 @@
                             getWavePeriodColor
                         )}">
                             <div class="metric-value period-value">
-                                {data.forecast?.northUp?.wavesPeriod?.toFixed(1) || '--'}s
+                                {data.forecast?.northUp?.wavesPeriod != null ? `${data.forecast.northUp.wavesPeriod.toFixed(1)}s` : '--'}
                             </div>
                         </div>
 

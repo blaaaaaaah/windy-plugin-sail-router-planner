@@ -1,6 +1,7 @@
 import type { LatLng } from '../types/Coordinates';
 import { RouteDefinition } from '../types/RouteTypes';
 import { markers } from '@windy/map';
+import { metrics } from '@windy/metrics';
 
 import { calculateGreatCircleDistance, interpolateGreatCircle, interpolateLatLng } from '../utils/NavigationUtils';
 
@@ -261,8 +262,9 @@ export class RouteEditorController {
 					lng: (leg.startPoint.lng + leg.endPoint.lng) / 2
 				};
 
-				// Format distance in nautical miles - rounded, no decimals
-				const distanceText = `${Math.round(leg.distance)}nm`;
+				// Format distance using Windy metrics system
+				const distanceInMeters = leg.distance * 1852; // Convert nautical miles to meters
+				const distanceText = W.metrics.distance.convertValue(distanceInMeters);
 
 				// Create distance label marker positioned at midpoint with CSS offset
 				const label = this._createDistanceLabel(midpoint, distanceText, route.color, leg.startPoint, leg.endPoint);

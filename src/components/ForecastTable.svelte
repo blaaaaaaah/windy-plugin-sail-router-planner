@@ -345,12 +345,12 @@
 
         return {
             averageSpeed: leg.averageSpeed,
-            minWindSpeed: legStats ? Math.round(legStats.minWindSpeed) : 0,
-            avgWindSpeed: legStats ? Math.round(legStats.avgWindSpeed) : 0,
-            maxWindSpeed: legStats ? Math.round(legStats.maxWindSpeed) : 0,
-            minGust: legStats ? Math.round(legStats.minGust) : 0,
-            avgGust: legStats ? Math.round(legStats.avgGust) : 0,
-            maxGust: legStats ? Math.round(legStats.maxGust) : 0,
+            minWindSpeed: legStats ? formatWindSpeed(legStats.minWindSpeed) : '--',
+            avgWindSpeed: legStats ? formatWindSpeed(legStats.avgWindSpeed) : '--',
+            maxWindSpeed: legStats ? formatWindSpeed(legStats.maxWindSpeed) : '--',
+            minGust: legStats ? formatWindSpeed(legStats.minGust) : '--',
+            avgGust: legStats ? formatWindSpeed(legStats.avgGust) : '--',
+            maxGust: legStats ? formatWindSpeed(legStats.maxGust) : '--',
             minWaveHeight: legStats ? formatWaveHeight(legStats.minWaveHeight) : '--',
             avgWaveHeight: legStats ? formatWaveHeight(legStats.avgWaveHeight) : '--',
             maxWaveHeight: legStats ? formatWaveHeight(legStats.maxWaveHeight) : '--',
@@ -361,7 +361,7 @@
             percentReaching: legStats ? legStats.percentReaching.toFixed(0) : '0',
             percentDownwind: legStats ? legStats.percentDownwind.toFixed(0) : '0',
             legTime: legTime,
-            distance: `${leg.distance.toFixed(1)}nm`
+            distance: formatDistance(leg.distance * 1852) // Convert nautical miles to meters, then format
         };
     }
 
@@ -606,6 +606,14 @@
         return W.metrics.waves.convertValue(meterValue);
     }
 
+    function formatWindSpeed(msValue: number): string {
+        return W.metrics.wind.convertValue(msValue);
+    }
+
+    function formatDistance(meterValue: number): string {
+        return W.metrics.distance.convertValue(meterValue);
+    }
+
 
     function formatTime(timestamp: number): string {
         return new Date(timestamp).toLocaleTimeString('en-US', {
@@ -801,7 +809,7 @@
                                                     Leg {waypoint.number}: {formatDayDate(leg.startTime)} {formatTime(leg.startTime)}
                                                 {/if}
                                             </div>
-                                            <div class="leg-distance">{leg.distance.toFixed(1)}nm</div>
+                                            <div class="leg-distance">{formatDistance(leg.distance * 1852)}</div>
                                             <div class="leg-speed">{leg.averageSpeed}knts</div>
                                             <div class="leg-duration">{legData.legTime}</div>
                                         {:else}
@@ -854,15 +862,15 @@
                                             <div class="leg-row">
                                                 <div class="leg-item">
                                                     <label>MIN WIND</label>
-                                                    <span class="value">{legData.minWindSpeed}kts</span>
+                                                    <span class="value">{legData.minWindSpeed}</span>
                                                 </div>
                                                 <div class="leg-item">
                                                     <label>AVG WIND</label>
-                                                    <span class="value">{legData.avgWindSpeed}kts</span>
+                                                    <span class="value">{legData.avgWindSpeed}</span>
                                                 </div>
                                                 <div class="leg-item">
                                                     <label>MAX WIND</label>
-                                                    <span class="value">{legData.maxWindSpeed}kts</span>
+                                                    <span class="value">{legData.maxWindSpeed}</span>
                                                 </div>
                                             </div>
 
@@ -870,15 +878,15 @@
                                             <div class="leg-row">
                                                 <div class="leg-item">
                                                     <label>MIN GUST</label>
-                                                    <span class="value">{legData.minGust}kts</span>
+                                                    <span class="value">{legData.minGust}</span>
                                                 </div>
                                                 <div class="leg-item">
                                                     <label>AVG GUST</label>
-                                                    <span class="value">{legData.avgGust}kts</span>
+                                                    <span class="value">{legData.avgGust}</span>
                                                 </div>
                                                 <div class="leg-item">
                                                     <label>MAX GUST</label>
-                                                    <span class="value">{legData.maxGust}kts</span>
+                                                    <span class="value">{legData.maxGust}</span>
                                                 </div>
                                             </div>
 
@@ -990,7 +998,7 @@
                             getWindColor
                         )}">
                             <div class="metric-value">
-                                {getWindSpeed(data.forecast) ? (getWindSpeed(data.forecast) * 1.94384).toFixed(0) : '--'}kt
+                                {getWindSpeed(data.forecast) ? formatWindSpeed(getWindSpeed(data.forecast)) : '--'}
                                 {#if getWindDirection(data.forecast) !== undefined}
                                     <div class="direction-container">
                                         <svg class="wind-dir" width="18" height="24" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
@@ -1023,7 +1031,7 @@
                             getWindColor
                         )}">
                             <div class="metric-value gust-value">
-                                {getGustSpeed(data.forecast) ? (getGustSpeed(data.forecast) * 1.94384).toFixed(0) : '--'}kt
+                                {getGustSpeed(data.forecast) ? formatWindSpeed(getGustSpeed(data.forecast)) : '--'}
                                 {#if getWindDirection(data.forecast) !== undefined}
                                     <div class="direction-container">
                                         <svg class="wind-dir" width="18" height="24" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">

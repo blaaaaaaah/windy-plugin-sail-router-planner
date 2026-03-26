@@ -310,22 +310,6 @@
         }
     }
 
-    function handleDepartureTimeUpdate(newDateTimeString: string) {
-        if (newDateTimeString && forecast?.route) {
-            const newDepartureTime = new Date(newDateTimeString).getTime();
-            if (!isNaN(newDepartureTime)) {
-                console.log(`Updated departure time to ${new Date(newDepartureTime)}`);
-
-                // Update the route departure time directly
-                forecast.route.setDepartureTime(newDepartureTime);
-
-                // Dispatch updated route to trigger forecast regeneration
-                dispatch('routeUpdated', {
-                    route: forecast.route
-                });
-            }
-        }
-    }
 
     function getLegData(waypointNumber: number) {
         if (!forecast?.route?.legs || waypointNumber > forecast.route.legs.length) {
@@ -629,15 +613,6 @@
         });
     }
 
-    function toLocalDatetimeString(timestamp: number): string {
-        const date = new Date(timestamp);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
-    }
 
 
     function getWeatherIcon(weatherCode: number): string {
@@ -841,14 +816,6 @@
                             {#if expandedWaypoints.has(waypoint.number) && waypoint.number < forecast.route.waypoints.length}
                                 <div class="waypoint-expanded">
                                     <div class="expanded-content">
-                                        {#if waypoint.number === 1}
-                                            <div class="leg-stat departure-stat">
-                                                <label>Departure:</label>
-                                                <input type="datetime-local"
-                                                       value={toLocalDatetimeString(forecast.route.departureTime)}
-                                                       on:change={(e) => handleDepartureTimeUpdate(e.target.value)} />
-                                            </div>
-                                        {/if}
                                         {#if getLegData(waypoint.number)}
                                             {@const legData = getLegData(waypoint.number)}
                                             <!-- Row 1: Speed, Distance, Time -->
@@ -1557,11 +1524,6 @@
             }
         }
 
-        .departure-stat {
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid rgba(var(--route-color-rgb), 0.2);
-        }
 
         .leg-stat {
             display: flex;

@@ -9,50 +9,17 @@
     { title }
     </div>
 
-    <div class="wind-data-toggle">
-        <div class="toggle-left">
-            <span
-                class="toggle-option"
-                class:active={showTrueWind}
-                class:clickable={!showTrueWind}
-                on:click={() => setShowTrueWind(true)}
-            >
-                True
-            </span>
-            <span class="toggle-separator">/</span>
-            <span
-                class="toggle-option"
-                class:active={!showTrueWind}
-                class:clickable={showTrueWind}
-                on:click={() => setShowTrueWind(false)}
-            >
-                Apparent
-            </span>
-        </div>
-        <div class="toggle-right">
-            <span class="settings-icon iconfont fg-icons" on:click={handleSettingsClick}>1</span>
-        </div>
-    </div>
-
     <div class="forecast-container">
-
-        <!-- Forecast Table -->
-        {#if hasActiveRoute}
-            <ForecastTable
-                forecast={currentForecast}
-                isLoading={isLoadingForecast}
-                showTrueWind={showTrueWind}
-                on:timeHover={handleTimeHover}
-                on:metricClick={handleMetricClick}
-                on:routeUpdated={handleRouteUpdated}
-            />
-        {:else}
-            <div class="forecast-placeholder">
-                <div class="placeholder-icon">🗺️</div>
-                <h3>No route created yet</h3>
-                <p>Draw a route on the map by clicking to add waypoints. You need at least 2 waypoints to generate a weather forecast.</p>
-            </div>
-        {/if}
+        <ForecastContainer
+            forecast={currentForecast}
+            isLoading={isLoadingForecast}
+            hasActiveRoute={hasActiveRoute}
+            on:windModeChanged={handleWindModeChanged}
+            on:timeHover={handleTimeHover}
+            on:metricClick={handleMetricClick}
+            on:routeUpdated={handleRouteUpdated}
+            on:settingsClicked={handleSettingsClick}
+        />
     </div>
 </section>
 <script lang="ts">
@@ -64,7 +31,7 @@
     import { RouteDefinition } from './types/RouteTypes';
     import { WindyAPI, WeatherForecastService } from './services';
     import { RouteEditorController } from './controllers/RouteEditorController';
-    import ForecastTable from './components/ForecastTable.svelte';
+    import ForecastContainer from './components/ForecastContainer.svelte';
     import { serializeRoute, deserializeRoute } from './utils/RouteSerializer';
     import { setUrl } from '@windy/location';
 
@@ -101,6 +68,11 @@
         } else {
             // If no route, create minimal route with just wind mode
         }
+    }
+
+    function handleWindModeChanged(event: any) {
+        const { showTrueWind: newShowTrueWind } = event.detail;
+        setShowTrueWind(newShowTrueWind);
     }
 
     // Generate forecast from route using WeatherForecastService
@@ -263,69 +235,11 @@
         position: absolute;
         top: 0;
         bottom: 0;
-        margin-top: 85px;
+        left:0; 
+        right:0; 
+        margin-top: 50px;
     }
 
-    .settings-icon {
-        cursor: pointer;
-        color: #666;
-        font-size: 16px;
-        padding: 4px;
-        border-radius: 3px;
-        transition: color 0.2s ease, background 0.2s ease;
-    }
-
-    .settings-icon:hover {
-        color: #333;
-        background: rgba(0, 0, 0, 0.05);
-    }
-
-    /* Wind data toggle */
-    .wind-data-toggle {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 8px 12px;
-        font-size: 12px;
-        color: #666;
-        background: #f8f9fa;
-        border-bottom: 1px solid #dee2e6;
-    }
-
-    .toggle-left {
-        display: flex;
-        align-items: center;
-    }
-
-    .toggle-right {
-        display: flex;
-        align-items: center;
-    }
-
-    .toggle-option {
-        cursor: pointer;
-        transition: color 0.2s ease;
-        font-weight: 500;
-    }
-
-    .toggle-option.active {
-        color: #333;
-        font-weight: 600;
-    }
-
-    .toggle-option.clickable {
-        text-decoration: underline;
-        color: #007cba;
-    }
-
-    .toggle-option.clickable:hover {
-        color: #005a8b;
-    }
-
-    .toggle-separator {
-        margin: 0 6px;
-        color: #999;
-    }
 
     /* Windy-style waypoint markers */
     :global(.windy-waypoint-marker) {
@@ -410,38 +324,6 @@
         border: none !important;
     }
 
-    /* Forecast placeholder */
-    .forecast-placeholder {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 60px 20px;
-        background: #f8f9fa;
-        text-align: center;
-        height: 100%;
-    }
-
-    .placeholder-icon {
-        font-size: 48px;
-        margin-bottom: 20px;
-        opacity: 0.6;
-    }
-
-    .forecast-placeholder h3 {
-        color: #495057;
-        font-size: 18px;
-        margin: 0 0 12px 0;
-        font-weight: 600;
-    }
-
-    .forecast-placeholder p {
-        color: #6c757d;
-        font-size: 14px;
-        margin: 0;
-        max-width: 320px;
-        line-height: 1.5;
-    }
 
     /* Distance labels on route lines */
     :global(.custom-distance-label) {

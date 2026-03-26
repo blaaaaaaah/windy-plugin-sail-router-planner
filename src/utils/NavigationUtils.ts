@@ -1,13 +1,6 @@
 import type { LatLng } from '../types';
 
 /**
- * Convert meters to nautical miles
- */
-export function toNauticalMiles(meters: number): number {
-	return meters / 1852;
-}
-
-/**
  * Calculate course (bearing) between two points
  */
 export function calculateCourse(start: LatLng, end: LatLng): number {

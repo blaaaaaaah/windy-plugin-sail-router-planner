@@ -361,7 +361,7 @@
             percentReaching: legStats ? legStats.percentReaching.toFixed(0) : '0',
             percentDownwind: legStats ? legStats.percentDownwind.toFixed(0) : '0',
             legTime: legTime,
-            distance: formatDistance(leg.distance * 1852) // Convert nautical miles to meters, then format
+            distance: formatDistance(leg.distance) // leg.distance is already in meters
         };
     }
 
@@ -809,7 +809,7 @@
                                                     Leg {waypoint.number}: {formatDayDate(leg.startTime)} {formatTime(leg.startTime)}
                                                 {/if}
                                             </div>
-                                            <div class="leg-distance">{formatDistance(leg.distance * 1852)}</div>
+                                            <div class="leg-distance">{formatDistance(leg.distance)}</div>
                                             <div class="leg-speed">{leg.averageSpeed}knts</div>
                                             <div class="leg-duration">{legData.legTime}</div>
                                         {:else}

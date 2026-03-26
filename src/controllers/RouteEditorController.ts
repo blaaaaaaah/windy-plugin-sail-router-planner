@@ -262,9 +262,8 @@ export class RouteEditorController {
 					lng: (leg.startPoint.lng + leg.endPoint.lng) / 2
 				};
 
-				// Format distance using Windy metrics system
-				const distanceInMeters = leg.distance * 1852; // Convert nautical miles to meters
-				const distanceText = W.metrics.distance.convertValue(distanceInMeters);
+				// Format distance using Windy metrics system (leg.distance is already in meters)
+				const distanceText = W.metrics.distance.convertValue(leg.distance);
 
 				// Create distance label marker positioned at midpoint with CSS offset
 				const label = this._createDistanceLabel(midpoint, distanceText, route.color, leg.startPoint, leg.endPoint);

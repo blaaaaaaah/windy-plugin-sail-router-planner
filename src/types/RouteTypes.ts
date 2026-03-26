@@ -1,12 +1,12 @@
 import type { LatLng } from './Coordinates';
-import { toNauticalMiles, calculateCourse, calculateGreatCircleDistance, interpolateLatLng } from '../utils/NavigationUtils';
+import { calculateCourse, calculateGreatCircleDistance, interpolateLatLng } from '../utils/NavigationUtils';
 
 export interface RouteLeg {
 	startTime: number; // timestamp
 	startPoint: LatLng;
 	endPoint: LatLng;
 	course: number; // degrees, 0-359 range
-	distance: number; // nautical miles
+	distance: number; // meters
 	averageSpeed: number; // knots
 	endTime: number; // timestamp
 	duration: number; // milliseconds (endTime - startTime)
@@ -162,14 +162,15 @@ export class RouteDefinition {
 				throw new Error(`Speed not defined for leg ${i}`);
 			}
 
-			// Calculate distance in nautical miles using great circle distance for accuracy
-			const distance = toNauticalMiles(calculateGreatCircleDistance(startPoint, endPoint));
+			// Calculate distance in meters using great circle distance for accuracy
+			const distance = calculateGreatCircleDistance(startPoint, endPoint);
 
 			// Calculate course (bearing) in degrees, 0-359 range
 			const course = calculateCourse(startPoint, endPoint);
 
-			// Calculate timing
-			const durationHours = distance / speed;
+			// Calculate timing (convert meters to nautical miles for speed calculation)
+			const distanceNm = distance / 1852; // Convert meters to nautical miles
+			const durationHours = distanceNm / speed;
 			const durationMs = durationHours * 60 * 60 * 1000;
 
 			const startTime = i === 0 ? this._departureTime : legs[i - 1].endTime;

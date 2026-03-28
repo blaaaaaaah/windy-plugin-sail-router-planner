@@ -7,6 +7,25 @@
         on:click={ () => bcast.emit('rqstOpen', 'menu') }
     >
     { title }
+    {#if activeRoute}
+        <span class="wind-toggle-compact">
+            <span
+                class="toggle-option"
+                class:active={showTrueWind}
+                on:click|stopPropagation={() => setShowTrueWind(true)}
+            >
+                True
+            </span>
+            <span class="toggle-separator">/</span>
+            <span
+                class="toggle-option"
+                class:active={!showTrueWind}
+                on:click|stopPropagation={() => setShowTrueWind(false)}
+            >
+                Apparent
+            </span>
+        </span>
+    {/if}
     </div>
 
     <div class="forecast-container">
@@ -14,11 +33,11 @@
             forecast={currentForecast}
             isLoading={isLoadingForecast}
             activeRoute={activeRoute}
+            showTrueWind={showTrueWind}
             on:windModeChanged={handleWindModeChanged}
             on:timeHover={handleTimeHover}
             on:metricClick={handleMetricClick}
             on:routeUpdated={handleRouteUpdated}
-            on:settingsClicked={handleSettingsClick}
         />
     </div>
 </section>
@@ -175,9 +194,6 @@
         }
     }
 
-    function handleSettingsClick() {
-        console.log('Settings clicked - will implement settings panel later');
-    }
 
     onMount(() => {
         routeEditor = new RouteEditorController(map, onRouteUpdated);
@@ -390,6 +406,40 @@
         border-radius: 50%;
         border: 1px solid rgba(255, 255, 255, 0.8);
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Compact wind toggle in title */
+    .wind-toggle-compact {
+        margin-left: 12px;
+        font-size: 11px;
+        color: #ccc;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .wind-toggle-compact .toggle-option {
+        cursor: pointer;
+        transition: color 0.2s ease;
+        font-weight: 500;
+        padding: 2px 4px;
+        border-radius: 2px;
+        color: #bbb;
+    }
+
+    .wind-toggle-compact .toggle-option.active {
+        color: #fff;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .wind-toggle-compact .toggle-option:not(.active):hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .wind-toggle-compact .toggle-separator {
+        margin: 0 4px;
+        color: #888;
     }
 </style>
 

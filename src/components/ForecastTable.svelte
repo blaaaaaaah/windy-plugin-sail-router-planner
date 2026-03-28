@@ -291,24 +291,6 @@
     }
 
 
-    function handleAverageSpeedUpdate(waypointNumber: number, newSpeed: string) {
-        const speed = parseFloat(newSpeed);
-        if (!isNaN(speed) && speed > 0 && forecast?.route) {
-            console.log(`Updated leg ${waypointNumber} average speed to ${speed}kts`);
-
-            // Update the route leg speed directly
-            const legIndex = waypointNumber - 1; // Convert to 0-based index
-            forecast.route.setLegSpeed(legIndex, speed);
-
-            // Dispatch updated route to trigger forecast regeneration
-            dispatch('routeUpdated', {
-                route: forecast.route
-            });
-        }
-    }
-
-
-
 
     function handleHover(index: number | null) {
         currentHoverIndex = index;
@@ -708,11 +690,18 @@
         const { legIndex, newSpeed } = event.detail;
         console.log(`Updating leg ${legIndex} speed to ${newSpeed}`);
 
-        dispatch('routeUpdated', {
-            action: 'update-leg-speed',
-            legIndex,
-            speed: newSpeed
-        });
+        if (forecast?.route && legIndex >= 0 && legIndex < forecast.route.legs.length) {
+            const speed = parseFloat(newSpeed);
+            if (!isNaN(speed) && speed > 0) {
+                // Update the route leg speed using the proper method
+                forecast.route.setLegSpeed(legIndex, speed);
+
+                // Dispatch with the updated route
+                dispatch('routeUpdated', {
+                    route: forecast.route
+                });
+            }
+        }
     }
 
     function handleRouteUpdated(event: any) {

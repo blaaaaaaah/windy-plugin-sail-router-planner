@@ -33,11 +33,6 @@
     }
 
 
-    function formatDistance(distance: number): string {
-        const W = (window as any).W;
-        return W.metrics.distance.convertValue(distance);
-    }
-
     $: isDestinationWaypoint = leg === null;
     $: showExpandChevron = !isDestinationWaypoint;
 </script>

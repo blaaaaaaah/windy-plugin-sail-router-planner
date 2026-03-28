@@ -207,7 +207,7 @@
             }
 
             .compact-input {
-                width: 35px;
+                width: 40px;
                 padding: 0 4px;
                 border: 1px solid #ddd;
                 border-radius: 3px;

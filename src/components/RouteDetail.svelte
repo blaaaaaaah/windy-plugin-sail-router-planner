@@ -84,7 +84,7 @@
             <div class="route-info">
                 <div class="route-name-row">
                     <div class="route-name">{route.routeName || ''}</div>
-                    <div class="save-icon" on:click={handleSaveClick}>💾</div>
+                    <!-- <div class="save-icon" on:click={handleSaveClick}>💾</div> -->
                 </div>
                 <div class="route-summary">
                     <div class="departure-time">

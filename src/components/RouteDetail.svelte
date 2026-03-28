@@ -51,6 +51,11 @@
         }
     }
 
+    function handleSaveClick() {
+        console.log('Save route clicked');
+        dispatch('saveRoute', { route });
+    }
+
     $: showExpandChevron = routeStats !== null;
 </script>
 
@@ -62,9 +67,11 @@
         on:click={showExpandChevron ? handleClick : undefined}
     >
         <div class="route-content">
-            <div class="route-icon">🗺️</div>
             <div class="route-info">
-                <div class="route-name">{route.name}</div>
+                <div class="route-name-row">
+                    <div class="route-name">{route.name}</div>
+                    <div class="save-icon" on:click={handleSaveClick}>💾</div>
+                </div>
                 <div class="route-summary">
                     <div class="departure-time">
                         <label class="departure-label">Departs:</label>
@@ -132,16 +139,9 @@
         .route-content {
             display: flex;
             align-items: center;
-            gap: 12px;
             width: 100%;
             position: relative;
             min-height: 20px;
-        }
-
-        .route-icon {
-            font-size: 16px;
-            opacity: 0.8;
-            flex-shrink: 0;
         }
 
         .route-info {
@@ -150,11 +150,29 @@
             gap: 4px;
             flex: 1;
 
+            .route-name-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
             .route-name {
                 font-size: 12px;
                 color: #495057 !important;
                 font-weight: 700;
                 text-align: left;
+            }
+
+            .save-icon {
+                cursor: pointer;
+                font-size: 12px;
+                opacity: 0.7;
+                transition: opacity 0.2s ease, transform 0.2s ease;
+
+                &:hover {
+                    opacity: 1;
+                    transform: scale(1.1);
+                }
             }
 
             .route-summary {

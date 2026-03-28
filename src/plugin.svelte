@@ -146,12 +146,19 @@
 
         logWindyRPlannerRoute(route);
 
-
         // Generate forecast when route has 2+ waypoints
         if (route.waypoints.length >= 2) {
             generateForecastFromRoute(route);
+
+            // Fetch and set route name
+            weatherService!.getRouteName(route).then(routeName => {
+                route.setRouteName(routeName);
+                activeRoute = activeRoute; // Force reactivity
+            });
         } else {
             currentForecast = null;
+            route.setRouteName(null);
+            activeRoute = activeRoute; // Force reactivity
         }
     }
 

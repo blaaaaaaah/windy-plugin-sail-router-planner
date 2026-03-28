@@ -70,6 +70,7 @@
         startTime: route.departureTime,
         endTime: route.departureTime + route.totalDuration
     } : null;
+
 </script>
 
 <div class="route-row-container">
@@ -82,7 +83,7 @@
         <div class="route-content">
             <div class="route-info">
                 <div class="route-name-row">
-                    <div class="route-name">{route.name}</div>
+                    <div class="route-name">{route.routeName || ''}</div>
                     <div class="save-icon" on:click={handleSaveClick}>💾</div>
                 </div>
                 <div class="route-summary">

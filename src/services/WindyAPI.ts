@@ -120,4 +120,19 @@ export class WindyAPI {
 		console.log('Generated minifest:', minifest);
 		return minifest;
 	}
+
+	async getReverseName(point: LatLng): Promise<any> {
+		try {
+			const W = (window as any).W;
+			if (!W || !W.reverseName || !W.reverseName.get) {
+				throw new Error('Windy W.reverseName not available');
+			}
+
+			const result = await W.reverseName.get({ lat: point.lat, lon: point.lng }, 6);
+			return result;
+		} catch (error) {
+			console.error('WindyAPI getReverseName error:', error);
+			return null;
+		}
+	}
 }

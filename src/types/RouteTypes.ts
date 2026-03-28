@@ -21,6 +21,8 @@ export class RouteDefinition {
 	private _waypoints: LatLng[] = [];
 	private _legSpeeds: number[] = [];
 	private _cachedLegs: RouteLeg[] | null = null;
+	private _cachedRouteName: string | null = null;
+	private _routeNameCacheKey: string | null = null;
 
 	constructor(
 		id: string = crypto.randomUUID(),
@@ -40,26 +42,43 @@ export class RouteDefinition {
 		this._waypoints.push(position);
 		this._legSpeeds.push(this._defaultSpeed);
 		this._clearCache();
+		this._clearRouteNameCache();
 	}
 
 	removeWaypoint(index: number): void {
 		if (index < 0 || index >= this._waypoints.length) {
 			throw new Error(`Invalid waypoint index: ${index}`);
 		}
+
+		const isFirstOrLast = index === 0 || index === this._waypoints.length - 1;
+
 		this._waypoints.splice(index, 1);
 		// Remove corresponding leg speed, but keep at least one if waypoints remain
 		if (this._legSpeeds.length > this._waypoints.length) {
 			this._legSpeeds.splice(index, 1);
 		}
 		this._clearCache();
+
+		// Clear route name cache if first or last waypoint was removed
+		if (isFirstOrLast) {
+			this._clearRouteNameCache();
+		}
 	}
 
 	updateWaypoint(index: number, position: LatLng): void {
 		if (index < 0 || index >= this._waypoints.length) {
 			throw new Error(`Invalid waypoint index: ${index}`);
 		}
+
+		const isFirstOrLast = index === 0 || index === this._waypoints.length - 1;
+
 		this._waypoints[index] = position;
 		this._clearCache();
+
+		// Clear route name cache if first or last waypoint was updated
+		if (isFirstOrLast) {
+			this._clearRouteNameCache();
+		}
 	}
 
 	setLegSpeed(legIndex: number, speed: number): void {
@@ -193,8 +212,26 @@ export class RouteDefinition {
 
 
 
+	/**
+	 * Get the cached route name
+	 */
+	get routeName(): string | null {
+		return this._cachedRouteName;
+	}
+
+	/**
+	 * Set the route name (typically called from plugin.svelte after fetching from API)
+	 */
+	setRouteName(routeName: string | null): void {
+		this._cachedRouteName = routeName;
+	}
+
 	private _clearCache(): void {
 		this._cachedLegs = null;
+	}
+
+	private _clearRouteNameCache(): void {
+		this._cachedRouteName = null;
 	}
 
 }

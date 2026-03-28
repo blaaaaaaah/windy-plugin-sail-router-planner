@@ -864,4 +864,30 @@ export class WeatherForecastService {
 			percentDownwind: validLegStats.reduce((sum, stats) => sum + stats.percentDownwind, 0) / count
 		};
 	}
+
+	async getRouteName(route: RouteDefinition): Promise<string | null> {
+		if (!route.waypoints || route.waypoints.length < 2) {
+			return null;
+		}
+
+		try {
+			const firstPoint = route.waypoints[0];
+			const lastPoint = route.waypoints[route.waypoints.length - 1];
+
+			// Get reverse names for both points in parallel
+			const [departureResult, arrivalResult] = await Promise.all([
+				this.windyAPI.getReverseName(firstPoint),
+				this.windyAPI.getReverseName(lastPoint)
+			]);
+
+			// Extract names, fallback to '...' if not available
+			const departureName = departureResult?.name || departureResult?.region || '...';
+			const arrivalName = arrivalResult?.name || arrivalResult?.region || '...';
+
+			return `${departureName} → ${arrivalName}`;
+		} catch (error) {
+			console.error('Error getting route name:', error);
+			return null;
+		}
+	}
 }

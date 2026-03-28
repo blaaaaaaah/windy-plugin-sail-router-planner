@@ -2,17 +2,22 @@
     import { createEventDispatcher } from 'svelte';
     import LegDetail from './LegDetail.svelte';
     import type { RouteLeg } from '../types/RouteTypes';
-    import { formatDayDate, formatTime } from '../utils/TimeUtils';
+    import { formatDayDate, formatTime, formatDuration } from '../utils/TimeUtils';
 
     export let waypointNumber: number;
     export let isStart: boolean = false; // Is this the departure waypoint?
     export let leg: RouteLeg | null = null; // Null for destination waypoint
-    export let legData: any | null = null; // Weather statistics, null for destination
+    export let legStats: any | null = null; // Weather statistics, null for destination
     export let arrivalTime: number | null = null; // For destination waypoint only
     export let routeColor: string = '#3498db';
     let isExpanded: boolean = false;
 
     const dispatch = createEventDispatcher();
+
+    function formatDistance(meterValue: number): string {
+        const W = (window as any).W;
+        return W.metrics.distance.convertValue(meterValue);
+    }
 
     function handleClick() {
         if (!isDestinationWaypoint) {
@@ -49,7 +54,7 @@
         <div class="start-beanie-content">
             <div class="waypoint-number">{waypointNumber}</div>
             <div class="waypoint-info">
-                {#if leg && legData}
+                {#if leg && legStats}
                     <div class="leg-datetime">
                         {#if isStart}
                             Departure: {formatDayDate(leg.startTime)} {formatTime(leg.startTime)}
@@ -59,7 +64,7 @@
                     </div>
                     <div class="leg-distance">{formatDistance(leg.distance)}</div>
                     <div class="leg-speed">{leg.averageSpeed}knts</div>
-                    <div class="leg-duration">{legData.legTime}</div>
+                    <div class="leg-duration">{formatDuration(leg.duration)}</div>
                 {:else if isDestinationWaypoint && arrivalTime}
                     <div class="leg-datetime">
                         Arrival: {formatDayDate(arrivalTime)} {formatTime(arrivalTime)}
@@ -76,10 +81,11 @@
     </div>
 
     <!-- Expanded content - only for non-destination waypoints -->
-    {#if isExpanded && !isDestinationWaypoint && legData}
+    {#if isExpanded && !isDestinationWaypoint && legStats}
         <div class="leg-detail-wrapper" style="--route-color: {routeColor}; --route-color-rgb: {routeColor.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
             <LegDetail
-                {legData}
+                legStats={legStats}
+                {leg}
                 isVisible={true}
                 {routeColor}
                 on:speedUpdate={handleSpeedUpdate}

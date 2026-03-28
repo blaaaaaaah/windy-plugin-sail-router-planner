@@ -308,58 +308,6 @@
     }
 
 
-    function getLegData(waypointNumber: number) {
-        if (!forecast?.route?.legs || waypointNumber > forecast.route.legs.length) {
-            // TODO: Handle missing leg data properly in UI
-            return null;
-        }
-
-        const leg = forecast.route.legs[waypointNumber - 1];
-        if (!leg) {
-            // TODO: Handle missing leg data properly in UI
-            return null;
-        }
-
-        // Get real weather statistics from forecast data
-        const legStats = forecast.legStats[waypointNumber - 1]; // legStats indexed by leg number
-
-        // Format leg time (duration is in milliseconds)
-        const totalMinutes = Math.floor(leg.duration / (1000 * 60));
-        const totalHours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-
-        let legTime;
-        if (totalHours >= 24) {
-            const days = Math.floor(totalHours / 24);
-            const remainingHours = totalHours % 24;
-            legTime = remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
-        } else if (totalHours > 0) {
-            legTime = minutes > 0 ? `${totalHours}h ${minutes}m` : `${totalHours}h`;
-        } else {
-            legTime = `${minutes}m`;
-        }
-
-        return {
-            averageSpeed: leg.averageSpeed,
-            minWindSpeed: legStats ? formatWindSpeed(legStats.minWindSpeed) : '--',
-            avgWindSpeed: legStats ? formatWindSpeed(legStats.avgWindSpeed) : '--',
-            maxWindSpeed: legStats ? formatWindSpeed(legStats.maxWindSpeed) : '--',
-            minGust: legStats ? formatWindSpeed(legStats.minGust) : '--',
-            avgGust: legStats ? formatWindSpeed(legStats.avgGust) : '--',
-            maxGust: legStats ? formatWindSpeed(legStats.maxGust) : '--',
-            minWaveHeight: legStats ? formatWaveHeight(legStats.minWaveHeight) : '--',
-            avgWaveHeight: legStats ? formatWaveHeight(legStats.avgWaveHeight) : '--',
-            maxWaveHeight: legStats ? formatWaveHeight(legStats.maxWaveHeight) : '--',
-            minWavePeriod: legStats ? legStats.minWavePeriod.toFixed(1) : '0.0',
-            avgWavePeriod: legStats ? legStats.avgWavePeriod.toFixed(1) : '0.0',
-            maxWavePeriod: legStats ? legStats.maxWavePeriod.toFixed(1) : '0.0',
-            percentUpwind: legStats ? legStats.percentUpwind.toFixed(0) : '0',
-            percentReaching: legStats ? legStats.percentReaching.toFixed(0) : '0',
-            percentDownwind: legStats ? legStats.percentDownwind.toFixed(0) : '0',
-            legTime: legTime,
-            distance: formatDistance(leg.distance) // leg.distance is already in meters
-        };
-    }
 
 
     function handleHover(index: number | null) {
@@ -815,7 +763,7 @@
                                 waypointNumber={waypoint.number}
                                 isStart={waypoint.isStart}
                                 leg={waypoint.number <= forecast.route.legs.length ? forecast.route.legs[waypoint.number - 1] : null}
-                                legData={getLegData(waypoint.number)}
+                                legStats={waypoint.number <= forecast.legStats.length ? forecast.legStats[waypoint.number - 1] : null}
                                 arrivalTime={waypoint.number === forecast.route.waypoints.length ? forecast.route.arrivalTime : null}
                                 {routeColor}
                                 on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}

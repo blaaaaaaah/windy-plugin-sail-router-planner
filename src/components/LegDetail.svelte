@@ -1,12 +1,30 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import type { RouteForecast } from '../types/WeatherTypes';
 
-    export let legData: any; // Leg statistics data
+    import type { RouteLeg } from '../types/RouteTypes';
+    import { formatDuration } from '../utils/TimeUtils';
+
+    export let legStats: any; // Leg statistics data
+    export let leg: RouteLeg; // Leg data for distance, duration, speed
     export let isVisible: boolean = false;
     export let routeColor: string = '#3498db';
 
     const dispatch = createEventDispatcher();
+
+    function formatWindSpeed(msValue: number): string {
+        const W = (window as any).W;
+        return W.metrics.wind.convertValue(msValue);
+    }
+
+    function formatWaveHeight(meterValue: number): string {
+        const W = (window as any).W;
+        return W.metrics.waves.convertValue(meterValue);
+    }
+
+    function formatDistance(meterValue: number): string {
+        const W = (window as any).W;
+        return W.metrics.distance.convertValue(meterValue);
+    }
 
     function handleSpeedUpdate(event: Event) {
         const target = event.target as HTMLInputElement;
@@ -17,7 +35,7 @@
     }
 </script>
 
-{#if isVisible && legData}
+{#if isVisible && legStats}
     <div class="waypoint-expanded" style="--route-color: {routeColor}; --route-color-rgb: {routeColor.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
         <div class="expanded-content">
             <!-- Row 1: Speed, Distance, Time -->
@@ -28,7 +46,7 @@
                         <input
                             type="number"
                             class="compact-input"
-                            value={legData.averageSpeed}
+                            value={leg.averageSpeed}
                             min="0.5"
                             max="50"
                             step="0.5"
@@ -39,11 +57,11 @@
                 </div>
                 <div class="leg-item">
                     <label>DISTANCE</label>
-                    <span class="value">{legData.distance}</span>
+                    <span class="value">{formatDistance(leg.distance)}</span>
                 </div>
                 <div class="leg-item">
                     <label>LEG TIME</label>
-                    <span class="value">{legData.legTime}</span>
+                    <span class="value">{formatDuration(leg.duration)}</span>
                 </div>
             </div>
 
@@ -51,15 +69,15 @@
             <div class="leg-row">
                 <div class="leg-item">
                     <label>MIN WIND</label>
-                    <span class="value">{legData.minWindSpeed}</span>
+                    <span class="value">{formatWindSpeed(legStats.minWindSpeed)}</span>
                 </div>
                 <div class="leg-item">
                     <label>AVG WIND</label>
-                    <span class="value">{legData.avgWindSpeed}</span>
+                    <span class="value">{formatWindSpeed(legStats.avgWindSpeed)}</span>
                 </div>
                 <div class="leg-item">
                     <label>MAX WIND</label>
-                    <span class="value">{legData.maxWindSpeed}</span>
+                    <span class="value">{formatWindSpeed(legStats.maxWindSpeed)}</span>
                 </div>
             </div>
 
@@ -67,15 +85,15 @@
             <div class="leg-row">
                 <div class="leg-item">
                     <label>MIN GUST</label>
-                    <span class="value">{legData.minGust}</span>
+                    <span class="value">{formatWindSpeed(legStats.minGust)}</span>
                 </div>
                 <div class="leg-item">
                     <label>AVG GUST</label>
-                    <span class="value">{legData.avgGust}</span>
+                    <span class="value">{formatWindSpeed(legStats.avgGust)}</span>
                 </div>
                 <div class="leg-item">
                     <label>MAX GUST</label>
-                    <span class="value">{legData.maxGust}</span>
+                    <span class="value">{formatWindSpeed(legStats.maxGust)}</span>
                 </div>
             </div>
 
@@ -83,15 +101,15 @@
             <div class="leg-row">
                 <div class="leg-item">
                     <label>MIN WAVE</label>
-                    <span class="value">{legData.minWaveHeight}</span>
+                    <span class="value">{formatWaveHeight(legStats.minWaveHeight)}</span>
                 </div>
                 <div class="leg-item">
                     <label>AVG WAVE</label>
-                    <span class="value">{legData.avgWaveHeight}</span>
+                    <span class="value">{formatWaveHeight(legStats.avgWaveHeight)}</span>
                 </div>
                 <div class="leg-item">
                     <label>MAX WAVE</label>
-                    <span class="value">{legData.maxWaveHeight}</span>
+                    <span class="value">{formatWaveHeight(legStats.maxWaveHeight)}</span>
                 </div>
             </div>
 
@@ -99,15 +117,15 @@
             <div class="leg-row">
                 <div class="leg-item">
                     <label>MIN PERIOD</label>
-                    <span class="value">{legData.minWavePeriod}s</span>
+                    <span class="value">{legStats.minWavePeriod.toFixed(1)}s</span>
                 </div>
                 <div class="leg-item">
                     <label>AVG PERIOD</label>
-                    <span class="value">{legData.avgWavePeriod}s</span>
+                    <span class="value">{legStats.avgWavePeriod.toFixed(1)}s</span>
                 </div>
                 <div class="leg-item">
                     <label>MAX PERIOD</label>
-                    <span class="value">{legData.maxWavePeriod}s</span>
+                    <span class="value">{legStats.maxWavePeriod.toFixed(1)}s</span>
                 </div>
             </div>
 
@@ -115,15 +133,15 @@
             <div class="leg-row">
                 <div class="leg-item">
                     <label>UPWIND</label>
-                    <span class="value">{legData.percentUpwind}%</span>
+                    <span class="value">{legStats.percentUpwind.toFixed(0)}%</span>
                 </div>
                 <div class="leg-item">
                     <label>REACHING</label>
-                    <span class="value">{legData.percentReaching}%</span>
+                    <span class="value">{legStats.percentReaching.toFixed(0)}%</span>
                 </div>
                 <div class="leg-item">
                     <label>DOWNWIND</label>
-                    <span class="value">{legData.percentDownwind}%</span>
+                    <span class="value">{legStats.percentDownwind.toFixed(0)}%</span>
                 </div>
             </div>
         </div>

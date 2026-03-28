@@ -81,7 +81,6 @@
             <LegDetail
                 legStats={legStats}
                 {leg}
-                isVisible={true}
                 {routeColor}
                 on:speedUpdate={handleSpeedUpdate}
             />

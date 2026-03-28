@@ -2,12 +2,13 @@
     import { createEventDispatcher } from 'svelte';
 
     import type { RouteLeg } from '../types/RouteTypes';
+    import type { WeatherStats } from '../types/WeatherTypes';
     import { formatDuration } from '../utils/TimeUtils';
 
-    export let legStats: any; // Leg statistics data
+    export let legStats: WeatherStats; // Leg statistics data
     export let leg: RouteLeg; // Leg data for distance, duration, speed
-    export let isVisible: boolean = false;
     export let routeColor: string = '#3498db';
+    export let isSpeedEditable: boolean = true;
 
     const dispatch = createEventDispatcher();
 
@@ -35,7 +36,7 @@
     }
 </script>
 
-{#if isVisible && legStats}
+{#if legStats}
     <div class="waypoint-expanded" style="--route-color: {routeColor}; --route-color-rgb: {routeColor.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
         <div class="expanded-content">
             <!-- Row 1: Speed, Distance, Time -->
@@ -43,15 +44,19 @@
                 <div class="leg-item speed-input">
                     <label>AVG SPEED</label>
                     <div class="input-group">
-                        <input
-                            type="number"
-                            class="compact-input"
-                            value={leg.averageSpeed}
-                            min="0.5"
-                            max="50"
-                            step="0.5"
-                            on:change={handleSpeedUpdate}
-                        />
+                        {#if isSpeedEditable}
+                            <input
+                                type="number"
+                                class="compact-input"
+                                value={leg.averageSpeed}
+                                min="0.5"
+                                max="50"
+                                step="0.5"
+                                on:change={handleSpeedUpdate}
+                            />
+                        {:else}
+                            <span class="value">{leg.averageSpeed.toFixed(1)}</span>
+                        {/if}
                         <span class="unit">knts</span>
                     </div>
                 </div>

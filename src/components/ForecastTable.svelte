@@ -719,7 +719,7 @@
             <!-- Route Summary -->
             <RouteDetail
                 route={route}
-                routeStats={null}
+                routeStats={forecast?.routeStats || null}
                 on:routeUpdated={handleRouteUpdated}
             />
 

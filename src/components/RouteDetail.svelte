@@ -2,18 +2,23 @@
     import { createEventDispatcher } from 'svelte';
     import LegDetail from './LegDetail.svelte';
     import type { RouteDefinition } from '../types/RouteTypes';
+    import type { WeatherStats } from '../types/WeatherTypes';
     import { formatDayDate, formatTime, formatDuration } from '../utils/TimeUtils';
 
     export let route: RouteDefinition | null;
-    export let routeStats: any | null = null; // Overall route statistics (total distance, time, etc.)
+    export let routeStats: WeatherStats | null = null; // Overall route statistics (total distance, time, etc.)
     let isExpanded: boolean = false;
 
     const dispatch = createEventDispatcher();
 
     function handleClick() {
-        if (routeStats) {
-            isExpanded = !isExpanded;
-        }
+        isExpanded = !isExpanded;
+    }
+
+    function calculateAverageSpeed(): number {
+        if (!route || !route.legs || route.legs.length === 0) return 0;
+        const totalSpeed = route.legs.reduce((sum, leg) => sum + leg.averageSpeed, 0);
+        return totalSpeed / route.legs.length;
     }
 
     function formatDistance(distance: number): string {
@@ -56,7 +61,15 @@
         dispatch('saveRoute', { route });
     }
 
-    $: showExpandChevron = routeStats !== null;
+    $: showExpandChevron = true;
+    $: averageSpeed = calculateAverageSpeed();
+    $: routeLeg = route ? {
+        averageSpeed: averageSpeed,
+        distance: route.totalDistance,
+        duration: route.totalDuration,
+        startTime: route.departureTime,
+        endTime: route.departureTime + route.totalDuration
+    } : null;
 </script>
 
 <div class="route-row-container">
@@ -84,7 +97,7 @@
                     </div>
                     <span class="total-distance">{formatDistance(route.totalDistance)}</span>
                     <span class="total-duration">{formatDuration(route.totalDuration)}</span>
-                    <span class="waypoint-count">{route.waypoints.length} waypoints</span>
+                    <!--span class="waypoint-count">{route.waypoints.length} waypoints</span-->
                 </div>
             </div>
             <!-- Only show expand chevron if we have route stats -->
@@ -95,12 +108,14 @@
     </div>
 
     <!-- Expanded content - route-level statistics -->
-    {#if isExpanded && routeStats}
+    {#if isExpanded && routeLeg}
         <div class="route-detail-wrapper">
-            <div class="route-stats-content">
-                <!-- Route-level statistics would go here -->
-                <p>Route statistics coming soon...</p>
-            </div>
+            <LegDetail
+                legStats={routeStats}
+                leg={routeLeg}
+                routeColor="#3498db"
+                isSpeedEditable={false}
+            />
         </div>
     {/if}
 </div>
@@ -237,15 +252,14 @@
         .expand-chevron {
             position: absolute;
             right: 6px;
-            top: 50%;
-            transform: translateY(-50%);
+            bottom: 3px;
             font-size: 12px;
             color: #6c757d !important;
             transition: transform 0.2s ease;
             pointer-events: none;
 
             &.rotated {
-                transform: translateY(-50%) rotate(180deg);
+                transform: rotate(180deg);
             }
         }
     }

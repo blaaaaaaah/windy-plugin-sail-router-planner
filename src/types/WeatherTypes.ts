@@ -1,7 +1,7 @@
 import type { LatLng } from './Coordinates';
 import type { RouteLeg, RouteDefinition } from './RouteTypes';
 
-export interface LegStats {
+export interface WeatherStats {
 	minWindSpeed: number;
 	avgWindSpeed: number;
 	maxWindSpeed: number;
@@ -47,7 +47,8 @@ export interface PointForecast {
 export interface RouteForecast {
 	route: RouteDefinition; // reference to access legs, distances, times, etc
 	pointForecasts: PointForecast[];
-	legStats: (LegStats | null)[];
+	legStats: (WeatherStats | null)[];
+	routeStats: WeatherStats | null;
 }
 
 // Raw API response types

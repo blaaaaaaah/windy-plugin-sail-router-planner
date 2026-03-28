@@ -1,4 +1,4 @@
-import type { RouteDefinition, RouteLeg, RouteForecast, PointForecast, WeatherData, WindyAPIResponse, LatLng, LegStats } from '../types';
+import type { RouteDefinition, RouteLeg, RouteForecast, PointForecast, WeatherData, WindyAPIResponse, LatLng, WeatherStats } from '../types';
 import { WindyAPI } from './WindyAPI';
 import { calculateApparentWind, calculateRelativeDirection, interpolateLatLng } from '../utils/NavigationUtils';
 
@@ -89,10 +89,14 @@ export class WeatherForecastService {
 		// Calculate leg statistics
 		const legStats = route.legs.map(leg => this.calculateLegWeatherStats(leg, consolidatedForecasts));
 
+		// Calculate route statistics by averaging leg statistics
+		const routeStats = this.calculateRouteWeatherStats(legStats);
+
 		return {
 			route,
 			pointForecasts: consolidatedForecasts,
-			legStats
+			legStats,
+			routeStats
 		};
 	}
 
@@ -753,14 +757,7 @@ export class WeatherForecastService {
 	/**
 	 * Calculate weather statistics for a leg from forecast data
 	 */
-	calculateLegWeatherStats(leg: RouteLeg, forecastPoints: PointForecast[]): {
-		minWindSpeed: number;
-		avgWindSpeed: number;
-		maxWindSpeed: number;
-		minGust: number;
-		avgGust: number;
-		maxGust: number;
-	} | null {
+	calculateLegWeatherStats(leg: RouteLeg, forecastPoints: PointForecast[]): WeatherStats | null {
 		// Filter forecast points that fall within this leg's timeframe
 		const legForecasts = forecastPoints.filter(point =>
 			point.timestamp >= leg.startTime &&
@@ -773,9 +770,9 @@ export class WeatherForecastService {
 			return null;
 		}
 
-		// Extract wind speeds (convert from m/s to knots)
-		const windSpeeds = legForecasts.map(f => f.northUp!.windSpeed * 1.94384);
-		const gustSpeeds = legForecasts.map(f => f.northUp!.gustsSpeed * 1.94384);
+		// Extract wind speeds
+		const windSpeeds = legForecasts.map(f => f.northUp!.windSpeed);
+		const gustSpeeds = legForecasts.map(f => f.northUp!.gustsSpeed);
 
 		// Extract wave data (heights in meters, periods in seconds)
 		const waveHeights = legForecasts.map(f => f.northUp!.wavesHeight);
@@ -832,6 +829,39 @@ export class WeatherForecastService {
 			percentUpwind,
 			percentReaching,
 			percentDownwind
+		};
+	}
+
+	/**
+	 * Calculate route weather statistics by averaging all leg statistics
+	 */
+	calculateRouteWeatherStats(legStats: (WeatherStats | null)[]): WeatherStats | null {
+		// Filter out null leg stats
+		const validLegStats = legStats.filter((stats): stats is WeatherStats => stats !== null);
+
+		if (validLegStats.length === 0) {
+			return null;
+		}
+
+		// Calculate averages for each metric
+		const count = validLegStats.length;
+
+		return {
+			minWindSpeed: validLegStats.reduce((sum, stats) => sum + stats.minWindSpeed, 0) / count,
+			avgWindSpeed: validLegStats.reduce((sum, stats) => sum + stats.avgWindSpeed, 0) / count,
+			maxWindSpeed: validLegStats.reduce((sum, stats) => sum + stats.maxWindSpeed, 0) / count,
+			minGust: validLegStats.reduce((sum, stats) => sum + stats.minGust, 0) / count,
+			avgGust: validLegStats.reduce((sum, stats) => sum + stats.avgGust, 0) / count,
+			maxGust: validLegStats.reduce((sum, stats) => sum + stats.maxGust, 0) / count,
+			minWaveHeight: validLegStats.reduce((sum, stats) => sum + stats.minWaveHeight, 0) / count,
+			avgWaveHeight: validLegStats.reduce((sum, stats) => sum + stats.avgWaveHeight, 0) / count,
+			maxWaveHeight: validLegStats.reduce((sum, stats) => sum + stats.maxWaveHeight, 0) / count,
+			minWavePeriod: validLegStats.reduce((sum, stats) => sum + stats.minWavePeriod, 0) / count,
+			avgWavePeriod: validLegStats.reduce((sum, stats) => sum + stats.avgWavePeriod, 0) / count,
+			maxWavePeriod: validLegStats.reduce((sum, stats) => sum + stats.maxWavePeriod, 0) / count,
+			percentUpwind: validLegStats.reduce((sum, stats) => sum + stats.percentUpwind, 0) / count,
+			percentReaching: validLegStats.reduce((sum, stats) => sum + stats.percentReaching, 0) / count,
+			percentDownwind: validLegStats.reduce((sum, stats) => sum + stats.percentDownwind, 0) / count
 		};
 	}
 }

@@ -1,12 +1,17 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { metrics } from '@windy/metrics';
+    import LegDetail from './LegDetail.svelte';
+    import LegWaypoint from './LegWaypoint.svelte';
+    import RouteDetail from './RouteDetail.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
+    import type { RouteDefinition } from '../types/RouteTypes';
 
     export let forecast: RouteForecast | null = null;
     export let routeColor: string = '#3498db';
     export let isLoading: boolean = false;
     export let showTrueWind: boolean = true;
+    export let route: RouteDefinition | null = null;
 
     // Data that needs to be recalculated when forecast changes
     let hourlyData: any[] = [];
@@ -53,7 +58,6 @@
     let dragDropTargetIndex: number | null = null;
     let autoScrollTimer: number | null = null;
     let tableScrollContainer: HTMLElement | null = null;
-    let expandedWaypoints: Set<number> = new Set();
     let scrollContainer: HTMLElement | null = null;
     let rowPositions: Array<{top: number, bottom: number, index: number}> = [];
 
@@ -286,14 +290,6 @@
         return waypoints;
     }
 
-    function toggleWaypointExpansion(waypointNumber: number) {
-        if (expandedWaypoints.has(waypointNumber)) {
-            expandedWaypoints.delete(waypointNumber);
-        } else {
-            expandedWaypoints.add(waypointNumber);
-        }
-        expandedWaypoints = new Set(expandedWaypoints); // Trigger reactivity
-    }
 
     function handleAverageSpeedUpdate(waypointNumber: number, newSpeed: string) {
         const speed = parseFloat(newSpeed);
@@ -760,6 +756,22 @@
         return '52, 152, 219'; // fallback to default blue
     }
 
+    function handleLegSpeedUpdate(event: any) {
+        const { legIndex, newSpeed } = event.detail;
+        console.log(`Updating leg ${legIndex} speed to ${newSpeed}`);
+
+        dispatch('routeUpdated', {
+            action: 'update-leg-speed',
+            legIndex,
+            speed: newSpeed
+        });
+    }
+
+    function handleRouteUpdated(event: any) {
+        // Forward the routeUpdated event to parent
+        dispatch('routeUpdated', event.detail);
+    }
+
 </script>
 
 <div class="forecast-table-container" style="--route-color: {routeColor}; --route-color-rgb: {hexToRgb(routeColor)};" class:loading={isLoading}>
@@ -767,6 +779,13 @@
     <div class="table-container">
         <!-- Table Content -->
         <section class="table-content">
+            <!-- Route Summary -->
+            <RouteDetail
+                route={route}
+                routeStats={null}
+                on:routeUpdated={handleRouteUpdated}
+            />
+
             <!-- Table Header -->
             <div class="table-header">
                 <div class="time-column">Time</div>
@@ -786,161 +805,21 @@
                 {#each hourlyData as data, index}
                     <!-- Waypoint beanie rows -->
                     {#each waypointPositions.filter(wp => wp.index === index) as waypoint}
-                        <div class="waypoint-row-container">
-                            <div class="start-beanie-row"
-                                 class:dragging={isDragging && dragStartIndex === index && waypoint.isStart}
-                                 class:waypoint-row={!waypoint.isStart}
-                                 class:expanded={expandedWaypoints.has(waypoint.number)}
-                                 class:destination-waypoint={waypoint.number === forecast.route.waypoints.length}
-                                 draggable={waypoint.isStart ? "true" : "false"}
-                                 on:dragstart={waypoint.isStart ? (e) => handleDragStart(e, index) : undefined}
-                                 on:dragend={waypoint.isStart ? () => handleDragEnd() : undefined}
-                                 on:click={waypoint.number < forecast.route.waypoints.length ? () => toggleWaypointExpansion(waypoint.number) : undefined}>
-                                <div class="start-beanie-content">
-                                    <div class="waypoint-number">{waypoint.number}</div>
-                                    <div class="waypoint-info">
-                                        {#if getLegData(waypoint.number)}
-                                            {@const legData = getLegData(waypoint.number)}
-                                            {@const leg = forecast.route.legs[waypoint.number - 1]}
-                                            <div class="leg-datetime">
-                                                {#if waypoint.number === 1}
-                                                    Departure: {formatDayDate(leg.startTime)} {formatTime(leg.startTime)}
-                                                {:else}
-                                                    Leg {waypoint.number}: {formatDayDate(leg.startTime)} {formatTime(leg.startTime)}
-                                                {/if}
-                                            </div>
-                                            <div class="leg-distance">{formatDistance(leg.distance)}</div>
-                                            <div class="leg-speed">{leg.averageSpeed}knts</div>
-                                            <div class="leg-duration">{legData.legTime}</div>
-                                        {:else}
-                                            {#if waypoint.number === forecast.route.waypoints.length}
-                                                <div class="leg-datetime">
-                                                    Arrival: {formatDayDate(forecast.route.arrivalTime)} {formatTime(forecast.route.arrivalTime)}
-                                                </div>
-                                            {:else}
-                                                <div class="leg-placeholder">No leg data</div>
-                                            {/if}
-                                        {/if}
-                                    </div>
-                                    <!-- Only show expand chevron for non-destination waypoints -->
-                                    {#if waypoint.number < forecast.route.waypoints.length}
-                                        <div class="expand-chevron" class:rotated={expandedWaypoints.has(waypoint.number)}>∨</div>
-                                    {/if}
-                                </div>
-                            </div>
-
-                            <!-- Expanded content - only for non-destination waypoints -->
-                            {#if expandedWaypoints.has(waypoint.number) && waypoint.number < forecast.route.waypoints.length}
-                                <div class="waypoint-expanded">
-                                    <div class="expanded-content">
-                                        {#if getLegData(waypoint.number)}
-                                            {@const legData = getLegData(waypoint.number)}
-                                            <!-- Row 1: Speed, Distance, Time -->
-                                            <div class="leg-row">
-                                                <div class="leg-item speed-input">
-                                                    <label>AVG SPEED</label>
-                                                    <div class="input-group">
-                                                        <input type="number"
-                                                               class="compact-input"
-                                                               value={legData.averageSpeed}
-                                                               min="0.5" max="50" step="0.5"
-                                                               on:change={(e) => handleAverageSpeedUpdate(waypoint.number, e.target.value)} />
-                                                        <span class="unit">kts</span>
-                                                    </div>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>DISTANCE</label>
-                                                    <span class="value">{legData.distance}</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>LEG TIME</label>
-                                                    <span class="value">{legData.legTime}</span>
-                                                </div>
-                                            </div>
-
-                                            <!-- Row 2: Wind Statistics -->
-                                            <div class="leg-row">
-                                                <div class="leg-item">
-                                                    <label>MIN WIND</label>
-                                                    <span class="value">{legData.minWindSpeed}</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>AVG WIND</label>
-                                                    <span class="value">{legData.avgWindSpeed}</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>MAX WIND</label>
-                                                    <span class="value">{legData.maxWindSpeed}</span>
-                                                </div>
-                                            </div>
-
-                                            <!-- Row 3: Gust Statistics -->
-                                            <div class="leg-row">
-                                                <div class="leg-item">
-                                                    <label>MIN GUST</label>
-                                                    <span class="value">{legData.minGust}</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>AVG GUST</label>
-                                                    <span class="value">{legData.avgGust}</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>MAX GUST</label>
-                                                    <span class="value">{legData.maxGust}</span>
-                                                </div>
-                                            </div>
-
-                                            <!-- Row 4: Wave Height Statistics -->
-                                            <div class="leg-row">
-                                                <div class="leg-item">
-                                                    <label>MIN WAVE</label>
-                                                    <span class="value">{legData.minWaveHeight}</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>AVG WAVE</label>
-                                                    <span class="value">{legData.avgWaveHeight}</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>MAX WAVE</label>
-                                                    <span class="value">{legData.maxWaveHeight}</span>
-                                                </div>
-                                            </div>
-
-                                            <!-- Row 5: Wave Period Statistics -->
-                                            <div class="leg-row">
-                                                <div class="leg-item">
-                                                    <label>MIN PERIOD</label>
-                                                    <span class="value">{legData.minWavePeriod}s</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>AVG PERIOD</label>
-                                                    <span class="value">{legData.avgWavePeriod}s</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>MAX PERIOD</label>
-                                                    <span class="value">{legData.maxWavePeriod}s</span>
-                                                </div>
-                                            </div>
-
-                                            <!-- Row 6: Wind Angle Statistics -->
-                                            <div class="leg-row">
-                                                <div class="leg-item">
-                                                    <label>% UPWIND</label>
-                                                    <span class="value">{legData.percentUpwind}%</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>% REACHING</label>
-                                                    <span class="value">{legData.percentReaching}%</span>
-                                                </div>
-                                                <div class="leg-item">
-                                                    <label>% DOWNWIND</label>
-                                                    <span class="value">{legData.percentDownwind}%</span>
-                                                </div>
-                                            </div>
-                                        {/if}
-                                    </div>
-                                </div>
-                            {/if}
+                        <div
+                            class:dragging={isDragging && dragStartIndex === index && waypoint.isStart}
+                            draggable={waypoint.isStart ? "true" : "false"}
+                            on:dragstart={waypoint.isStart ? (e) => handleDragStart(e, index) : undefined}
+                            on:dragend={waypoint.isStart ? () => handleDragEnd() : undefined}
+                        >
+                            <LegWaypoint
+                                waypointNumber={waypoint.number}
+                                isStart={waypoint.isStart}
+                                leg={waypoint.number <= forecast.route.legs.length ? forecast.route.legs[waypoint.number - 1] : null}
+                                legData={getLegData(waypoint.number)}
+                                arrivalTime={waypoint.number === forecast.route.waypoints.length ? forecast.route.arrivalTime : null}
+                                {routeColor}
+                                on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
+                            />
                         </div>
                     {/each}
 
@@ -1457,6 +1336,11 @@
 
     .waypoint-row-container {
         position: relative;
+    }
+
+    .leg-detail-wrapper {
+        border-left: 4px solid var(--route-color);
+        border-bottom: 1px solid var(--route-color);
     }
 
     .waypoint-expanded {

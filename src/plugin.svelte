@@ -13,7 +13,7 @@
         <ForecastContainer
             forecast={currentForecast}
             isLoading={isLoadingForecast}
-            hasActiveRoute={hasActiveRoute}
+            activeRoute={activeRoute}
             on:windModeChanged={handleWindModeChanged}
             on:timeHover={handleTimeHover}
             on:metricClick={handleMetricClick}
@@ -47,7 +47,6 @@
     // Forecast data
     let currentForecast: RouteForecast|null = null;
     let isLoadingForecast: boolean = false;
-    let hasActiveRoute: boolean = false;
 
     // Weather service instances
     let windyAPI: WindyAPI | null = null;
@@ -56,12 +55,13 @@
     // Wind data display mode
     let showTrueWind: boolean = true;
 
+    // Track the current route
+    let activeRoute: RouteDefinition | null = null;
+
     function setShowTrueWind(value: boolean) {
         showTrueWind = value;
 
         // Update URL to persist wind mode
-        const activeRoute = routeEditor?.getActiveRoute();
-
         if (activeRoute) {
             const serializedRoute = serializeRoute(activeRoute, value);
             setUrl(config.name, { route: serializedRoute });
@@ -118,14 +118,15 @@
 
 
     function onRouteUpdated(route: RouteDefinition) {
+        // Update current route state
+        activeRoute = routeEditor!.getActiveRoute();
+
         // Update URL with current route and wind mode
         const serializedRoute = serializeRoute(route, showTrueWind);
         setUrl(config.name, { route: serializedRoute });
 
         logWindyRPlannerRoute(route);
 
-        // Update route state
-        hasActiveRoute = route.waypoints.length >= 2;
 
         // Generate forecast when route has 2+ waypoints
         if (route.waypoints.length >= 2) {

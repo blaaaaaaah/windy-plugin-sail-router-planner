@@ -1,13 +1,17 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
+    import type { RouteDefinition } from '../types/RouteTypes';
     import ForecastTable from './ForecastTable.svelte';
 
     export let forecast: RouteForecast | null = null;
     export let isLoading: boolean = false;
-    export let hasActiveRoute: boolean = false;
+    export let activeRoute: RouteDefinition | null = null;
 
     const dispatch = createEventDispatcher();
+
+    // Debug activeRoute
+    $: console.log('ForecastContainer activeRoute:', activeRoute);
 
     // Wind data display mode
     let showTrueWind: boolean = true;
@@ -67,7 +71,7 @@
 
 <div class="forecast-container-wrapper">
     <!-- Header Controls - only show when there's an active route -->
-    {#if hasActiveRoute}
+    {#if activeRoute}
         <div class="wind-data-toggle">
             <div class="toggle-left">
                 <span
@@ -89,17 +93,6 @@
                 </span>
             </div>
             <div class="toggle-center">
-                {#if forecast?.route}
-                    <div class="departure-control">
-                        <label class="departure-label">Departure:</label>
-                        <input
-                            type="datetime-local"
-                            class="departure-input"
-                            value={toLocalDatetimeString(forecast.route.departureTime)}
-                            on:change={handleDepartureTimeUpdate}
-                        />
-                    </div>
-                {/if}
             </div>
             <div class="toggle-right">
                 <span class="settings-icon iconfont fg-icons" on:click={handleSettingsClick}>1</span>
@@ -109,11 +102,12 @@
 
     <!-- Content Area -->
     <div class="forecast-content">
-        {#if hasActiveRoute}
+        {#if activeRoute && activeRoute.waypoints.length > 1}
             <ForecastTable
                 {forecast}
                 {isLoading}
                 {showTrueWind}
+                route={activeRoute}
                 on:timeHover={handleTimeHover}
                 on:metricClick={handleMetricClick}
                 on:routeUpdated={handleRouteUpdated}

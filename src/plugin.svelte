@@ -71,7 +71,7 @@
     let windyAPI: WindyAPI | null = null;
     let weatherService: WeatherForecastService | null = null;
     let routeStorage: RouteStorage | null = null;
-    let unsubscribeTimestamp: (() => void) | null = null;
+    let timestampSubscriptionId: number | null = null;
 
     // Wind data display mode
     let showTrueWind: boolean = true;
@@ -231,7 +231,7 @@
         routeStorage = new RouteStorage(localStorage);
 
         // Subscribe to timestamp changes to update route marker position
-        unsubscribeTimestamp = store.on('timestamp', (timestamp: number) => {
+        timestampSubscriptionId = store.on('timestamp', (timestamp: number) => {
             if (routeEditor) {
                 routeEditor.setTimestamp(timestamp);
             }
@@ -245,8 +245,8 @@
         singleclick.off(config.name, handleMapClick);
 
         // Clean up timestamp subscription
-        if (unsubscribeTimestamp) {
-            unsubscribeTimestamp();
+        if (timestampSubscriptionId !== null) {
+            store.off('timestamp', timestampSubscriptionId);
         }
 
         // Clean up route editor and all map layers/markers

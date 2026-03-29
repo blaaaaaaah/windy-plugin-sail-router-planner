@@ -430,8 +430,8 @@ export class WeatherForecastService {
 				}
 
 				matchingIndexes = [closestIndex];
-				console.log(`Distance range: ${(hourStartDistance/1852).toFixed(1)}nm to ${(hourEndDistance/1852).toFixed(1)}nm`);
-				console.log(`No exact matches - using closest: index ${closestIndex} at ${(apiResponse.distances[closestIndex]/1852).toFixed(1)}nm (${(closestDiff/1852).toFixed(1)}nm off)`);
+				//console.log(`Distance range: ${(hourStartDistance/1852).toFixed(1)}nm to ${(hourEndDistance/1852).toFixed(1)}nm`);
+				//console.log(`No exact matches - using closest: index ${closestIndex} at ${(apiResponse.distances[closestIndex]/1852).toFixed(1)}nm (${(closestDiff/1852).toFixed(1)}nm off)`);
 			}
 
 			return matchingIndexes;
@@ -475,8 +475,8 @@ export class WeatherForecastService {
 				minute: '2-digit',
 				hour12: false
 			});
-			console.log(`\n=== Consolidation for ${sailingTimeStr} (${new Date(sailingTime).toISOString()}) ===`);
-			console.log(`Found ${matchingIndexes.length} matching API data points:`, matchingIndexes);
+			//console.log(`\n=== Consolidation for ${sailingTimeStr} (${new Date(sailingTime).toISOString()}) ===`);
+			//console.log(`Found ${matchingIndexes.length} matching API data points:`, matchingIndexes);
 
 			if (matchingIndexes.length > 0) {
 				const forecastTimes = matchingIndexes.map(i => {
@@ -489,7 +489,7 @@ export class WeatherForecastService {
 					});
 					return `${i}: ${time} (${(apiResponse.distances[i]/1852).toFixed(1)}nm)`;
 				});
-				console.log(`API forecasts selected:`, forecastTimes);
+				//console.log(`API forecasts selected:`, forecastTimes);
 			}
 
 			if (matchingIndexes.length === 0) {

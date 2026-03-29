@@ -143,8 +143,9 @@ export class RouteEditorController {
 			this._routes.push(this._activeRoute);
 		}
 
-		// Add waypoint to active route
-		this._activeRoute.addWaypoint(position);
+		// Find insertion index (returns -1 if no segments or not near any segment)
+		const insertionIndex = this._findInsertionIndex(this._activeRoute, position);
+		this._activeRoute.addWaypoint(position, insertionIndex);
 
 		// Update map display
 		this._updateRouteDisplay(this._activeRoute);
@@ -644,6 +645,81 @@ export class RouteEditorController {
 			this._map.removeLayer(existingMarker);
 			this._progressMarkers.delete(route.id);
 		}
+	}
+
+	/**
+	 * Find the best insertion index for a new waypoint based on proximity to route segments
+	 * Returns -1 if click is not near any route segment (should append to end)
+	 */
+	private _findInsertionIndex(route: RouteDefinition, clickPosition: LatLng): number {
+		const waypoints = route.waypoints;
+		if (waypoints.length < 2) return -1;
+
+		const clickThresholdPixels = 10; // 10px threshold for considering a click "on" a line segment
+		let bestSegmentIndex = -1;
+		let shortestDistance = Infinity;
+
+		// Check each line segment
+		for (let i = 0; i < waypoints.length - 1; i++) {
+			const segmentStart = waypoints[i];
+			const segmentEnd = waypoints[i + 1];
+
+			const distance = this._pixelDistanceFromPointToLineSegment(
+				clickPosition,
+				segmentStart,
+				segmentEnd
+			);
+
+			if (distance < shortestDistance && distance <= clickThresholdPixels) {
+				shortestDistance = distance;
+				bestSegmentIndex = i;
+			}
+		}
+
+		// Return insertion index (after the best segment's start point)
+		return bestSegmentIndex === -1 ? -1 : bestSegmentIndex + 1;
+	}
+
+	/**
+	 * Calculate the shortest pixel distance from a point to a line segment on the map
+	 * Returns distance in pixels
+	 */
+	private _pixelDistanceFromPointToLineSegment(point: LatLng, lineStart: LatLng, lineEnd: LatLng): number {
+		// Convert geographic coordinates to map pixel coordinates
+		const pointPixel = this._map.latLngToContainerPoint(point);
+		const startPixel = this._map.latLngToContainerPoint(lineStart);
+		const endPixel = this._map.latLngToContainerPoint(lineEnd);
+
+		// Vector from start to end
+		const ABx = endPixel.x - startPixel.x;
+		const ABy = endPixel.y - startPixel.y;
+
+		// Vector from start to point
+		const APx = pointPixel.x - startPixel.x;
+		const APy = pointPixel.y - startPixel.y;
+
+		// Calculate the projection of AP onto AB
+		const ABdotAB = ABx * ABx + ABy * ABy;
+		const APdotAB = APx * ABx + APy * ABy;
+
+		if (ABdotAB === 0) {
+			// Line segment is actually a point
+			const dx = pointPixel.x - startPixel.x;
+			const dy = pointPixel.y - startPixel.y;
+			return Math.sqrt(dx * dx + dy * dy);
+		}
+
+		// Calculate parameter t for the projection (0 = at start, 1 = at end)
+		const t = Math.max(0, Math.min(1, APdotAB / ABdotAB));
+
+		// Calculate the closest point on the line segment
+		const closestX = startPixel.x + t * ABx;
+		const closestY = startPixel.y + t * ABy;
+
+		// Return the pixel distance between the point and closest point on segment
+		const dx = pointPixel.x - closestX;
+		const dy = pointPixel.y - closestY;
+		return Math.sqrt(dx * dx + dy * dy);
 	}
 
 	private _onZoomChange(): void {

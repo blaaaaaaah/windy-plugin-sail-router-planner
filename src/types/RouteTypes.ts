@@ -37,9 +37,16 @@ export class RouteDefinition {
 		this._defaultSpeed = defaultSpeed;
 	}
 
-	addWaypoint(position: LatLng): void {
-		this._waypoints.push(position);
-		this._legSpeeds.push(this._defaultSpeed);
+	addWaypoint(position: LatLng, index: number = -1): void {
+		if (index === -1 || index >= this._waypoints.length) {
+			// Add to end
+			this._waypoints.push(position);
+			this._legSpeeds.push(this._defaultSpeed);
+		} else {
+			// Insert at specific position
+			this._waypoints.splice(index, 0, position);
+			this._legSpeeds.splice(index, 0, this._defaultSpeed);
+		}
 		this._clearCache();
 		this._clearRouteNameCache();
 	}

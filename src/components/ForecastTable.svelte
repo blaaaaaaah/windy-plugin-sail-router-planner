@@ -709,6 +709,14 @@
         dispatch('routeUpdated', event.detail);
     }
 
+    function isCurrentHour(timestamp: number): boolean {
+        const now = Date.now();
+        const currentHourStart = Math.floor(now / (60 * 60 * 1000)) * (60 * 60 * 1000);
+        const currentHourEnd = currentHourStart + (60 * 60 * 1000);
+
+        return timestamp >= currentHourStart && timestamp < currentHourEnd;
+    }
+
 </script>
 
 <div class="forecast-table-container" style="--route-color: {routeColor}; --route-color-rgb: {hexToRgb(routeColor)};" class:loading={isLoading}>
@@ -777,6 +785,7 @@
                     <div
                         class="forecast-item"
                         class:in-route={data.isInRoute}
+                        class:current-hour={isCurrentHour(data.timestamp)}
                         on:mouseenter={() => handleHover(index)}
                         on:mouseleave={() => handleHover(null)}
                         on:dragover|preventDefault={(e) => handleDragOver(e, index)}
@@ -1080,6 +1089,14 @@
         &.in-route {
             background: rgba(var(--route-color-rgb), 0.05);
             border-left: 4px solid var(--route-color);
+        }
+
+        &.current-hour {
+            background: #e6e6e6;
+        }
+
+        &.current-hour.in-route {
+            background: rgba(var(--route-color-rgb), 0.15);
         }
 
     }

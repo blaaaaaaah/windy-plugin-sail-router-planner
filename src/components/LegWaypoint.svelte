@@ -3,6 +3,7 @@
     import LegDetail from './LegDetail.svelte';
     import type { RouteLeg } from '../types/RouteTypes';
     import { formatDayDate, formatTime, formatDuration } from '../utils/TimeUtils';
+    import { formatCoordinate } from '../utils/NavigationUtils';
 
     export let waypointNumber: number;
     export let isStart: boolean = false; // Is this the departure waypoint?
@@ -78,6 +79,28 @@
     <!-- Expanded content - only for non-destination waypoints -->
     {#if isExpanded && !isDestinationWaypoint && legStats}
         <div class="leg-detail-wrapper" style="--route-color: {routeColor}; --route-color-rgb: {routeColor.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
+            <!-- Coordinates and Course Row -->
+            <div class="coordinate-row">
+                <div class="coord-item">
+                    <label>FROM</label>
+                    <span class="coordinate">
+                        {formatCoordinate(leg.startPoint.lat, true)}<br/>
+                        {formatCoordinate(leg.startPoint.lng, false)}
+                    </span>
+                </div>
+                <div class="coord-item">
+                    <label>COURSE</label>
+                    <span class="value">{leg.course.toFixed(0)}°<br/>&nbsp;</span>
+                </div>
+                <div class="coord-item">
+                    <label>TO</label>
+                    <span class="coordinate">
+                        {formatCoordinate(leg.endPoint.lat, true)}<br/>
+                        {formatCoordinate(leg.endPoint.lng, false)}
+                    </span>
+                </div>
+            </div>
+
             <LegDetail
                 legStats={legStats}
                 {leg}
@@ -96,6 +119,40 @@
     .leg-detail-wrapper {
         border-left: 4px solid var(--route-color);
         border-bottom: 1px solid var(--route-color);
+
+        .coordinate-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-end;
+            padding: 12px 16px;
+            background: rgba(var(--route-color-rgb), 0.08);
+
+            .coord-item {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+
+                label {
+                    font-weight: 600;
+                    color: #444 !important;
+                    font-size: 9px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.4px;
+                    text-align: center;
+                }
+
+                .value, .coordinate {
+                    color: #555 !important;
+                    font-size: 12px;
+                    font-weight: 600;
+                    text-align: center;
+                    line-height: 1.2;
+                }
+            }
+        }
     }
 
     .start-beanie-row {

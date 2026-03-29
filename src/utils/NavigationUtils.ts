@@ -197,3 +197,20 @@ export function interpolateGreatCircle(start: LatLng, end: LatLng, progress: num
 
 	return new L.LatLng(lat, lng);
 }
+
+/**
+ * Format coordinates in degrees and decimal minutes format
+ * Example: 37°47.123N, 122°25.456W
+ */
+export function formatCoordinate(degrees: number, isLatitude: boolean): string {
+	const hemisphere = isLatitude
+		? (degrees >= 0 ? 'N' : 'S')
+		: (degrees >= 0 ? 'E' : 'W');
+
+	const abs = Math.abs(degrees);
+	const deg = Math.floor(abs);
+	const minutes = (abs - deg) * 60;
+	const minutesFormatted = Math.floor(minutes).toString().padStart(2, '0') + (minutes % 1).toFixed(3).substring(1);
+
+	return `${deg.toString().padStart(2, '0')}°${minutesFormatted}${hemisphere}`;
+}

@@ -1,7 +1,7 @@
 {
-    "name": "windy-plugin-template",
-    "version": "5.0.1",
-    "description": "Template for developing Windy Plugins",
+    "name": "windy-plugin-sail-router-planner",
+    "version": "0.2.0",
+    "description": "Windy plugin for sail route planning and optimization",
     "main": "dist/plugin.min.js",
     "type": "module",
     "scripts": {
@@ -22,19 +22,20 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/windycom/windy-plugin-template.git"
+        "url": "git+https://github.com/blaaaaaaah/windy-plugin-sail-router-planner.git"
     },
     "keywords": [
         "windy",
         "windy.com",
-        "plugins"
+        "plugins",
+        "sailing"
     ],
-    "author": "Windyty, S.E.",
-    "license": "ISC",
+    "author": "Thomas Dubois",
+    "license": "MIT",
     "bugs": {
-        "url": "https://github.com/windycom/windy-plugin-template/issues"
+        "url": "https://github.com/blaaaaaaah/windy-plugin-sail-router-planner/issues"
     },
-    "homepage": "https://docs.windy-plugins.com/",
+    "homepage": "https://github.com/blaaaaaaah/windy-plugin-sail-router-planner",
     "dependencies": {
         "@windycom/plugin-devtools": "^3.0.3"
     },

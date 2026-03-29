@@ -13,7 +13,6 @@ export interface RouteLeg {
 }
 
 export class RouteDefinition {
-	readonly id: string;
 	private _name: string;
 	private _color: string;
 	private _departureTime: number;
@@ -25,13 +24,11 @@ export class RouteDefinition {
 	private _routeNameCacheKey: string | null = null;
 
 	constructor(
-		id: string = crypto.randomUUID(),
 		name: string = `Route ${new Date().toLocaleTimeString()}`,
 		color: string = '',
 		departureTime: number = Math.floor(Date.now() / (1000 * 60 * 60)) * (1000 * 60 * 60),
 		defaultSpeed: number = 5
 	) {
-		this.id = id;
 		this._name = name;
 		this._color = color || '#FF6B6B';
 		this._departureTime = departureTime;

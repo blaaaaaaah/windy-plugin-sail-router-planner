@@ -48,10 +48,10 @@
     import store from '@windy/store';
     import { onDestroy, onMount } from 'svelte';
     import { RouteDefinition } from './types/RouteTypes';
-    import { WindyAPI, WeatherForecastService } from './services';
+    import { WindyAPI, WeatherForecastService, RouteStorage } from './services';
     import { RouteEditorController } from './controllers/RouteEditorController';
     import ForecastContainer from './components/ForecastContainer.svelte';
-    import { serializeRoute, deserializeRoute } from './utils/RouteSerializer';
+    import { serializeState, deserializeState } from './utils/RouteSerializer';
     import { setUrl } from '@windy/location';
 
     import config from './pluginConfig';
@@ -70,6 +70,8 @@
     // Weather service instances
     let windyAPI: WindyAPI | null = null;
     let weatherService: WeatherForecastService | null = null;
+    let routeStorage: RouteStorage | null = null;
+    let unsubscribeTimestamp: (() => void) | null = null;
 
     // Wind data display mode
     let showTrueWind: boolean = true;
@@ -82,8 +84,8 @@
 
         // Update URL to persist wind mode
         if (activeRoute) {
-            const serializedRoute = serializeRoute(activeRoute, value);
-            setUrl(config.name, { route: serializedRoute });
+            const serializedState = serializeState(activeRoute, value);
+            setUrl(config.name, { route: serializedState });
         } else {
             // If no route, create minimal route with just wind mode
         }
@@ -123,7 +125,7 @@
 
         // Load route and wind mode from URL if available
         if (params?.route) {
-            const result = deserializeRoute(params.route);
+            const result = deserializeState(params.route);
             if (result?.route && routeEditor) {
                 routeEditor.loadRoute(result.route);
                 console.log('Loaded route from URL');
@@ -131,6 +133,16 @@
                 // Set wind mode from deserialization
                 showTrueWind = result.windMode;
                 console.log('Loaded wind mode from route:', showTrueWind ? 'True Wind' : 'Apparent Wind');
+            }
+        } else if (routeStorage) {
+            // No route in URL, try to load last saved route
+            const routes = routeStorage.listRoutes();
+            if (routes.length > 0) {
+                const lastRoute = routes[routes.length - 1];
+                if (routeEditor) {
+                    routeEditor.loadRoute(lastRoute);
+                    console.log('Loaded last saved route');
+                }
             }
         }
     };
@@ -141,14 +153,17 @@
         activeRoute = routeEditor!.getActiveRoute();
 
         // Update URL with current route and wind mode
-        const serializedRoute = serializeRoute(route, showTrueWind);
-        setUrl(config.name, { route: serializedRoute });
+        const serializedState = serializeState(route, showTrueWind);
+        setUrl(config.name, { route: serializedState });
 
         logWindyRPlannerRoute(route);
 
         // Generate forecast when route has 2+ waypoints
         if (route.waypoints.length >= 2) {
             generateForecastFromRoute(route);
+
+            // Save route to storage
+            routeStorage!.saveRoute(route);
 
             // Fetch and set route name
             weatherService!.getRouteName(route).then(routeName => {
@@ -159,6 +174,9 @@
             currentForecast = null;
             route.setRouteName(null);
             activeRoute = activeRoute; // Force reactivity
+
+            // Delete route from storage if it has less than 2 waypoints
+            routeStorage!.deleteRoute(route);
         }
     }
 
@@ -210,25 +228,26 @@
         // Initialize weather services
         windyAPI = new WindyAPI();
         weatherService = new WeatherForecastService(windyAPI);
+        routeStorage = new RouteStorage(localStorage);
 
         // Subscribe to timestamp changes to update route marker position
-        const unsubscribeTimestamp = store.on('timestamp', (timestamp: number) => {
+        unsubscribeTimestamp = store.on('timestamp', (timestamp: number) => {
             if (routeEditor) {
                 routeEditor.setTimestamp(timestamp);
             }
         });
 
         console.log('Weather services initialized');
-
-        // Store unsubscribe function for cleanup
-        return () => {
-            unsubscribeTimestamp();
-        };
     });
 
     onDestroy(() => {
         // Clean up singleclick listener
         singleclick.off(config.name, handleMapClick);
+
+        // Clean up timestamp subscription
+        if (unsubscribeTimestamp) {
+            unsubscribeTimestamp();
+        }
 
         // Clean up route editor and all map layers/markers
         if (routeEditor) {

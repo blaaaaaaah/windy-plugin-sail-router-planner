@@ -1,19 +1,14 @@
 import { RouteDefinition } from '../types/RouteTypes';
 
 /**
- * Serializes a route to a URL-safe string with wind mode
+ * Serializes a route to a URL-safe string (without wind mode)
  */
-export function serializeRoute(route: RouteDefinition, windMode?: boolean): string {
+export function serializeRoute(route: RouteDefinition): string {
     if (!route.waypoints || route.waypoints.length === 0) {
         return '';
     }
 
     const parts: string[] = [];
-
-    // Wind mode as first parameter (if provided)
-    if (windMode !== undefined) {
-        parts.push(`wind:${windMode ? 'true' : 'apparent'}`);
-    }
 
     // Waypoints: lat,lng|lat,lng|...
     const waypoints = route.waypoints.map(wp => `${wp.lat.toFixed(6)},${wp.lng.toFixed(6)}`);
@@ -34,9 +29,9 @@ export function serializeRoute(route: RouteDefinition, windMode?: boolean): stri
 }
 
 /**
- * Deserializes a URL string to a RouteDefinition and wind mode
+ * Deserializes a URL string to a RouteDefinition (without wind mode)
  */
-export function deserializeRoute(routeString: string): { route: RouteDefinition; windMode: boolean } | null {
+export function deserializeRoute(routeString: string): RouteDefinition | null {
     if (!routeString) {
         return null;
     }
@@ -51,7 +46,6 @@ export function deserializeRoute(routeString: string): { route: RouteDefinition;
             }
         });
 
-        const windParam = params['wind'];
         const waypointsParam = params['w'];
         const departureParam = params['d'];
         const speedsParam = params['s'];
@@ -59,9 +53,6 @@ export function deserializeRoute(routeString: string): { route: RouteDefinition;
         if (!waypointsParam) {
             return null;
         }
-
-        // Parse wind mode (default to true)
-        const windMode: boolean = windParam ? windParam === 'true' : true;
 
         // Parse waypoints
         const waypointCoords = waypointsParam.split('|').map(coord => {
@@ -104,11 +95,59 @@ export function deserializeRoute(routeString: string): { route: RouteDefinition;
             });
         }
 
-        console.log('Deserialized route:', waypointCoords.length, 'waypoints', 'windMode:', windMode);
-        return { route, windMode };
+        console.log('Deserialized route:', waypointCoords.length, 'waypoints');
+        return route;
 
     } catch (error) {
         console.warn('Failed to deserialize route:', error);
+        return null;
+    }
+}
+
+/**
+ * Serializes both route and wind mode to a URL-safe string
+ */
+export function serializeState(route: RouteDefinition, windMode: boolean): string {
+    const routePart = serializeRoute(route);
+    if (!routePart) return '';
+
+    const windPart = `wind:${windMode ? 'true' : 'apparent'}`;
+    return `${windPart};${routePart}`;
+}
+
+/**
+ * Deserializes a URL string to both RouteDefinition and wind mode
+ */
+export function deserializeState(stateString: string): { route: RouteDefinition; windMode: boolean } | null {
+    if (!stateString) {
+        return null;
+    }
+
+    try {
+        // Parse wind mode
+        const params: Record<string, string> = {};
+        stateString.split(';').forEach(part => {
+            const [key, value] = part.split(':');
+            if (key && value) {
+                params[key] = value;
+            }
+        });
+
+        const windParam = params['wind'];
+        const windMode: boolean = windParam ? windParam === 'true' : true;
+
+        // Remove wind parameter and deserialize route
+        const routeParts = stateString.split(';').filter(part => !part.startsWith('wind:'));
+        const routeString = routeParts.join(';');
+
+        const route = deserializeRoute(routeString);
+        if (!route) return null;
+
+        console.log('Deserialized state:', 'windMode:', windMode);
+        return { route, windMode };
+
+    } catch (error) {
+        console.warn('Failed to deserialize state:', error);
         return null;
     }
 }

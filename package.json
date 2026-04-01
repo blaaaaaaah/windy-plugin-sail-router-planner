@@ -1,6 +1,6 @@
 {
     "name": "windy-plugin-sail-router-planner",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "Windy plugin for sail route planning and optimization",
     "main": "dist/plugin.min.js",
     "type": "module",

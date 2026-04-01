@@ -2,7 +2,7 @@ import type { ExternalPluginConfig } from '@windy/interfaces';
 
 const config: ExternalPluginConfig = {
     name: 'windy-plugin-sail-router-planner',
-    version: '0.2.0',
+    version: '0.3.0',
     icon: '⛵',
     title: 'Sail Router Planner',
     description: 'Route planning for sailors.',

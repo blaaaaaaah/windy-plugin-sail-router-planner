@@ -10,6 +10,7 @@ export class RouteEditorController {
 	private _activeRoute: RouteDefinition | null = null;
 	private _map: L.Map;
 	private _onRouteUpdated: (route: RouteDefinition) => void;
+	private _isDragging: boolean = false;
 
 
 	// Map layer management
@@ -134,6 +135,11 @@ export class RouteEditorController {
 
 
 	onMapClick(position: LatLng): void {
+		// Ignore map clicks during or immediately after drag operations
+		if (this._isDragging) {
+			return;
+		}
+
 		if (!this._activeRoute) {
 			// Create new route with next color
 			const color = this._colors[this._currentColorIndex];
@@ -350,6 +356,7 @@ export class RouteEditorController {
 
 		// Handle drag events
 		marker.on('dragstart', () => {
+			this._isDragging = true;
 			// Change cursor to grabbing when dragging
 			document.body.style.cursor = 'grabbing';
 		});
@@ -377,6 +384,11 @@ export class RouteEditorController {
 
 			this._onRouteUpdated(route);
 			document.body.style.cursor = '';
+
+			// Reset dragging flag after a short delay to prevent race condition with map click
+			setTimeout(() => {
+				this._isDragging = false;
+			}, 100);
 		});
 
 		// Handle delete click

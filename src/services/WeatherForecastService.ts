@@ -237,9 +237,9 @@ export class WeatherForecastService {
 				// For stationary points (pre-departure, post-arrival), create apparent wind with boat at anchor
 				consolidatedForecast.apparent = {
 					windSpeed: consolidatedForecast.northUp.windSpeed, // Same speed as true wind
-					windDirection: 0, // Always from bow (0°) for anchored boat
+					relativeWindDirection: 0, // Always from bow (0°) for anchored boat
+					trueWindDirection: consolidatedForecast.northUp.trueWindDirection, // Keep true direction
 					gustsSpeed: consolidatedForecast.northUp.gustsSpeed, // Same speed as true gusts
-					gustsDirection: 0, // Always from bow (0°) for anchored boat
 					currentSpeed: consolidatedForecast.northUp.currentSpeed,
 					currentDirection: 0, // Current relative to bow
 					wavesHeight: consolidatedForecast.northUp.wavesHeight,
@@ -287,9 +287,9 @@ export class WeatherForecastService {
 		// Average weather data from valid forecasts only
 		const avgWeather: WeatherData = {
 			windSpeed: validForecasts.reduce((sum, f) => sum + f.northUp!.windSpeed, 0) / validForecasts.length,
-			windDirection: this.averageDirections(validForecasts.map(f => f.northUp!.windDirection)),
+			relativeWindDirection: this.averageDirections(validForecasts.map(f => f.northUp!.relativeWindDirection)),
+			trueWindDirection: this.averageDirections(validForecasts.map(f => f.northUp!.trueWindDirection)),
 			gustsSpeed: validForecasts.reduce((sum, f) => sum + f.northUp!.gustsSpeed, 0) / validForecasts.length,
-			gustsDirection: this.averageDirections(validForecasts.map(f => f.northUp!.gustsDirection)),
 			currentSpeed: validForecasts.reduce((sum, f) => sum + f.northUp!.currentSpeed, 0) / validForecasts.length,
 			currentDirection: this.averageDirections(validForecasts.map(f => f.northUp!.currentDirection)),
 			wavesHeight: validForecasts.reduce((sum, f) => sum + f.northUp!.wavesHeight, 0) / validForecasts.length,
@@ -527,9 +527,9 @@ export class WeatherForecastService {
 
 				const northUpWeather: WeatherData | null = hasValidData ? {
 					windSpeed: apiResponse.data.wind[i], // m/s from Windy API
-					windDirection: apiResponse.data.windDir[i],
+					relativeWindDirection: calculateRelativeDirection(apiResponse.data.windDir[i], leg.course),
+					trueWindDirection: apiResponse.data.windDir[i], // True wind direction from API
 					gustsSpeed: apiResponse.data.gust[i], // m/s from Windy API
-					gustsDirection: apiResponse.data.windDir[i], // Assume same direction as wind
 					currentSpeed: 0, // TODO: API doesn't seem to have current data
 					currentDirection: 0,
 					wavesHeight: apiResponse.data.waves[i],
@@ -600,24 +600,24 @@ export class WeatherForecastService {
 		// Calculate apparent wind
 		const apparentWind = calculateApparentWind(
 			northUp.windSpeed,
-			northUp.windDirection,
+			northUp.trueWindDirection,
 			boatSpeedMs,
 			boatCourse
 		);
 
-		// Calculate apparent gusts (same calculation with gust speed/direction)
+		// Calculate apparent gusts (same calculation with gust speed using wind direction)
 		const apparentGusts = calculateApparentWind(
 			northUp.gustsSpeed,
-			northUp.gustsDirection,
+			northUp.trueWindDirection, // Gusts use same direction as wind
 			boatSpeedMs,
 			boatCourse
 		);
 
 		return {
 			windSpeed: apparentWind.speed,
-			windDirection: apparentWind.direction, // Already boat-relative from calculateApparentWind
+			relativeWindDirection: apparentWind.direction, // Already boat-relative from calculateApparentWind
+			trueWindDirection: northUp.trueWindDirection, // Keep true wind direction
 			gustsSpeed: apparentGusts.speed,
-			gustsDirection: apparentGusts.direction, // Already boat-relative from calculateApparentWind
 			currentSpeed: northUp.currentSpeed,
 			currentDirection: calculateRelativeDirection(northUp.currentDirection, boatCourse),
 			wavesHeight: northUp.wavesHeight,
@@ -672,9 +672,9 @@ export class WeatherForecastService {
 
 				const northUpWeather: WeatherData | null = hasValidData ? {
 					windSpeed: apiResponse.data.wind[closestIndex],
-					windDirection: apiResponse.data.windDir[closestIndex],
+					relativeWindDirection: 0, // For stationary points, wind direction is relative to north (no boat movement)
+					trueWindDirection: apiResponse.data.windDir[closestIndex], // True wind direction from API
 					gustsSpeed: apiResponse.data.gust[closestIndex],
-					gustsDirection: apiResponse.data.windDir[closestIndex], // API doesn't provide separate gust direction
 					currentSpeed: 0, // Not typically available in route planner API
 					currentDirection: 0,
 					wavesHeight: apiResponse.data.waves[closestIndex],
@@ -781,7 +781,7 @@ export class WeatherForecastService {
 		// Calculate wind angle statistics
 		const windAngles = legForecasts.map(f => {
 			// Calculate the angle between wind direction and boat course
-			const windDirection = f.northUp!.windDirection;
+			const windDirection = f.northUp!.trueWindDirection;
 			const boatCourse = leg.course;
 
 			// Calculate relative wind angle (0-180 degrees)

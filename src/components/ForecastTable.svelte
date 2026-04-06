@@ -6,6 +6,7 @@
     import RouteDetail from './RouteDetail.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import type { RouteDefinition } from '../types/RouteTypes';
+    import { formatRelativeDirection } from '../utils/FormatUtils';
 
     export let forecast: RouteForecast | null = null;
     export let routeColor: string = '#3498db';
@@ -386,32 +387,41 @@
 
     function getWindDirection(forecastData: any): number | undefined {
         if (showTrueWind) {
-            return forecastData?.northUp?.windDirection;
+            const relativeAngle = forecastData?.northUp?.relativeWindDirection;
+            if (relativeAngle === undefined) return undefined;
+
+            // For true wind: add boat course to get absolute direction for arrow
+            // since boat icon is rotated by course angle
+            const boatCourse = forecast?.route?.legs?.[0]?.course || 0;
+            let absoluteAngle = relativeAngle + boatCourse;
+            // Normalize to 0-360
+            while (absoluteAngle < 0) absoluteAngle += 360;
+            while (absoluteAngle >= 360) absoluteAngle -= 360;
+            return absoluteAngle;
         } else {
-            // Apparent wind direction is already relative to boat (-179 to 180)
-            // Convert to 0-360 for arrow rotation
-            const apparentAngle = forecastData?.apparent?.windDirection;
-            if (apparentAngle === undefined) return undefined;
-            return apparentAngle < 0 ? apparentAngle + 360 : apparentAngle;
+            const relativeAngle = forecastData?.apparent?.relativeWindDirection;
+            if (relativeAngle === undefined) return undefined;
+
+            // For apparent wind: just convert -180 to +180 range to 0-360 for arrow rotation
+            return relativeAngle < 0 ? relativeAngle + 360 : relativeAngle;
         }
     }
 
     function getWindDirectionForTooltip(forecastData: any): string {
         if (showTrueWind) {
-            const dir = forecastData?.northUp?.windDirection;
-            return dir !== undefined ? `${dir.toFixed(0)}°` : 'N/A°';
-        } else {
-            // Apparent wind: show as Port/Starboard
-            const apparentAngle = forecastData?.apparent?.windDirection;
-            if (apparentAngle === undefined) return 'N/A°';
+            const relativeDir = forecastData?.northUp?.relativeWindDirection;
+            const trueDir = forecastData?.northUp?.trueWindDirection;
 
-            if (apparentAngle === 180 || apparentAngle === -180) {
-                return '180°';
-            } else if (apparentAngle > 0) {
-                return `${apparentAngle.toFixed(0)}S`;
-            } else {
-                return `${Math.abs(apparentAngle).toFixed(0)}P`;
-            }
+            if (relativeDir === undefined || trueDir === undefined) return 'N/A';
+
+            return `TWA: ${formatRelativeDirection(relativeDir)}\nTWD: ${trueDir.toFixed(0)}°`;
+        } else {
+            const relativeDir = forecastData?.apparent?.relativeWindDirection;
+            const trueDir = forecastData?.northUp?.trueWindDirection;
+
+            if (relativeDir === undefined || trueDir === undefined) return 'N/A';
+
+            return `AWA: ${formatRelativeDirection(relativeDir)}\nTWD: ${trueDir.toFixed(0)}°`;
         }
     }
 

@@ -4,6 +4,7 @@
     import type { RouteLeg } from '../types/RouteTypes';
     import { formatDayDate, formatTime, formatDuration } from '../utils/TimeUtils';
     import { formatCoordinate } from '../utils/NavigationUtils';
+    import { formatDistance } from '../utils/FormatUtils';
 
     export let waypointNumber: number;
     export let isStart: boolean = false; // Is this the departure waypoint?
@@ -14,11 +15,6 @@
     let isExpanded: boolean = false;
 
     const dispatch = createEventDispatcher();
-
-    function formatDistance(meterValue: number): string {
-        const W = (window as any).W;
-        return W.metrics.distance.convertValue(meterValue);
-    }
 
     function handleClick() {
         if (!isDestinationWaypoint) {

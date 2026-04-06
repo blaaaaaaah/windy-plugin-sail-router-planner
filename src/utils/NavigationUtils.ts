@@ -83,17 +83,18 @@ export function calculateApparentWind(
 /**
  * Calculate relative direction from course (for both wind and wave display)
  * Input: direction FROM (meteorological convention)
- * Output: direction relative to boat heading with front being "up" in display
+ * Output: direction relative to boat heading (-180 to +180, negative=port, positive=starboard)
  */
 export function calculateRelativeDirection(directionFrom: number, boatCourse: number): number {
-	// Convert direction FROM meteorological (where it's coming from) to mathematical (where it's going to)
-	const directionTo = (directionFrom + 180) % 360;
+	// Calculate relative direction: wind direction FROM - boat course
+	// This gives us the angle where wind is coming FROM relative to boat's heading
+	let relativeDirection = directionFrom - boatCourse;
 
-	// Convert to relative to boat course: direction - boat course
-	let relativeDirection = directionTo - boatCourse;
-
-	// Normalize to 0-359 degrees
-	if (relativeDirection < 0) {
+	// Normalize to -180 to +180 range (same as apparent wind calculation)
+	while (relativeDirection > 180) {
+		relativeDirection -= 360;
+	}
+	while (relativeDirection <= -180) {
 		relativeDirection += 360;
 	}
 

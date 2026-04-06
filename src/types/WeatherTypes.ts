@@ -21,9 +21,9 @@ export interface WeatherStats {
 
 export interface WeatherData {
 	windSpeed: number; // m/s (from Windy API), converted to knots for display
-	windDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
+	relativeWindDirection: number; // degrees, relative to boat heading (-180 to 180, negative=port, positive=starboard)
+	trueWindDirection: number; // degrees, true wind direction from north (0-359, meteorological convention)
 	gustsSpeed: number; // m/s (from Windy API), converted to knots for display
-	gustsDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
 	currentSpeed: number; // m/s (from Windy API), converted to knots for display
 	currentDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
 	wavesHeight: number; // meters

@@ -46,7 +46,7 @@
         <div class="start-beanie-content">
             <div class="waypoint-number">{waypointNumber}</div>
             <div class="waypoint-info">
-                {#if leg && legStats}
+                {#if leg}
                     <div class="leg-datetime">
                         {#if isStart}
                             Departure: {formatDayDate(leg.startTime)} {formatTime(leg.startTime)}
@@ -73,7 +73,7 @@
     </div>
 
     <!-- Expanded content - only for non-destination waypoints -->
-    {#if isExpanded && !isDestinationWaypoint && legStats}
+    {#if isExpanded && !isDestinationWaypoint && leg}
         <div class="leg-detail-wrapper" style="--route-color: {routeColor}; --route-color-rgb: {routeColor.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
             <!-- Coordinates and Course Row -->
             <div class="coordinate-row">

@@ -88,7 +88,7 @@
                 </div>
                 <div class="route-summary">
                     <div class="departure-time">
-                        <label class="departure-label">Departs:</label>
+                        <label class="departure-label">Departure:</label>
                         <input
                             type="datetime-local"
                             class="departure-input"

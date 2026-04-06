@@ -10,7 +10,6 @@ export class RouteEditorController {
 	private _activeRoute: RouteDefinition | null = null;
 	private _map: L.Map;
 	private _onRouteUpdated: (route: RouteDefinition) => void;
-	private _isDragging: boolean = false;
 
 
 	// Map layer management
@@ -37,6 +36,9 @@ export class RouteEditorController {
 
 		// Listen for zoom changes to update distance label sizes
 		this._map.on('zoomend', this._onZoomChange.bind(this));
+
+		// Handle map clicks directly with native Leaflet events
+		this._map.on('click', this._handleMapClick.bind(this));
 	}
 
 	// Public API
@@ -88,7 +90,8 @@ export class RouteEditorController {
 
 
 	destroy(): void {
-		// Remove zoom event listener
+		// Remove event listeners
+		this._map.off('click', this._handleMapClick.bind(this));
 		this._map.off('zoomend', this._onZoomChange.bind(this));
 
 		// Remove all routes from map
@@ -133,12 +136,16 @@ export class RouteEditorController {
 		console.log('Route loaded with', route.waypoints.length, 'waypoints');
 	}
 
+	// Private method to handle native Leaflet map clicks
+	private _handleMapClick(e: L.LeafletMouseEvent): void {
+		// Prevent event propagation to avoid conflicts with other map interactions
+		e.originalEvent.preventDefault();
+		e.originalEvent.stopPropagation();
+
+		this.onMapClick(e.latlng);
+	}
 
 	onMapClick(position: LatLng): void {
-		// Ignore map clicks during or immediately after drag operations
-		if (this._isDragging) {
-			return;
-		}
 
 		if (!this._activeRoute) {
 			// Create new route with next color
@@ -355,22 +362,31 @@ export class RouteEditorController {
 		});
 
 		// Handle drag events
-		marker.on('dragstart', () => {
-			this._isDragging = true;
+		marker.on('dragstart', (e: L.DragEvent) => {
 			// Change cursor to grabbing when dragging
 			document.body.style.cursor = 'grabbing';
+			// Prevent event propagation
+			if (e.originalEvent) {
+				e.originalEvent.preventDefault();
+				e.originalEvent.stopPropagation();
+			}
 		});
 
-		marker.on('drag', (e) => {
+		marker.on('drag', (e: L.DragEvent) => {
 			// Update route line, distance labels, and day markers in real-time during drag
 			const newPosition = (e.target as L.Marker).getLatLng();
 			route.updateWaypoint(index, newPosition);
 			this._updateRouteLine(route);
 			this._updateDistanceLabels(route);
 			this._updateDayMarkers(route);
+			// Prevent event propagation
+			if (e.originalEvent) {
+				e.originalEvent.preventDefault();
+				e.originalEvent.stopPropagation();
+			}
 		});
 
-		marker.on('dragend', (e) => {
+		marker.on('dragend', (e: L.DragEvent) => {
 			const newPosition = (e.target as L.Marker).getLatLng();
 			route.updateWaypoint(index, newPosition);
 			this._updateRouteLine(route);
@@ -385,10 +401,11 @@ export class RouteEditorController {
 			this._onRouteUpdated(route);
 			document.body.style.cursor = '';
 
-			// Reset dragging flag after a short delay to prevent race condition with map click
-			setTimeout(() => {
-				this._isDragging = false;
-			}, 100);
+			// Prevent event propagation
+			if (e.originalEvent) {
+				e.originalEvent.preventDefault();
+				e.originalEvent.stopPropagation();
+			}
 		});
 
 		// Handle delete click

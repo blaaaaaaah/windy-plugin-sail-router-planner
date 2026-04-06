@@ -187,13 +187,6 @@
     }
     
 
-    function handleMapClick(latLon: any) {
-        if (routeEditor) {
-            // Convert singleclick position to proper Leaflet LatLng object
-            const position = new L.LatLng(latLon.lat, latLon.lon);
-            routeEditor.onMapClick(position);
-        }
-    }
 
     function handleTimeHover(event: any) {
         const { timestamp, forecast } = event.detail;
@@ -223,8 +216,6 @@
     onMount(() => {
         routeEditor = new RouteEditorController(map, onRouteUpdated);
 
-        singleclick.on(config.name, handleMapClick);
-
         // Initialize weather services
         windyAPI = new WindyAPI();
         weatherService = new WeatherForecastService(windyAPI);
@@ -241,8 +232,6 @@
     });
 
     onDestroy(() => {
-        // Clean up singleclick listener
-        singleclick.off(config.name, handleMapClick);
 
         // Clean up timestamp subscription
         if (timestampSubscriptionId !== null) {

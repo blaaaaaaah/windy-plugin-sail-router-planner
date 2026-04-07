@@ -950,11 +950,12 @@
 <style lang="less">
     .forecast-table-container {
         background: #f5f5f5;
-        overflow: hidden;
-        height: 100%;
         margin: 0;
         padding: 0;
         position: relative;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
     }
 
     .forecast-table-container.loading {
@@ -971,7 +972,8 @@
     .table-container {
         display: flex;
         flex-direction: column;
-        height: 100%;
+        flex: 1;
+        height: 0; /* Force flex to constrain height */
     }
 
     @keyframes pulse-green {
@@ -1061,8 +1063,8 @@
         display: flex;
         flex-direction: column;
         background: white;
-        height: 100%;
         flex: 1;
+        height: 0; /* Force flex to constrain height */
     }
 
 

@@ -148,9 +148,10 @@
             console.log('Generating forecast for route with', route.waypoints.length, 'waypoints');
 
             const forecast = await weatherService.getRouteForecast(route);
+            // Cache the forecast for future route switches
+            cachedForecasts.set(route.id, forecast);
             // Force Svelte reactivity with new object reference
             currentForecast = { ...forecast };
-
 
             console.log('Forecast generated:', forecast.pointForecasts.length, 'points');
         } catch (error) {
@@ -406,7 +407,7 @@
     .forecast-container {
         flex: 1;
         position: relative;
-        height:100%;
+        height: 0; /* Force flex to constrain height */
     }
 
 

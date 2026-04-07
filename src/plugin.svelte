@@ -173,6 +173,9 @@
             } else {
                 generateForecastFromRoute(route);
             }
+
+            // Fetch geo name if needed
+            fetchGeoNameIfNeeded(route);
         } else {
             currentForecast = null;
         }
@@ -181,7 +184,23 @@
     // Multi-route panel handlers
     function handleRouteSelected(event: any) {
         const { route } = event.detail;
+
+        // Set active route immediately (triggers panel slide)
         routeEditor!.setActiveRoute(route);
+
+        // Clear current forecast and set loading state
+        currentForecast = null;
+        isLoadingForecast = true;
+
+        // Check cache first, then generate forecast
+        if (cachedForecasts.has(route.id)) {
+            setTimeout(() => {
+                currentForecast = cachedForecasts.get(route.id)!;
+                isLoadingForecast = false;
+            }, 0);
+        } else {
+            generateForecastFromRoute(route);
+        }
     }
 
     function handleBackToRoutes() {

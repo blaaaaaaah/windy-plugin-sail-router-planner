@@ -60,6 +60,9 @@ export class RouteEditorController {
 			this.setRouteVisibility(route, true);
 		}
 
+		// Update all waypoint markers to reflect new active state
+		this._refreshAllWaypointMarkers();
+
 		this._updateMapHighlight();
 		this._onActiveRouteChanged(route);
 	}
@@ -313,6 +316,15 @@ export class RouteEditorController {
 		return pathPoints;
 	}
 
+	private _refreshAllWaypointMarkers(): void {
+		// Refresh waypoint markers for all routes to reflect active state changes
+		for (const route of this._routes) {
+			if (route.isVisible) {
+				this._updateWaypointMarkers(route);
+			}
+		}
+	}
+
 	private _updateWaypointMarkers(route: RouteDefinition): void {
 		const waypoints = route.waypoints;
 
@@ -429,10 +441,11 @@ export class RouteEditorController {
 
 	private _createWaypointMarker(position: LatLng, route: RouteDefinition, index: number): L.Marker {
 		const waypointNumber = index + 1; // Start from 1 like Windy
+		const isActiveRoute = this._activeRoute?.id === route.id;
 
 		const marker = L.marker(position, {
-			draggable: true,
-			icon: this._createWindyStyleIcon(waypointNumber, route.color)
+			draggable: isActiveRoute, // Only draggable if this is the active route
+			icon: this._createWindyStyleIcon(waypointNumber, route.color, isActiveRoute)
 		});
 
 		// Handle drag events
@@ -482,12 +495,22 @@ export class RouteEditorController {
 			}
 		});
 
-		// Handle delete click
+		// Handle click events
 		marker.on('click', (e) => {
 			const target = e.originalEvent.target as HTMLElement;
-			if (target.classList.contains('waypoint-delete')) {
+
+			// Handle delete button click (only for active route)
+			if (target.classList.contains('waypoint-delete') && isActiveRoute) {
 				e.originalEvent.stopPropagation();
 				this._deleteWaypoint(route, index);
+				return;
+			}
+
+			// Handle route switching on waypoint click
+			e.originalEvent.stopPropagation();
+			if (!isActiveRoute) {
+				console.log('Waypoint clicked - switching to route:', route.id);
+				this.setActiveRoute(route);
 			}
 		});
 
@@ -624,15 +647,21 @@ export class RouteEditorController {
 		});
 	}
 
-	private _createWindyStyleIcon(waypointNumber: number, color: string): L.DivIcon {
-		const iconHtml = `
-			<div class="windy-waypoint-marker" data-waypoint="${waypointNumber}">
-				<div class="waypoint-circle" style="background-color: ${color};">
-					<span class="waypoint-number">${waypointNumber}</span>
-				</div>
+	private _createWindyStyleIcon(waypointNumber: number, color: string, isDeletable: boolean = true): L.DivIcon {
+		const deleteButtonHtml = isDeletable ? `
 				<div class="waypoint-delete-pill">
 					<span class="waypoint-delete">×</span>
 				</div>
+			` : '';
+
+		const cursorClass = isDeletable ? 'draggable-waypoint' : 'non-draggable-waypoint';
+
+		const iconHtml = `
+			<div class="windy-waypoint-marker ${cursorClass}" data-waypoint="${waypointNumber}" style="cursor: ${isDeletable ? 'move' : 'pointer'};">
+				<div class="waypoint-circle" style="background-color: ${color};">
+					<span class="waypoint-number">${waypointNumber}</span>
+				</div>
+				${deleteButtonHtml}
 			</div>
 		`;
 

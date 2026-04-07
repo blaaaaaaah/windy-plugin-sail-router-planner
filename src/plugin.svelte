@@ -64,7 +64,6 @@
 <script lang="ts">
     import bcast from "@windy/broadcast";
     import { map } from '@windy/map';
-    import { singleclick } from '@windy/singleclick';
     import store from '@windy/store';
     import { onDestroy, onMount } from 'svelte';
     import { RouteDefinition } from './types/RouteTypes';
@@ -246,8 +245,8 @@
                 // Check if this route matches any saved route
                 const existingRoute = allRoutes.find(savedRoute => {
                     // Test both visibility states to ignore visibility flag
-                    const savedVisible = { ...savedRoute };
-                    const savedHidden = { ...savedRoute };
+                    const savedVisible = { ...savedRoute } as RouteDefinition;
+                    const savedHidden = { ...savedRoute } as RouteDefinition;
                     savedVisible.isVisible = true;
                     savedHidden.isVisible = false;
 
@@ -276,7 +275,7 @@
     };
 
 
-    function onRouteUpdated(route: RouteDefinition) {        
+    function onRouteUpdated(route: RouteDefinition) {
 
         // Generate forecast when route has 2+ waypoints
         if (route.waypoints.length >= 2) {
@@ -287,6 +286,9 @@
             logWindyRPlannerRoute(route);
 
             activeRoute = routeEditor!.getActiveRoute();
+
+            // Clear cached forecast since route properties changed
+            cachedForecasts.delete(route.id);
             generateForecastFromRoute(route);
 
             // Fetch and set geo name only if no name is set yet
@@ -316,7 +318,7 @@
 
 
     function handleTimeHover(event: any) {
-        const { timestamp, forecast } = event.detail;
+        const { timestamp } = event.detail;
 
         // Update Windy's store - marker will react to this change
         if (timestamp) {
@@ -332,10 +334,10 @@
 
     function handleRouteUpdated(event: any) {
         const { route } = event.detail;
-        //onRouteUpdated(route);
+
         // Update route display (day markers, distance labels, etc.) when route properties change
         if (routeEditor) {
-            routeEditor.loadRoute(route);
+            routeEditor.updateActiveRoute(route);
         }
     }
 
@@ -370,6 +372,7 @@
 
         // Clean up timestamp subscription
         if (timestampSubscriptionId !== null) {
+            // TODO wrong usage, fix me
             store.off('timestamp', timestampSubscriptionId);
         }
 

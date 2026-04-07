@@ -1,7 +1,6 @@
 import type { LatLng } from '../types/Coordinates';
 import { RouteDefinition } from '../types/RouteTypes';
 import { markers } from '@windy/map';
-import { metrics } from '@windy/metrics';
 
 import { calculateGreatCircleDistance, interpolateGreatCircle, interpolateLatLng } from '../utils/NavigationUtils';
 
@@ -105,11 +104,6 @@ export class RouteEditorController {
 		}
 	}
 
-	setRouteProgress(route: RouteDefinition, timestamp: number): void {
-		// For backward compatibility - delegate to setTimestamp
-		this.setTimestamp(timestamp);
-	}
-
 	clearAllProgress(): void {
 		this._progressMarkers.forEach(marker => this._map.removeLayer(marker));
 		this._progressMarkers.clear();
@@ -203,6 +197,19 @@ export class RouteEditorController {
 		}
 
 		// Notify callback handler
+		this._onRouteUpdated(this._activeRoute);
+	}
+
+	updateActiveRoute(route: RouteDefinition): void {
+		if ( route != this._activeRoute) {
+			console.warn('updated route is not the active route - ignoring update');
+			return
+		}
+
+		this._routes.splice(this._routes.findIndex(r => r.id === route.id), 1, route);
+		this._activeRoute = route;
+
+		this._updateRouteDisplay(this._activeRoute);
 		this._onRouteUpdated(this._activeRoute);
 	}
 
@@ -582,16 +589,6 @@ export class RouteEditorController {
 			}),
 			interactive: false
 		});
-	}
-
-	private _calculateBearing(startPoint: LatLng, endPoint: LatLng): number {
-		const lat1 = startPoint.lat * Math.PI / 180;
-		const lat2 = endPoint.lat * Math.PI / 180;
-		const deltaLng = (endPoint.lng - startPoint.lng) * Math.PI / 180;
-
-		const y = Math.sin(deltaLng) * Math.cos(lat2);
-		const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLng);
-		return Math.atan2(y, x) * 180 / Math.PI;
 	}
 
 	private _createWindyStyleIcon(waypointNumber: number, color: string): L.DivIcon {

@@ -1,12 +1,11 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import { metrics } from '@windy/metrics';
-    import LegDetail from './LegDetail.svelte';
     import LegWaypoint from './LegWaypoint.svelte';
     import RouteDetail from './RouteDetail.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import type { RouteDefinition } from '../types/RouteTypes';
-    import { formatRelativeDirection } from '../utils/FormatUtils';
+    import { formatRelativeDirection, formatPrecipitation, formatWaveHeight, formatWindSpeed } from '../utils/FormatUtils';
+    import { formatTime, formatDayDate} from '../utils/TimeUtils';
 
     export let forecast: RouteForecast | null = null;
     export let routeColor: string = '#3498db';
@@ -239,17 +238,6 @@
         return placeholderRows;
     }
 
-    function findClosestForecastPoint(targetTime: number) {
-        if (!forecast?.pointForecasts.length) return null;
-
-        return forecast.pointForecasts.reduce((closest, point) => {
-            const pointDiff = Math.abs(point.timestamp - targetTime);
-            const closestDiff = Math.abs(closest.timestamp - targetTime);
-            return pointDiff < closestDiff ? point : closest;
-        });
-    }
-
-
     function calculateWaypointPositions() {
         if (!hourlyData.length || !forecast) return [];
 
@@ -311,10 +299,10 @@
 
         forecastItems.forEach((item, index) => {
             const rect = item.getBoundingClientRect();
-            const containerRect = scrollContainer.getBoundingClientRect();
+            const containerRect = scrollContainer!.getBoundingClientRect();
             rowPositions.push({
-                top: rect.top - containerRect.top + scrollContainer.scrollTop,
-                bottom: rect.bottom - containerRect.top + scrollContainer.scrollTop,
+                top: rect.top - containerRect.top + scrollContainer!.scrollTop,
+                bottom: rect.bottom - containerRect.top + scrollContainer!.scrollTop,
                 index: index
             });
         });
@@ -344,7 +332,6 @@
         // Scroll to show the target row if found
         if (targetIndex >= 0 && targetIndex < rowPositions.length) {
             const targetRow = rowPositions[targetIndex];
-            const containerHeight = scrollContainer.clientHeight;
 
             // Position the target row at the top of visible area to show 4h before departure prominently
             const offsetFromTop = 0; // Show target row at the very top
@@ -461,17 +448,6 @@
             hour12: false
         });
 
-        const sailingTimeStr = new Date(sailingHour).toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: false
-        });
-
-        // Debug logging
-        //console.log(`Freshness check: Sailing=${sailingTimeStr}, Forecast=${forecastTimeStr}, Diff=${timeDiffMinutes.toFixed(1)}min (${hoursDiff.toFixed(1)}h)`);
-
         if (timeDiffMinutes < 90) { // Less than 1.5 hours
             return {
                 level: 'fresh',
@@ -533,39 +509,6 @@
             return `${Math.abs(relative).toFixed(0)}° ${relative >= 0 ? 'S' : 'P'}`;
         }
     }
-
-    function formatPrecipitation(mmValue: number): string {
-        return W.metrics.rain.convertValue(mmValue);
-    }
-
-    function formatWaveHeight(meterValue: number): string {
-        return W.metrics.waves.convertValue(meterValue);
-    }
-
-    function formatWindSpeed(msValue: number): string {
-        return W.metrics.wind.convertValue(msValue);
-    }
-
-    function formatDistance(meterValue: number): string {
-        return W.metrics.distance.convertValue(meterValue);
-    }
-
-
-    function formatTime(timestamp: number): string {
-        return new Date(timestamp).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: false
-        });
-    }
-
-    function formatDayDate(timestamp: number): string {
-        return new Date(timestamp).toLocaleDateString(undefined, {
-            weekday: 'short',
-            day: 'numeric'
-        });
-    }
-
 
 
     function getWeatherIcon(weatherCode: number): string {

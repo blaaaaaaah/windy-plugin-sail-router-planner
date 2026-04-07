@@ -36,7 +36,7 @@ export interface PointForecast {
 	timestamp: number; // calculated sailing time when boat will be at this position
 	forecastTimestamp: number; // original API timestamp for this forecast data
 	bearing: number; // from windyAPI bearings array, degrees 0-359
-	leg: RouteLeg; // reference to the current Leg
+	leg: RouteLeg | null; // reference to the current Leg
 	warnings: string[]; // from windy api
 	northUp: WeatherData | null; // data from windy's API, null if no forecast data available
 	apparent: WeatherData | null; // northUp data, but with computed AWS, AWA, relative wave direction to course, relative current direction to course

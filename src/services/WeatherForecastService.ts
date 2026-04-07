@@ -24,9 +24,10 @@ export class WeatherForecastService {
 
 		const allPointForecasts: PointForecast[] = [];
 
+		
 		// 1. PRE-DEPARTURE: Get forecast before route start
 		const hourMs = 60 * 60 * 1000;
-		const isCurrentDeparture = Math.abs(route.departureTime - now) < hourMs; // If departure is within 1 hour of now
+		const isCurrentDeparture = Math.abs(route.departureTime - now) < hourMs * 6; // If departure is within 6 hour of now
 
 		let preDepartureStartTime: number;
 		if (isCurrentDeparture) {
@@ -63,10 +64,11 @@ export class WeatherForecastService {
 			allPointForecasts.push(...legForecast);
 		}
 
-		// 3. POST-ARRIVAL: Get forecast after route end if within forecast window
-		if (route.arrivalTime < forecastWindow.end) {
-			console.log(`\n🏁 Getting post-arrival forecast: ${new Date(route.arrivalTime).toISOString()} to ${new Date(forecastWindow.end).toISOString()}`);
-			const postArrivalForecast = await this.getPointForecast(endPoint, route.arrivalTime, forecastWindow.end);
+		// 3. POST-ARRIVAL: Get forecast after route end (limited to 6 hours)
+		const postArrivalEndTime = Math.min(route.arrivalTime + (6 * hourMs), forecastWindow.end);
+		if (route.arrivalTime < postArrivalEndTime) {
+			console.log(`\n🏁 Getting post-arrival forecast: ${new Date(route.arrivalTime).toISOString()} to ${new Date(postArrivalEndTime).toISOString()}`);
+			const postArrivalForecast = await this.getPointForecast(endPoint, route.arrivalTime, postArrivalEndTime);
 			allPointForecasts.push(...postArrivalForecast);
 		}
 
@@ -106,8 +108,6 @@ export class WeatherForecastService {
 		console.log(`Forecast window: ${new Date(forecastWindow.start).toISOString()} to ${new Date(forecastWindow.end).toISOString()}`);
 
 		for (const leg of legs) {
-			const legDurationHours = (leg.endTime - leg.startTime) / (1000 * 60 * 60);
-
 			// Check if this leg is entirely beyond forecast window
 			if (leg.startTime > forecastWindow.end) {
 				console.log(`Leg starts ${new Date(leg.startTime).toISOString()} beyond forecast window - using as single part`);
@@ -478,6 +478,7 @@ export class WeatherForecastService {
 			//console.log(`\n=== Consolidation for ${sailingTimeStr} (${new Date(sailingTime).toISOString()}) ===`);
 			//console.log(`Found ${matchingIndexes.length} matching API data points:`, matchingIndexes);
 
+			/*
 			if (matchingIndexes.length > 0) {
 				const forecastTimes = matchingIndexes.map(i => {
 					const time = new Date(apiResponse.timestamps[i]).toLocaleString('en-US', {
@@ -491,6 +492,7 @@ export class WeatherForecastService {
 				});
 				//console.log(`API forecasts selected:`, forecastTimes);
 			}
+			*/
 
 			if (matchingIndexes.length === 0) {
 				// No API data for this hour, create empty forecast

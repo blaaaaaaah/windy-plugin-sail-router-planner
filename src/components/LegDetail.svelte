@@ -4,6 +4,7 @@
     import type { RouteLeg } from '../types/RouteTypes';
     import type { WeatherStats } from '../types/WeatherTypes';
     import { formatDuration } from '../utils/TimeUtils';
+    import { formatWindSpeed, formatWaveHeight, formatDistance} from '../utils/FormatUtils';
 
     export let legStats: WeatherStats | null; // Leg statistics data
     export let leg: RouteLeg; // Leg data for distance, duration, speed
@@ -11,21 +12,6 @@
     export let isSpeedEditable: boolean = true;
 
     const dispatch = createEventDispatcher();
-
-    function formatWindSpeed(msValue: number): string {
-        const W = (window as any).W;
-        return W.metrics.wind.convertValue(msValue);
-    }
-
-    function formatWaveHeight(meterValue: number): string {
-        const W = (window as any).W;
-        return W.metrics.waves.convertValue(meterValue);
-    }
-
-    function formatDistance(meterValue: number): string {
-        const W = (window as any).W;
-        return W.metrics.distance.convertValue(meterValue);
-    }
 
     function handleSpeedUpdate(event: Event) {
         const target = event.target as HTMLInputElement;

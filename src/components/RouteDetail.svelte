@@ -3,7 +3,8 @@
     import LegDetail from './LegDetail.svelte';
     import type { RouteDefinition } from '../types/RouteTypes';
     import type { WeatherStats } from '../types/WeatherTypes';
-    import { formatDayDate, formatTime, formatDuration } from '../utils/TimeUtils';
+    import { formatDuration } from '../utils/TimeUtils';
+    import { formatDistance } from '../utils/FormatUtils';
 
     export let route: RouteDefinition | null;
     export let routeStats: WeatherStats | null = null; // Overall route statistics (total distance, time, etc.)
@@ -19,11 +20,6 @@
         if (!route || !route.legs || route.legs.length === 0) return 0;
         const totalSpeed = route.legs.reduce((sum, leg) => sum + leg.averageSpeed, 0);
         return totalSpeed / route.legs.length;
-    }
-
-    function formatDistance(distance: number): string {
-        const W = (window as any).W;
-        return W.metrics.distance.convertValue(distance);
     }
 
     function toLocalDatetimeString(timestamp: number): string {

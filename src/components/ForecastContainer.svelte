@@ -14,39 +14,6 @@
     // Debug activeRoute
     $: console.log('ForecastContainer activeRoute:', activeRoute);
 
-
-
-    function toLocalDatetimeString(timestamp: number): string {
-        const date = new Date(timestamp);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
-    }
-
-    function handleDepartureTimeUpdate(event: Event) {
-        const target = event.target as HTMLInputElement;
-        const newDateTimeString = target.value;
-
-        if (newDateTimeString && forecast?.route) {
-            const newDepartureTime = new Date(newDateTimeString).getTime();
-            if (!isNaN(newDepartureTime)) {
-                console.log(`Updated departure time to ${new Date(newDepartureTime)}`);
-
-                // Update the route departure time directly
-                forecast.route.setDepartureTime(newDepartureTime);
-
-                // Dispatch routeUpdated to trigger forecast regeneration
-                dispatch('routeUpdated', {
-                    route: forecast.route
-                });
-            }
-        }
-    }
-
-
     function handleTimeHover(event: any) {
         dispatch('timeHover', event.detail);
     }

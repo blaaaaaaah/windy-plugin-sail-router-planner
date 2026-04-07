@@ -406,6 +406,7 @@
     .forecast-container {
         flex: 1;
         position: relative;
+        height:100%;
     }
 
 

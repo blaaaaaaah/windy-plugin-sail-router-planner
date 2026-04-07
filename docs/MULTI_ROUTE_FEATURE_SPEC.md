@@ -472,7 +472,26 @@ get name(): string | null {
 - **RouteStorage.listVisibleRoutes()** - Filters routes by visibility
 - **Route serialization** - Handles visibility and will handle names (TODO added)
 
-## Outstanding TODOs
+## Implementation Status
+
+### ✅ Completed Features
+- **Multi-route management** - Full route list interface with create/save/delete/visibility
+- **iOS-style sliding panels** - Smooth transitions between route list and forecast views
+- **Route activation timing** - Only activates routes with 2+ waypoints, handles single waypoint cleanup
+- **Forecast loading states** - Shows placeholder rows during forecast generation
+- **Wind toggle positioning** - Properly aligned True/Apparent toggle in title bar
+- **Route list filtering** - Only shows routes with 2+ waypoints in the list
+- **Route list updates** - Real-time updates when routes are created/modified
+- **Light gray styling** - Consistent visual design with proper text contrast
+- **Geo name loading** - Automatic location name fetching for new routes
+- **Forecast caching** - Route switching with cached forecasts for performance
+
+### ⚠️ Known Issues
+- **Route delete persistence** - Routes are removed from UI/map but persist in localStorage on refresh
+- **Storage serialization** - Route comparison fails due to property changes between creation and storage
+
+### 📋 Outstanding TODOs
+- **Fix RouteStorage.deleteRoute method** - Resolve localStorage persistence issue
 - **Route name serialization** - Add name persistence to RouteSerializer (marked in code)
 
 ## Testing Scenarios

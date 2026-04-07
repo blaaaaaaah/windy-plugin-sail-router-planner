@@ -2,7 +2,7 @@
     import { createEventDispatcher } from 'svelte';
     import LegDetail from './LegDetail.svelte';
     import type { RouteLeg } from '../types/RouteTypes';
-    import { formatDayDate, formatTime, formatDuration } from '../utils/TimeUtils';
+    import { formatDateTime, formatDuration } from '../utils/TimeUtils';
     import { formatCoordinate } from '../utils/NavigationUtils';
     import { formatDistance } from '../utils/FormatUtils';
 
@@ -49,9 +49,9 @@
                 {#if leg}
                     <div class="leg-datetime">
                         {#if isStart}
-                            Departure: {formatDayDate(leg.startTime)} {formatTime(leg.startTime)}
+                            Departure: {formatDateTime(leg.startTime)}
                         {:else}
-                            Leg {waypointNumber}: {formatDayDate(leg.startTime)} {formatTime(leg.startTime)}
+                            Leg {waypointNumber}: {formatDateTime(leg.startTime)}
                         {/if}
                     </div>
                     <div class="leg-distance">{formatDistance(leg.distance)}</div>
@@ -59,7 +59,7 @@
                     <div class="leg-duration">{formatDuration(leg.duration)}</div>
                 {:else if isDestinationWaypoint && arrivalTime}
                     <div class="leg-datetime">
-                        Arrival: {formatDayDate(arrivalTime)} {formatTime(arrivalTime)}
+                        Arrival: {formatDateTime(arrivalTime)}
                     </div>
                 {:else}
                     <div class="leg-placeholder">No leg data</div>

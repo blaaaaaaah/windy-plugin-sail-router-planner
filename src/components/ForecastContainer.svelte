@@ -64,23 +64,15 @@
 
     <!-- Content Area -->
     <div class="forecast-content">
-        {#if activeRoute && activeRoute.waypoints.length > 1}
-            <ForecastTable
-                {forecast}
-                {isLoading}
-                {showTrueWind}
-                route={activeRoute}
-                on:timeHover={handleTimeHover}
-                on:metricClick={handleMetricClick}
-                on:routeUpdated={handleRouteUpdated}
-            />
-        {:else}
-            <div class="forecast-placeholder">
-                <div class="placeholder-icon">🗺️</div>
-                <h3>No route created yet</h3>
-                <p>Draw a route on the map by clicking to add waypoints. You need at least 2 waypoints to generate a weather forecast.</p>
-            </div>
-        {/if}
+        <ForecastTable
+            {forecast}
+            {isLoading}
+            {showTrueWind}
+            route={activeRoute}
+            on:timeHover={handleTimeHover}
+            on:metricClick={handleMetricClick}
+            on:routeUpdated={handleRouteUpdated}
+        />
     </div>
 </div>
 
@@ -104,37 +96,4 @@
         flex-direction: column;
     }
 
-    /* Forecast placeholder */
-    .forecast-placeholder {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 60px 20px;
-        background: #f8f9fa;
-        text-align: center;
-        height: 100%;
-        width: 100%;
-    }
-
-    .placeholder-icon {
-        font-size: 48px;
-        margin-bottom: 20px;
-        opacity: 0.6;
-    }
-
-    .forecast-placeholder h3 {
-        color: #495057;
-        font-size: 18px;
-        margin: 0 0 12px 0;
-        font-weight: 600;
-    }
-
-    .forecast-placeholder p {
-        color: #6c757d;
-        font-size: 14px;
-        margin: 0;
-        max-width: 320px;
-        line-height: 1.5;
-    }
 </style>

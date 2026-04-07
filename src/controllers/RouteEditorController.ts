@@ -10,6 +10,7 @@ export class RouteEditorController {
 	private _activeRoute: RouteDefinition | null = null;
 	private _map: L.Map;
 	private _onRouteUpdated: (route: RouteDefinition) => void;
+	private _onActiveRouteChanged: (route: RouteDefinition | null) => void;
 
 
 	// Map layer management
@@ -29,10 +30,12 @@ export class RouteEditorController {
 
 	constructor(
 		map: L.Map,
-		onRouteUpdated: (route: RouteDefinition) => void
+		onRouteUpdated: (route: RouteDefinition) => void,
+		onActiveRouteChanged: (route: RouteDefinition | null) => void
 	) {
 		this._map = map;
 		this._onRouteUpdated = onRouteUpdated;
+		this._onActiveRouteChanged = onActiveRouteChanged;
 
 		// Listen for zoom changes to update distance label sizes
 		this._map.on('zoomend', this._onZoomChange.bind(this));
@@ -50,9 +53,42 @@ export class RouteEditorController {
 		return this._activeRoute;
 	}
 
-	clearActiveRoute(): void {
-		this._activeRoute = null;
+	setActiveRoute(route: RouteDefinition | null): void {
+		this._activeRoute = route;
+
+		// Ensure active route is visible on the map
+		if (route && !route.isVisible) {
+			this.setRouteVisibility(route, true);
+		}
+
 		this._updateMapHighlight();
+		this._onActiveRouteChanged(route);
+	}
+
+	getAllRoutes(): RouteDefinition[] {
+		return this._routes.filter(route => route.waypoints.length >= 2);
+	}
+
+	setRouteVisibility(route: RouteDefinition, visible: boolean): void {
+		route.isVisible = visible;
+		if (visible) {
+			this._updateRouteDisplay(route);
+		} else {
+			this._removeRouteFromMap(route);
+		}
+	}
+
+	removeRoute(route: RouteDefinition): void {
+		const index = this._routes.findIndex(r => r.id === route.id);
+		if (index >= 0) {
+			this._routes.splice(index, 1);
+			this._removeRouteFromMap(route);
+
+			// If removing active route, clear active route
+			if (this._activeRoute && this._activeRoute.id === route.id) {
+				this.setActiveRoute(null);
+			}
+		}
 	}
 
 	setTimestamp(timestamp: number): void {
@@ -120,18 +156,16 @@ export class RouteEditorController {
 
 		// Add to routes collection
 		this._routes.push(route);
-		this._activeRoute = route;
 
-		// Update map display
-		this._updateRouteDisplay(route);
+		// Update map display only if visible
+		if (route.isVisible) {
+			this._updateRouteDisplay(route);
+		}
 
 		// Update progress marker if we have a current timestamp
 		if (this._currentTimestamp !== null) {
 			this.setTimestamp(this._currentTimestamp);
 		}
-
-		// Notify callback handler
-		this._onRouteUpdated(route);
 
 		console.log('Route loaded with', route.waypoints.length, 'waypoints');
 	}
@@ -152,7 +186,7 @@ export class RouteEditorController {
 			const color = this._colors[this._currentColorIndex];
 			this._currentColorIndex = (this._currentColorIndex + 1) % this._colors.length;
 
-			this._activeRoute = new RouteDefinition(undefined, undefined, color);
+			this._activeRoute = new RouteDefinition(null, color);
 			this._routes.push(this._activeRoute);
 		}
 
@@ -588,6 +622,8 @@ export class RouteEditorController {
 			// If route is empty, remove it
 			if (route.waypoints.length === 0) {
 				this._deleteRoute(route);
+			} else if (route.waypoints.length === 1) {
+				this._onActiveRouteChanged(null)
 			} else {
 				// Update progress marker if we have a current timestamp
 				if (this._currentTimestamp !== null) {
@@ -613,6 +649,7 @@ export class RouteEditorController {
 		// Clear active route if it was this one
 		if (this._activeRoute?.id === route.id) {
 			this._activeRoute = null;
+			this._onActiveRouteChanged(this._activeRoute)
 		}
 	}
 

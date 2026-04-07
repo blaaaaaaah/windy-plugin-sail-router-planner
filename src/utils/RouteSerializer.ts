@@ -1,5 +1,8 @@
 import { RouteDefinition } from '../types/RouteTypes';
 
+// TODO: Serialize the route name (user-defined name) and upon deserialization,
+// pass it to RouteDefinition constructor so saved routes retain their names
+
 /**
  * Serializes a route to a URL-safe string (without wind mode)
  */
@@ -23,6 +26,11 @@ export function serializeRoute(route: RouteDefinition): string {
     if (route.legs && route.legs.length > 0) {
         const speeds = route.legs.map(leg => leg.averageSpeed?.toString() || '5');
         parts.push(`s:${speeds.join(',')}`);
+    }
+
+    // Visibility (only include if false, default is true)
+    if (!route.isVisible) {
+        parts.push(`v:false`);
     }
 
     return parts.join(';');
@@ -49,6 +57,7 @@ export function deserializeRoute(routeString: string): RouteDefinition | null {
         const waypointsParam = params['w'];
         const departureParam = params['d'];
         const speedsParam = params['s'];
+        const visibilityParam = params['v'];
 
         if (!waypointsParam) {
             return null;
@@ -93,6 +102,11 @@ export function deserializeRoute(routeString: string): RouteDefinition | null {
                     route.setLegSpeed(index, speed);
                 }
             });
+        }
+
+        // Set visibility (default is true)
+        if (visibilityParam === 'false') {
+            route.isVisible = false;
         }
 
         console.log('Deserialized route:', waypointCoords.length, 'waypoints');

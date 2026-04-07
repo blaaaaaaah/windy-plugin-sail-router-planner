@@ -2,43 +2,63 @@
     { title }
 </div>
 <section class="plugin__content">
-    <div
-        class="plugin__title plugin__title--chevron-back"
-        on:click={ () => bcast.emit('rqstOpen', 'menu') }
-    >
-    { title }
-    {#if activeRoute}
-        <span class="wind-toggle-compact">
-            <span
-                class="toggle-option"
-                class:active={showTrueWind}
-                on:click|stopPropagation={() => setShowTrueWind(true)}
+    <div class="panel-container" class:forecast-active={activeRoute !== null}>
+        <!-- Route List Panel -->
+        <div class="route-list-panel">
+            <div
+                class="plugin__title plugin__title--chevron-back"
+                on:click={ () => bcast.emit('rqstOpen', 'menu') }
             >
-                True
-            </span>
-            <span class="toggle-separator">/</span>
-            <span
-                class="toggle-option"
-                class:active={!showTrueWind}
-                on:click|stopPropagation={() => setShowTrueWind(false)}
-            >
-                Apparent
-            </span>
-        </span>
-    {/if}
-    </div>
+                Sail Router Planner
+            </div>
+            <RouteListPanel
+                routes={allRoutes}
+                on:routeSelected={handleRouteSelected}
+                on:toggleVisibility={handleToggleVisibility}
+                on:saveRoute={handleSaveRoute}
+                on:deleteRoute={handleDeleteRoute}
+            />
+        </div>
 
-    <div class="forecast-container">
-        <ForecastContainer
-            forecast={currentForecast}
-            isLoading={isLoadingForecast}
-            activeRoute={activeRoute}
-            showTrueWind={showTrueWind}
-            on:windModeChanged={handleWindModeChanged}
-            on:timeHover={handleTimeHover}
-            on:metricClick={handleMetricClick}
-            on:routeUpdated={handleRouteUpdated}
-        />
+        <!-- Forecast Panel -->
+        <div class="forecast-panel">
+            <div
+                class="plugin__title plugin__title--chevron-back"
+                on:click={handleBackToRoutes}
+            >
+                Routes
+                <span class="wind-toggle-compact">
+                    <span
+                        class="toggle-option"
+                        class:active={showTrueWind}
+                        on:click|stopPropagation={() => setShowTrueWind(true)}
+                    >
+                        True
+                    </span>
+                    <span class="toggle-separator">/</span>
+                    <span
+                        class="toggle-option"
+                        class:active={!showTrueWind}
+                        on:click|stopPropagation={() => setShowTrueWind(false)}
+                    >
+                        Apparent
+                    </span>
+                </span>
+            </div>
+
+            <div class="forecast-container">
+                <ForecastContainer
+                    forecast={currentForecast}
+                    isLoading={isLoadingForecast}
+                    activeRoute={activeRoute}
+                    showTrueWind={showTrueWind}
+                    on:windModeChanged={handleWindModeChanged}
+                    on:timeHover={handleTimeHover}
+                    on:metricClick={handleMetricClick}
+                    on:routeUpdated={handleRouteUpdated}
+                />
+            </div>
+        </div>
     </div>
 </section>
 <script lang="ts">
@@ -51,6 +71,7 @@
     import { WindyAPI, WeatherForecastService, RouteStorage } from './services';
     import { RouteEditorController } from './controllers/RouteEditorController';
     import ForecastContainer from './components/ForecastContainer.svelte';
+    import RouteListPanel from './components/RouteListPanel.svelte';
     import { serializeState, deserializeState } from './utils/RouteSerializer';
     import { setUrl } from '@windy/location';
 
@@ -79,6 +100,12 @@
     // Track the current route
     let activeRoute: RouteDefinition | null = null;
 
+    // All routes for multi-route functionality
+    let allRoutes: RouteDefinition[] = [];
+
+    // Forecast caching
+    let cachedForecasts: Map<string, RouteForecast> = new Map();
+
     function setShowTrueWind(value: boolean) {
         showTrueWind = value;
 
@@ -94,6 +121,20 @@
     function handleWindModeChanged(event: any) {
         const { showTrueWind: newShowTrueWind } = event.detail;
         setShowTrueWind(newShowTrueWind);
+    }
+
+    // Fetch geo name for route if needed
+    function fetchGeoNameIfNeeded(route: RouteDefinition) {
+        if (route.name === null && route.waypoints.length >= 2) {
+            weatherService!.getRouteName(route).then(geoName => {
+                route.setCachedGeoName(geoName);
+                // Force reactivity for both activeRoute and allRoutes
+                activeRoute = activeRoute;
+                allRoutes = routeEditor!.getAllRoutes();
+            }).catch(error => {
+                console.error('Failed to fetch geo name:', error);
+            });
+        }
     }
 
     // Generate forecast from route using WeatherForecastService
@@ -119,65 +160,131 @@
         }
     }
 
+    // Callback from RouteEditorController when active route changes
+    function onActiveRouteChanged(route: RouteDefinition | null) {
+        activeRoute = route;
+        allRoutes = routeEditor!.getAllRoutes();
+
+        if (route) {
+            // Check cache first, then generate forecast
+            if (cachedForecasts.has(route.id)) {
+                currentForecast = cachedForecasts.get(route.id)!;
+            } else {
+                generateForecastFromRoute(route);
+            }
+        } else {
+            currentForecast = null;
+        }
+    }
+
+    // Multi-route panel handlers
+    function handleRouteSelected(event: any) {
+        const { route } = event.detail;
+        routeEditor!.setActiveRoute(route);
+    }
+
+    function handleBackToRoutes() {
+        routeEditor!.setActiveRoute(null);
+    }
+
+    function handleToggleVisibility(event: any) {
+        const { route } = event.detail;
+        routeEditor!.setRouteVisibility(route, !route.isVisible);
+        allRoutes = routeEditor!.getAllRoutes();
+    }
+
+    function handleSaveRoute(event: any) {
+        const { route } = event.detail;
+        routeStorage!.saveRoute(route);
+        allRoutes = routeEditor!.getAllRoutes();
+    }
+
+    function handleDeleteRoute(event: any) {
+        const { route } = event.detail;
+        routeStorage!.deleteRoute(route);
+        routeEditor!.removeRoute(route);
+        allRoutes = routeEditor!.getAllRoutes();
+    }
 
     export const onopen = (params: any) => {
         console.log('=== PLUGIN ONOPEN ===', params);
 
-        // Load route and wind mode from URL if available
+        // Load all saved routes first (this is done in onMount, but ensure allRoutes is updated)
+        allRoutes = routeEditor!.getAllRoutes();
+
+        // Handle URL route if present
         if (params?.route) {
             const result = deserializeState(params.route);
-            if (result?.route && routeEditor) {
-                routeEditor.loadRoute(result.route);
-                console.log('Loaded route from URL');
-
+            if (result?.route) {
                 // Set wind mode from deserialization
                 showTrueWind = result.windMode;
                 console.log('Loaded wind mode from route:', showTrueWind ? 'True Wind' : 'Apparent Wind');
-            }
-        } else if (routeStorage) {
-            // No route in URL, try to load last saved route
-            const routes = routeStorage.listRoutes();
-            if (routes.length > 0) {
-                const lastRoute = routes[routes.length - 1];
-                if (routeEditor) {
-                    routeEditor.loadRoute(lastRoute);
-                    console.log('Loaded last saved route');
+
+                // Use URL route string for comparison (ignoring visibility)
+                const urlRouteSerialized = params.route;
+
+                // Check if this route matches any saved route
+                const existingRoute = allRoutes.find(savedRoute => {
+                    // Test both visibility states to ignore visibility flag
+                    const savedVisible = { ...savedRoute };
+                    const savedHidden = { ...savedRoute };
+                    savedVisible.isVisible = true;
+                    savedHidden.isVisible = false;
+
+                    const savedVisibleSerialized = serializeState(savedVisible, result.windMode);
+                    const savedHiddenSerialized = serializeState(savedHidden, result.windMode);
+
+                    return urlRouteSerialized === savedVisibleSerialized ||
+                           urlRouteSerialized === savedHiddenSerialized;
+                });
+
+                if (existingRoute) {
+                    // Found existing saved route - activate it (RouteEditorController will make it visible)
+                    routeEditor!.setActiveRoute(existingRoute);
+                    console.log('Activated existing saved route from URL');
+                } else {
+                    // URL route is new - load and activate it
+                    routeEditor!.loadRoute(result.route);
+                    routeEditor!.setActiveRoute(result.route);
+                    fetchGeoNameIfNeeded(result.route);
+                    allRoutes = routeEditor!.getAllRoutes();
+                    console.log('Loaded and activated new route from URL');
                 }
             }
         }
+        // If no URL route, stay in route list view (no active route)
     };
 
 
-    function onRouteUpdated(route: RouteDefinition) {
-        // Update current route state
-        activeRoute = routeEditor!.getActiveRoute();
-
-        // Update URL with current route and wind mode
-        const serializedState = serializeState(route, showTrueWind);
-        setUrl(config.name, { route: serializedState });
-
-        logWindyRPlannerRoute(route);
+    function onRouteUpdated(route: RouteDefinition) {        
 
         // Generate forecast when route has 2+ waypoints
         if (route.waypoints.length >= 2) {
+            // Update URL with current route and wind mode
+            const serializedState = serializeState(route, showTrueWind);
+            setUrl(config.name, { route: serializedState });
+
+            logWindyRPlannerRoute(route);
+
+            activeRoute = routeEditor!.getActiveRoute();
             generateForecastFromRoute(route);
 
-            // Save route to storage
-            routeStorage!.saveRoute(route);
-
-            // Fetch and set route name
-            weatherService!.getRouteName(route).then(routeName => {
-                route.setRouteName(routeName);
-                activeRoute = activeRoute; // Force reactivity
-            });
+            // Fetch and set geo name only if no name is set yet
+            if (route.name === null) {
+                weatherService!.getRouteName(route).then(geoName => {
+                    route.setCachedGeoName(geoName);
+                    activeRoute = activeRoute; // Force reactivity
+                    allRoutes = routeEditor!.getAllRoutes(); // Update route list
+                });
+            }
         } else {
             currentForecast = null;
-            route.setRouteName(null);
+            route.setCachedGeoName(null);
             activeRoute = activeRoute; // Force reactivity
-
-            // Delete route from storage if it has less than 2 waypoints
-            routeStorage!.deleteRoute(route);
         }
+
+        // Update route list to include new/modified routes
+        allRoutes = routeEditor!.getAllRoutes();
     }
 
     function logWindyRPlannerRoute(route: RouteDefinition) {
@@ -214,12 +321,20 @@
 
 
     onMount(() => {
-        routeEditor = new RouteEditorController(map, onRouteUpdated);
+        routeEditor = new RouteEditorController(map, onRouteUpdated, onActiveRouteChanged);
 
         // Initialize weather services
         windyAPI = new WindyAPI();
         weatherService = new WeatherForecastService(windyAPI);
         routeStorage = new RouteStorage(localStorage);
+
+        // Load all routes from storage on startup
+        const savedRoutes = routeStorage.listRoutes();
+        savedRoutes.forEach(route => {
+            routeEditor!.loadRoute(route);
+            fetchGeoNameIfNeeded(route);
+        });
+        allRoutes = routeEditor!.getAllRoutes();
 
         // Subscribe to timestamp changes to update route marker position
         timestampSubscriptionId = store.on('timestamp', (timestamp: number) => {
@@ -256,20 +371,41 @@
     /* Remove default plugin content padding */
     .plugin__content {
         padding: 0 !important;
+        overflow: hidden;
     }
 
     .plugin__title {
         padding: 10px !important;
         margin-bottom: 0px !important;
+        position: relative;
+        max-width: none !important;
+    }
+
+    /* Sliding panel container */
+    .panel-container {
+        display: flex;
+        width: 200%;
+        height: 100%;
+        transform: translateX(0);
+        transition: transform 300ms ease-in-out;
+
+        &.forecast-active {
+            transform: translateX(-50%);
+        }
+    }
+
+    .route-list-panel,
+    .forecast-panel {
+        width: 50%;
+        height: 100%;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
     }
 
     .forecast-container {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left:0; 
-        right:0; 
-        margin-top: 50px;
+        flex: 1;
+        position: relative;
     }
 
 
@@ -425,7 +561,9 @@
 
     /* Compact wind toggle in title */
     .wind-toggle-compact {
-        margin-left: 12px;
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
         font-size: 11px;
         color: #ccc;
         display: inline-flex;

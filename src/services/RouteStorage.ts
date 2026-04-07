@@ -24,6 +24,9 @@ export class RouteStorage {
 			routes.push(serializedRoute);
 			this.storage.setItem(RouteStorage.STORAGE_KEY, JSON.stringify(routes));
 		}
+
+		// Mark route as saved
+		route.isSaved = true;
 	}
 
 	listRoutes(): RouteDefinition[] {
@@ -33,11 +36,17 @@ export class RouteStorage {
 		for (const serialized of serializedRoutes) {
 			const route = deserializeRoute(serialized);
 			if (route) {
+				// Mark route as saved since it was loaded from storage
+				route.isSaved = true;
 				routes.push(route);
 			}
 		}
 
 		return routes;
+	}
+
+	listVisibleRoutes(): RouteDefinition[] {
+		return this.listRoutes().filter(route => route.isVisible);
 	}
 
 	deleteRoute(route: RouteDefinition): void {

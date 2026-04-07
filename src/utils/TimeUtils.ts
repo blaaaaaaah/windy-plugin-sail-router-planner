@@ -49,3 +49,11 @@ export function formatDuration(durationMs: number): string {
         return `${minutes}m`;
     }
 }
+
+/**
+ * Format complete date and time combining day/date and time
+ * Examples: "Mar 15 14:30", "Dec 25 09:00"
+ */
+export function formatDateTime(timestamp: number): string {
+    return `${formatDayDate(timestamp)} ${formatTime(timestamp)}`;
+}

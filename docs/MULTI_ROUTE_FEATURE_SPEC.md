@@ -421,22 +421,59 @@ No explicit panel state needed - derived from active route existence.
 - **Route Optimization**: Suggest route improvements
 - **Weather Routing**: Automatic route optimization for conditions
 
-## Implementation Checklist
+## Implementation Progress
 
-- [ ] Add `isVisible` property to RouteDefinition
-- [ ] Create RouteListPanel.svelte component
+### ✅ Completed (Phase 1)
+- [x] **Add `isVisible` property to RouteDefinition** - Routes can be hidden/shown with splice behavior
+- [x] **Add `isSaved` property to RouteDefinition** - Tracks saved/unsaved state with modification detection
+- [x] **Merged name system** - Combined `name` and `routeName` into single system with geo caching
+- [x] **RouteSerializer visibility support** - Persists `isVisible` flag via `v:false` parameter
+- [x] **Updated plugin.svelte geo name logic** - Only fetches geo names when `route.name === null`
+- [x] **formatDateTime utility** - Created and updated LegWaypoint.svelte to use it
+
+### 🔄 In Progress
+- [ ] **Create RouteListPanel.svelte component** - Basic structure defined, needs completion
+
+### ⏳ Pending (Phase 2)
 - [ ] Update plugin.svelte with sliding panel logic
-- [ ] Add forecast caching in plugin.svelte
-- [ ] Enhance RouteEditorController for route selection
-- [ ] **Research RouteSerializer for visibility persistence**
-- [ ] Implement route visibility toggle functionality (with splice behavior)
+- [ ] Enhance RouteEditorController for route selection and splice behavior
+- [ ] Implement forecast caching in plugin.svelte
 - [ ] Add route loading on plugin startup
 - [ ] Implement sliding animations
 - [ ] Add route management actions (save/delete)
 - [ ] Update title behavior with back navigation
 - [ ] Handle map click route switching
 - [ ] Add preview info display in route list
-- [ ] Implement unsaved route indicators
+
+## Technical Achievements
+
+### Data Architecture ✅
+```typescript
+// RouteDefinition enhancements completed
+private _isVisible: boolean = true;     // Hide/show routes on map
+private _isSaved: boolean = false;      // Track save state
+private _name: string | null;           // User-defined name
+private _cachedGeoName: string | null;  // API-fetched geo name
+
+// Smart name getter
+get name(): string | null {
+    return this._name || this._cachedGeoName; // User name takes priority
+}
+```
+
+### Route State Management ✅
+- **Modification tracking** - All route changes set `isSaved = false`
+- **Geo name caching** - Auto-updates when endpoints change, respects user names
+- **Visibility persistence** - Serialized with `v:false` parameter
+- **Smart API calls** - Only fetches geo names when `route.name === null`
+
+### Utility Functions ✅
+- **formatDateTime()** - Combines day/date and time formatting
+- **RouteStorage.listVisibleRoutes()** - Filters routes by visibility
+- **Route serialization** - Handles visibility and will handle names (TODO added)
+
+## Outstanding TODOs
+- **Route name serialization** - Add name persistence to RouteSerializer (marked in code)
 
 ## Testing Scenarios
 

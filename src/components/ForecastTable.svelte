@@ -47,7 +47,7 @@
     }
 
     // Reactive updates when forecast or showTrueWind changes
-    $: if (forecast || showTrueWind !== undefined) {
+    $: if (forecast || showTrueWind !== undefined || isLoading) {
         refresh();
     }
 
@@ -735,11 +735,13 @@
         <!-- Table Content -->
         <section class="table-content">
             <!-- Route Summary -->
-            <RouteDetail
-                route={route}
-                routeStats={forecast?.routeStats || null}
-                on:routeUpdated={handleRouteUpdated}
-            />
+            {#if route}
+                <RouteDetail
+                    route={route}
+                    routeStats={forecast?.routeStats || null}
+                    on:routeUpdated={handleRouteUpdated}
+                />
+            {/if}
 
             <!-- Table Header -->
             <div class="table-header">

@@ -14,24 +14,26 @@ export interface RouteLeg {
 
 export class RouteDefinition {
 	readonly id: string;
-	private _name: string;
+	private _name: string | null; // User-defined name (null = not set by user)
+	private _cachedGeoName: string | null; // Auto-generated geo name from API
 	private _color: string;
 	private _departureTime: number;
 	private _defaultSpeed: number;
 	private _waypoints: LatLng[] = [];
 	private _legSpeeds: number[] = [];
+	private _isVisible: boolean = true;
+	private _isSaved: boolean = false;
 	private _cachedLegs: RouteLeg[] | null = null;
-	private _cachedRouteName: string | null = null;
-	private _routeNameCacheKey: string | null = null;
 
 	constructor(
-		name: string = `Route ${new Date().toLocaleTimeString()}`,
+		name: string | null = null,
 		color: string = '',
 		departureTime: number = Math.floor(Date.now() / (1000 * 60 * 60)) * (1000 * 60 * 60),
 		defaultSpeed: number = 5
 	) {
 		this.id = crypto.randomUUID();
 		this._name = name;
+		this._cachedGeoName = null;
 		this._color = color || '#FF6B6B';
 		this._departureTime = departureTime;
 		this._defaultSpeed = defaultSpeed;
@@ -48,7 +50,8 @@ export class RouteDefinition {
 			this._legSpeeds.splice(index, 0, this._defaultSpeed);
 		}
 		this._clearCache();
-		this._clearRouteNameCache();
+		this._clearGeoNameCache();
+		this._markAsUnsaved();
 	}
 
 	removeWaypoint(index: number): void {
@@ -65,10 +68,11 @@ export class RouteDefinition {
 		}
 		this._clearCache();
 
-		// Clear route name cache if first or last waypoint was removed
+		// Clear geo name cache if first or last waypoint was removed
 		if (isFirstOrLast) {
-			this._clearRouteNameCache();
+			this._clearGeoNameCache();
 		}
+		this._markAsUnsaved();
 	}
 
 	updateWaypoint(index: number, position: LatLng): void {
@@ -81,10 +85,11 @@ export class RouteDefinition {
 		this._waypoints[index] = position;
 		this._clearCache();
 
-		// Clear route name cache if first or last waypoint was updated
+		// Clear geo name cache if first or last waypoint was updated
 		if (isFirstOrLast) {
-			this._clearRouteNameCache();
+			this._clearGeoNameCache();
 		}
+		this._markAsUnsaved();
 	}
 
 	setLegSpeed(legIndex: number, speed: number): void {
@@ -98,18 +103,26 @@ export class RouteDefinition {
 		}
 		this._legSpeeds[legIndex] = speed;
 		this._clearCache();
+		this._markAsUnsaved();
 	}
 
 	setDepartureTime(departureTime: number): void {
 		this._departureTime = departureTime;
 		this._clearCache();
+		this._markAsUnsaved();
 	}
 
-	get name(): string {
-		return this._name;
+	/**
+	 * Get the display name - user-defined name takes priority, fallback to geo name
+	 */
+	get name(): string | null {
+		return this._name || this._cachedGeoName;
 	}
 
-	set name(name: string) {
+	/**
+	 * Set user-defined name (e.g., when user renames or saves route)
+	 */
+	set name(name: string | null) {
 		this._name = name;
 	}
 
@@ -119,6 +132,22 @@ export class RouteDefinition {
 
 	set color(color: string) {
 		this._color = color;
+	}
+
+	get isVisible(): boolean {
+		return this._isVisible;
+	}
+
+	set isVisible(visible: boolean) {
+		this._isVisible = visible;
+	}
+
+	get isSaved(): boolean {
+		return this._isSaved;
+	}
+
+	set isSaved(saved: boolean) {
+		this._isSaved = saved;
 	}
 
 	get legs(): RouteLeg[] {
@@ -219,25 +248,22 @@ export class RouteDefinition {
 
 
 	/**
-	 * Get the cached route name
+	 * Set the cached geo name (typically called from plugin.svelte after fetching from API)
 	 */
-	get routeName(): string | null {
-		return this._cachedRouteName;
-	}
-
-	/**
-	 * Set the route name (typically called from plugin.svelte after fetching from API)
-	 */
-	setRouteName(routeName: string | null): void {
-		this._cachedRouteName = routeName;
+	setCachedGeoName(geoName: string | null): void {
+		this._cachedGeoName = geoName;
 	}
 
 	private _clearCache(): void {
 		this._cachedLegs = null;
 	}
 
-	private _clearRouteNameCache(): void {
-		this._cachedRouteName = null;
+	private _clearGeoNameCache(): void {
+		this._cachedGeoName = null;
+	}
+
+	private _markAsUnsaved(): void {
+		this._isSaved = false;
 	}
 
 }

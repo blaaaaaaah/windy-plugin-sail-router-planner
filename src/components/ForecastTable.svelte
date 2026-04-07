@@ -314,15 +314,19 @@
         // Only auto-scroll if currently at the top (user hasn't manually scrolled)
         if (scrollContainer.scrollTop > 0) return;
 
+        const now = Date.now();
         const departureTime = forecast.route.departureTime;
-        const fourHoursBeforeDeparture = departureTime - (4 * 60 * 60 * 1000);
 
-        // Find the index of the forecast point closest to 4 hours before departure
+        // Determine target time: departure (if pre-departure) or current time (if post-departure)
+        const targetTime = now < departureTime ? departureTime : now;
+        const fourHoursBeforeTarget = targetTime - (4 * 60 * 60 * 1000);
+
+        // Find the index of the forecast point closest to 4 hours before target
         let targetIndex = -1;
         let closestTimeDiff = Infinity;
 
         for (let i = 0; i < hourlyData.length; i++) {
-            const timeDiff = Math.abs(hourlyData[i].timestamp - fourHoursBeforeDeparture);
+            const timeDiff = Math.abs(hourlyData[i].timestamp - fourHoursBeforeTarget);
             if (timeDiff < closestTimeDiff) {
                 closestTimeDiff = timeDiff;
                 targetIndex = i;
@@ -337,7 +341,8 @@
             const offsetFromTop = 0; // Show target row at the very top
             const targetScrollTop = Math.max(0, targetRow.top - offsetFromTop);
 
-            console.log(`Auto-scrolling to ${new Date(fourHoursBeforeDeparture).toISOString()} (4h before departure)`);
+            const targetLabel = now < departureTime ? 'departure' : 'current time';
+            console.log(`Auto-scrolling to ${new Date(fourHoursBeforeTarget).toISOString()} (4h before ${targetLabel})`);
             scrollContainer.scrollTo({
                 top: targetScrollTop,
                 behavior: 'smooth'

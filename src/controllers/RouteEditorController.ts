@@ -170,6 +170,7 @@ export class RouteEditorController {
 		e.originalEvent.preventDefault();
 		e.originalEvent.stopPropagation();
 
+		// Continue with existing waypoint addition logic
 		this.onMapClick(e.latlng);
 	}
 
@@ -223,10 +224,14 @@ export class RouteEditorController {
 	private _updateRouteLine(route: RouteDefinition): void {
 		const waypoints = route.waypoints;
 
-		// Remove existing line if it exists
+		// Remove existing lines if they exist
 		const existingLine = this._routeLayers.get(route.id);
 		if (existingLine) {
 			this._map.removeLayer(existingLine);
+		}
+		const existingClickableLine = this._routeLayers.get(route.id + '_clickable');
+		if (existingClickableLine) {
+			this._map.removeLayer(existingClickableLine);
 		}
 
 		// Create new line if we have at least 2 waypoints
@@ -234,14 +239,42 @@ export class RouteEditorController {
 			// Generate path points that follow great circle routes for long legs
 			const pathPoints = this._generateGreatCirclePath(waypoints);
 
+			// Create invisible thicker line for easier clicking
+			const clickableLine = L.polyline(pathPoints, {
+				color: 'transparent',
+				weight: 12,
+				opacity: 0,
+				interactive: true,
+				bubblingMouseEvents: false
+			});
+
+			// Create visible thin line for display
 			const polyline = L.polyline(pathPoints, {
 				color: route.color,
 				weight: this._activeRoute?.id === route.id ? 4 : 2,
-				opacity: 0.8
+				opacity: 0.8,
+				interactive: false
 			});
 
+			// Add click handler to the invisible thicker line
+			clickableLine.on('click', (e: L.LeafletMouseEvent) => {
+				console.log('Route line clicked:', route.id, 'Current active:', this._activeRoute?.id);
+				e.originalEvent.stopPropagation();
+				e.originalEvent.preventDefault();
+
+				if (this._activeRoute?.id !== route.id) {
+					console.log('Switching to route:', route.id);
+					this.setActiveRoute(route);
+				}
+			});
+
+			// Add both lines to map
+			clickableLine.addTo(this._map);
 			polyline.addTo(this._map);
+
+			// Store both in the layers map as a group
 			this._routeLayers.set(route.id, polyline);
+			this._routeLayers.set(route.id + '_clickable', clickableLine);
 		}
 	}
 

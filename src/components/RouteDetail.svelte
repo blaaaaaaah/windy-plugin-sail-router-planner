@@ -9,6 +9,9 @@
     export let route: RouteDefinition | null;
     export let routeStats: WeatherStats | null = null; // Overall route statistics (total distance, time, etc.)
     let isExpanded: boolean = false;
+    let isEditingName: boolean = false;
+    let editedName: string = '';
+    let nameInputElement: HTMLInputElement;
 
     const dispatch = createEventDispatcher();
 
@@ -67,6 +70,44 @@
         }
     }
 
+    function startEditingName() {
+        if (route) {
+            isEditingName = true;
+            editedName = route.name || '';
+            // Focus the input after it's rendered
+            setTimeout(() => {
+                if (nameInputElement) {
+                    nameInputElement.focus();
+                    nameInputElement.select();
+                }
+            }, 0);
+        }
+    }
+
+    function cancelEditing() {
+        isEditingName = false;
+        editedName = '';
+    }
+
+    function saveNameEdit() {
+        if (route && editedName.trim() !== (route.name || '').trim()) {
+            // Only save if the name actually changed
+            route.name = editedName.trim() || null;
+            dispatch('routeUpdated', {
+                route: route
+            });
+        }
+        isEditingName = false;
+    }
+
+    function handleNameKeydown(event: KeyboardEvent) {
+        if (event.key === 'Enter') {
+            saveNameEdit();
+        } else if (event.key === 'Escape') {
+            cancelEditing();
+        }
+    }
+
     $: showExpandChevron = true;
     $: averageSpeed = calculateAverageSpeed();
     $: routeLeg = route ? {
@@ -84,16 +125,27 @@
         class="route-row"
         class:expanded={isExpanded}
         class:clickable={showExpandChevron}
-        on:click={showExpandChevron ? handleClick : undefined}
     >
         <div class="route-content">
             <div class="route-info">
                 <div class="route-name-row">
                     <div class="route-color-dot" style="background-color: {route.color}" on:click|stopPropagation={handleColorCycle} title="Click to change route color"></div>
-                    <div class="route-name">{route.name || ''}</div>
+                    {#if isEditingName}
+                        <input
+                            class="route-name-input"
+                            type="text"
+                            bind:value={editedName}
+                            bind:this={nameInputElement}
+                            on:blur={saveNameEdit}
+                            on:keydown={handleNameKeydown}
+                            placeholder="Enter route name..."
+                        />
+                    {:else}
+                        <div class="route-name" on:click={startEditingName} title="Click to edit route name">{route.name || 'Unnamed Route'}</div>
+                    {/if}
                     <!-- <div class="save-icon" on:click={handleSaveClick}>💾</div> -->
                 </div>
-                <div class="route-summary">
+                <div class="route-summary" on:click={showExpandChevron ? handleClick : undefined}>
                     <div class="departure-time">
                         <label class="departure-label">Departure:</label>
                         <input
@@ -200,6 +252,34 @@
                 font-weight: 700;
                 text-align: left;
                 flex: 1;
+                cursor: pointer;
+                padding: 2px 4px;
+                border-radius: 3px;
+                transition: background-color 0.2s ease;
+
+                &:hover {
+                    background-color: rgba(0, 0, 0, 0.05);
+                }
+            }
+
+            .route-name-input {
+                font-size: 12px;
+                color: #495057;
+                font-weight: 700;
+                text-align: left;
+                flex: 1;
+                padding: 2px 4px;
+                border: 1px solid #007cba;
+                border-radius: 3px;
+                background: white;
+                font-family: inherit;
+                outline: none;
+
+                &::placeholder {
+                    font-weight: normal;
+                    color: #6c757d;
+                    font-style: italic;
+                }
             }
 
             .save-icon {

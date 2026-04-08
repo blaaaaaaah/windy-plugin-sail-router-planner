@@ -166,6 +166,10 @@
         allRoutes = routeEditor!.getAllRoutes();
 
         if (route) {
+
+            const serializedState = serializeState(route, showTrueWind);
+            setUrl(config.name, { route: serializedState });
+
             // Check cache first, then generate forecast
             if (cachedForecasts.has(route.id)) {
                 currentForecast = cachedForecasts.get(route.id)!;
@@ -176,6 +180,7 @@
             // Fetch geo name if needed
             fetchGeoNameIfNeeded(route);
         } else {
+            setUrl(config.name, { route: null });
             currentForecast = null;
         }
     }
@@ -220,8 +225,10 @@
 
     function handleDeleteRoute(event: any) {
         const { route } = event.detail;
+        // Only remove from storage, keep in memory/list so user can favorite again
         routeStorage!.deleteRoute(route);
-        routeEditor!.removeRoute(route);
+        // Update route.isSaved to false so heart icon becomes empty
+        route.isSaved = false;
         allRoutes = routeEditor!.getAllRoutes();
     }
 

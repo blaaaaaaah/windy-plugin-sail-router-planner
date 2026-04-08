@@ -27,6 +27,16 @@
         dispatch('deleteRoute', { route });
     }
 
+    function toggleFavorite(route: RouteDefinition) {
+        if (route.isSaved) {
+            // Remove from favorites (unfavorite) - remove from storage but keep in memory/list
+            dispatch('deleteRoute', { route });
+        } else {
+            // Add to favorites
+            dispatch('saveRoute', { route });
+        }
+    }
+
     function getRouteName(route: RouteDefinition): string {
         if (route.name) {
             return route.name;
@@ -51,97 +61,70 @@
         {:else}
             <div class="route-list">
                 {#each routes as route (route.id)}
-                    <div class="route-item" class:unsaved={!route.isSaved} on:click={() => selectRoute(route)}>
-                        <div class="route-color-bar" style="background-color: {route.color}"></div>
-
-                        <div class="route-main-info">
-                            <div class="route-header">
-                                <div class="route-info">
-                                    <div class="route-name" class:italic={!route.isSaved}>
-                                        {getRouteName(route)}
-                                    </div>
-                                    <div class="route-metrics">
-                                        <span class="metric">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                                                <polyline points="22,4 12,14.01 9,11.01"/>
-                                            </svg>
-                                            {formatDistance(route.totalDistance)}
-                                        </span>
-                                        <span class="metric">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="12" cy="12" r="10"/>
-                                                <polyline points="12,6 12,12 16,14"/>
-                                            </svg>
-                                            {formatDuration(route.totalDuration)}
-                                        </span>
-                                        <span class="metric">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
-                                                <line x1="16" x2="16" y1="2" y2="6"/>
-                                                <line x1="8" x2="8" y1="2" y2="6"/>
-                                                <line x1="3" x2="21" y1="10" y2="10"/>
-                                            </svg>
-                                            {formatDateTime(route.departureTime)}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+                    <div class="route-row">
+                        <div class="visibility-checkbox" on:click|stopPropagation>
+                            <input
+                                type="checkbox"
+                                checked={route.isVisible}
+                                on:change={() => toggleVisibility(route)}
+                                title={route.isVisible ? 'Hide route' : 'Show route'}
+                            />
                         </div>
 
-                        <div class="route-actions" on:click|stopPropagation>
-                            <button
-                                class="action-button visibility-button"
-                                class:visible={route.isVisible}
-                                on:click={() => toggleVisibility(route)}
-                                title={route.isVisible ? 'Hide route' : 'Show route'}
-                            >
-                                {#if route.isVisible}
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                        <circle cx="12" cy="12" r="3"/>
-                                    </svg>
-                                {:else}
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="m9.88 9.88a3 3 0 1 0 4.24 4.24"/>
-                                        <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 8 11 8a13.16 13.16 0 0 1-1.67 2.68"/>
-                                        <path d="M6.61 6.61A13.526 13.526 0 0 0 1 12s4 8 11 8a9.74 9.74 0 0 0 5.39-1.61"/>
-                                        <line x1="2" x2="22" y1="2" y2="22"/>
-                                    </svg>
-                                {/if}
-                            </button>
-
-                            {#if !route.isSaved}
-                                <button
-                                    class="action-button save-button"
-                                    on:click={() => saveRoute(route)}
-                                    title="Save route"
-                                >
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                                        <polyline points="17,21 17,13 7,13 7,21"/>
-                                        <polyline points="7,3 7,8 15,8"/>
-                                    </svg>
-                                </button>
-                            {/if}
-
-                            <button
-                                class="action-button delete-button"
-                                on:click={() => deleteRoute(route)}
-                                title="Delete route"
-                            >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M3 6h18"/>
-                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-                                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-                                </svg>
-                            </button>
+                        <div class="route-item" class:unsaved={!route.isSaved} on:click={() => selectRoute(route)} style="border-left: 4px solid {route.color}">
+                            <div class="route-content">
+                                <div class="route-name">
+                                    {getRouteName(route)}
+                                </div>
+                                <div class="route-metrics">
+                                    <span class="metric">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                            <polyline points="22,4 12,14.01 9,11.01"/>
+                                        </svg>
+                                        {formatDistance(route.totalDistance)}
+                                    </span>
+                                    <span class="metric">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <polyline points="12,6 12,12 16,14"/>
+                                        </svg>
+                                        {formatDuration(route.totalDuration)}
+                                    </span>
+                                    <span class="metric">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                                            <line x1="16" x2="16" y1="2" y2="6"/>
+                                            <line x1="8" x2="8" y1="2" y2="6"/>
+                                            <line x1="3" x2="21" y1="10" y2="10"/>
+                                        </svg>
+                                        {formatDateTime(route.departureTime)}
+                                    </span>
+                                    <button class="metric favorite-button" on:click|stopPropagation={() => toggleFavorite(route)} title={route.isSaved ? 'Remove from favorites' : 'Add to favorites'}>
+                                        {#if route.isSaved}
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+                                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                            </svg>
+                                        {:else}
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                            </svg>
+                                        {/if}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 {/each}
             </div>
         {/if}
     </div>
+
+    {#if routes.length > 0}
+        <div class="route-list-footer">
+            <p>⚠️ Non-favorited routes will be lost after browser refresh</p>
+        </div>
+    {/if}
 </div>
 
 <style lang="less">
@@ -206,54 +189,78 @@
         padding: 8px;
     }
 
+    .route-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+
     .route-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 12px;
-        margin-bottom: 8px;
         background: var(--color-bg-secondary);
-        border-radius: 8px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        flex: 1;
+        transition: background-color 0.15s ease;
 
         &:hover {
-            background: var(--color-bg-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background: rgba(0, 0, 0, 0.05);
         }
 
         &.unsaved {
-            border-left: 4px solid #f39c12;
+            font-style: italic;
         }
     }
 
-    .route-main-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .route-header {
+    .visibility-checkbox {
+        padding: 12px 8px 12px 12px;
         display: flex;
         align-items: center;
-        margin-bottom: 6px;
 
-        .route-icon {
-            font-size: 14px;
-            margin-right: 8px;
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+    }
+
+    .route-content {
+        flex: 1;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .route-name {
+        font-weight: 500;
+        font-size: 12px;
+        margin-bottom: 4px;
+        width: 100%;
+    }
+
+    .route-metrics {
+        display: flex;
+        justify-content: space-between;
+
+        .metric {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: #6c757d;
         }
 
-        .route-name {
-            font-weight: 500;
-            font-size: 14px;
+        .favorite-button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            color: #dc3545;
+            transition: all 0.2s ease;
 
-            &.italic {
-                font-style: italic;
-            }
-
-            .unsaved-indicator {
-                color: #6c757d;
-                font-size: 12px;
+            &:hover {
+                transform: scale(1.1);
             }
         }
     }
@@ -291,15 +298,6 @@
         }
     }
 
-    .visibility-button {
-        &.visible {
-            opacity: 1;
-        }
-
-        &:not(.visible) {
-            opacity: 0.5;
-        }
-    }
 
     .delete-button:hover {
         background: rgba(220, 53, 69, 0.2);
@@ -307,5 +305,19 @@
 
     .save-button:hover {
         background: rgba(40, 167, 69, 0.2);
+    }
+
+    .route-list-footer {
+        padding: 16px;
+        border-top: 1px solid #dee2e6;
+        background: #f8f9fa;
+        text-align: center;
+
+        p {
+            margin: 0;
+            font-size: 12px;
+            color: #6c757d;
+            font-style: italic;
+        }
     }
 </style>

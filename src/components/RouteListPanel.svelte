@@ -19,14 +19,6 @@
         dispatch('toggleVisibility', { route });
     }
 
-    function saveRoute(route: RouteDefinition) {
-        dispatch('saveRoute', { route });
-    }
-
-    function deleteRoute(route: RouteDefinition) {
-        dispatch('deleteRoute', { route });
-    }
-
     function toggleFavorite(route: RouteDefinition) {
         if (route.isSaved) {
             // Remove from favorites (unfavorite) - remove from storage but keep in memory/list
@@ -36,6 +28,31 @@
             dispatch('saveRoute', { route });
         }
     }
+
+    function toggleSelectAll() {
+        const visibleRoutes = routes.filter(route => route.isVisible);
+        const allVisible = visibleRoutes.length === routes.length;
+
+        if (allVisible) {
+            // All routes visible -> hide all
+            routes.forEach(route => {
+                if (route.isVisible) {
+                    toggleVisibility(route);
+                }
+            });
+        } else {
+            // Some or no routes visible -> show all
+            routes.forEach(route => {
+                if (!route.isVisible) {
+                    toggleVisibility(route);
+                }
+            });
+        }
+    }
+
+    $: visibleRoutes = routes.filter(route => route.isVisible);
+    $: selectAllState = visibleRoutes.length === 0 ? 'none' :
+                       visibleRoutes.length === routes.length ? 'all' : 'partial';
 
     function getRouteName(route: RouteDefinition): string {
         if (route.name) {
@@ -59,6 +76,26 @@
                 <p>Draw a route on the map by clicking to add waypoints. You need at least 2 waypoints to generate a weather forecast.</p>
             </div>
         {:else}
+            <div class="route-list-header">
+                <div class="select-all-checkbox" on:click|stopPropagation>
+                    <input
+                        type="checkbox"
+                        checked={selectAllState !== 'none'}
+                        class:partial={selectAllState === 'partial'}
+                        on:change={toggleSelectAll}
+                        title={selectAllState === 'all' ? 'Hide all routes' : 'Show all routes'}
+                    />
+                </div>
+                <button class="compare-button" disabled title="Compare routes (coming soon)">
+                    Compare
+                </button>
+                <div class="header-chevron">
+                    <svg width="20" height="14" viewBox="0 0 20 14">
+                        <path d="M0 2 L10 12 L20 2 Z" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1"/>
+                        <path d="M0 2 L20 2" stroke="#f8f9fa" stroke-width="1"/>
+                    </svg>
+                </div>
+            </div>
             <div class="route-list">
                 {#each routes as route (route.id)}
                     <div class="route-row">
@@ -122,7 +159,7 @@
 
     {#if routes.length > 0}
         <div class="route-list-footer">
-            <p>⚠️ Non-favorited routes will be lost after browser refresh</p>
+            <p>♥️ Favorited routes are saved when leaving the page</p>
         </div>
     {/if}
 </div>
@@ -185,8 +222,69 @@
         }
     }
 
+    .route-list-header {
+        padding: 8px 12px;
+        border-bottom: 1px solid #dee2e6;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        position: relative;
+        gap: 8px;
+    }
+
+    .compare-button {
+        background: #ffffff;
+        border: 1px solid #dee2e6;
+        color: #6c757d;
+        font-size: 12px;
+        cursor: not-allowed;
+        padding: 6px;
+        border-radius: 4px;
+        opacity: 0.6;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+        &:disabled {
+            cursor: not-allowed;
+            background: #f8f9fa;
+        }
+    }
+
+    .select-all-checkbox {
+        display: flex;
+        align-items: center;
+
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #007bff;
+
+            &.partial {
+                background-color: #6c757d;
+                accent-color: #6c757d;
+            }
+
+            &:checked.partial {
+                background-color: #6c757d;
+            }
+        }
+    }
+
+    .header-chevron {
+        position: absolute;
+        bottom: -12px;
+        left: 8px;
+        background: transparent;
+        z-index: 10;
+        padding: 1px;
+
+        svg {
+            display: block;
+        }
+    }
+
     .route-list {
-        padding: 8px;
+        padding-top: 8px;
     }
 
     .route-row {
@@ -234,8 +332,8 @@
 
     .route-name {
         font-weight: 500;
-        font-size: 12px;
-        margin-bottom: 4px;
+        font-size: 13px;
+        margin-bottom: 8px;
         width: 100%;
     }
 
@@ -247,7 +345,7 @@
             display: flex;
             align-items: center;
             gap: 4px;
-            font-size: 11px;
+            font-size: 12px;
             color: #6c757d;
         }
 

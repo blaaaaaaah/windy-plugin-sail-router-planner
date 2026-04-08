@@ -7,9 +7,11 @@ import { calculateGreatCircleDistance, interpolateGreatCircle, interpolateLatLng
 export class RouteEditorController {
 	private _routes: RouteDefinition[] = [];
 	private _activeRoute: RouteDefinition | null = null;
+	private _highlightedRoute: RouteDefinition | null = null;
 	private _map: L.Map;
 	private _onRouteUpdated: (route: RouteDefinition) => void;
 	private _onActiveRouteChanged: (route: RouteDefinition | null) => void;
+	private _onRouteHighlighted: (route: RouteDefinition | null) => void;
 
 
 	// Map layer management
@@ -30,11 +32,13 @@ export class RouteEditorController {
 	constructor(
 		map: L.Map,
 		onRouteUpdated: (route: RouteDefinition) => void,
-		onActiveRouteChanged: (route: RouteDefinition | null) => void
+		onActiveRouteChanged: (route: RouteDefinition | null) => void,
+		onRouteHighlighted: (route: RouteDefinition | null) => void
 	) {
 		this._map = map;
 		this._onRouteUpdated = onRouteUpdated;
 		this._onActiveRouteChanged = onActiveRouteChanged;
+		this._onRouteHighlighted = onRouteHighlighted;
 
 		// Listen for zoom changes to update distance label sizes
 		this._map.on('zoomend', this._onZoomChange.bind(this));
@@ -50,6 +54,36 @@ export class RouteEditorController {
 
 	getActiveRoute(): RouteDefinition | null {
 		return this._activeRoute;
+	}
+
+	highlightRoute(route: RouteDefinition | null): void {
+		if (this._highlightedRoute === route) {
+			return;
+		}
+
+		const previousHighlighted = this._highlightedRoute;
+		this._highlightedRoute = route;
+
+		// Handle temporary visibility for hidden routes
+		if (route && !route.isVisible) {
+			this._updateRouteDisplay(route);
+		}
+
+		// Update the previously highlighted route
+		if (previousHighlighted) {
+			if (!previousHighlighted.isVisible) {
+				this._removeRouteFromMap(previousHighlighted);
+			} else {
+				this._updateRouteLine(previousHighlighted, this._activeRoute?.id === previousHighlighted.id);
+			}
+		}
+
+		// Update the newly highlighted route
+		if (this._highlightedRoute) {
+			this._updateRouteLine(this._highlightedRoute, true);
+		}
+
+		this._onRouteHighlighted(route);
 	}
 
 	setActiveRoute(route: RouteDefinition | null): void {
@@ -218,13 +252,14 @@ export class RouteEditorController {
 	}
 
 	private _updateRouteDisplay(route: RouteDefinition): void {
-		this._updateRouteLine(route);
+		const isHighlighted = this._activeRoute?.id === route.id || this._highlightedRoute?.id === route.id;
+		this._updateRouteLine(route, isHighlighted);
 		this._updateWaypointMarkers(route);
 		this._updateDistanceLabels(route);
 		this._updateDayMarkers(route);
 	}
 
-	private _updateRouteLine(route: RouteDefinition): void {
+	private _updateRouteLine(route: RouteDefinition, isHighlighted: boolean = false): void {
 		const waypoints = route.waypoints;
 
 		// Remove existing lines if they exist
@@ -254,7 +289,7 @@ export class RouteEditorController {
 			// Create visible thin line for display
 			const polyline = L.polyline(pathPoints, {
 				color: route.color,
-				weight: this._activeRoute?.id === route.id ? 4 : 2,
+				weight: isHighlighted ? 4 : 2,
 				opacity: 0.8,
 				interactive: false
 			});
@@ -270,6 +305,17 @@ export class RouteEditorController {
 					this.setActiveRoute(route);
 				}
 			});
+
+			// Add hover handlers only for non-active routes
+			if (this._activeRoute?.id !== route.id) {
+				clickableLine.on('mouseover', (e: L.LeafletMouseEvent) => {
+					this.highlightRoute(route);
+				});
+
+				clickableLine.on('mouseout', (e: L.LeafletMouseEvent) => {
+					this.highlightRoute(null);
+				});
+			}
 
 			// Add both lines to map
 			clickableLine.addTo(this._map);
@@ -463,7 +509,7 @@ export class RouteEditorController {
 			// Update route line, distance labels, and day markers in real-time during drag
 			const newPosition = (e.target as L.Marker).getLatLng();
 			route.updateWaypoint(index, newPosition);
-			this._updateRouteLine(route);
+			this._updateRouteLine(route, true);
 			this._updateDistanceLabels(route);
 			this._updateDayMarkers(route);
 			// Prevent event propagation
@@ -476,7 +522,7 @@ export class RouteEditorController {
 		marker.on('dragend', (e: L.DragEvent) => {
 			const newPosition = (e.target as L.Marker).getLatLng();
 			route.updateWaypoint(index, newPosition);
-			this._updateRouteLine(route);
+			this._updateRouteLine(route, true);
 			this._updateDistanceLabels(route);
 			this._updateDayMarkers(route);
 
@@ -513,6 +559,17 @@ export class RouteEditorController {
 				this.setActiveRoute(route);
 			}
 		});
+
+		// Add hover handlers only for non-active routes
+		if (!isActiveRoute) {
+			marker.on('mouseover', (e) => {
+				this.highlightRoute(route);
+			});
+
+			marker.on('mouseout', (e) => {
+				this.highlightRoute(null);
+			});
+		}
 
 		return marker;
 	}
@@ -742,7 +799,7 @@ export class RouteEditorController {
 	private _updateMapHighlight(): void {
 		// Update all route lines to show which is active
 		this._routes.forEach(route => {
-			this._updateRouteLine(route);
+			this._updateRouteLine(route, this._activeRoute?.id === route.id);
 		});
 	}
 

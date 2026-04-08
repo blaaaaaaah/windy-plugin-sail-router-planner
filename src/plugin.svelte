@@ -13,10 +13,12 @@
             </div>
             <RouteListPanel
                 routes={allRoutes}
+                {highlightedRoute}
                 on:routeSelected={handleRouteSelected}
                 on:toggleVisibility={handleToggleVisibility}
                 on:saveRoute={handleSaveRoute}
                 on:deleteRoute={handleDeleteRoute}
+                on:routeHighlighted={handleRouteHighlighted}
             />
         </div>
 
@@ -98,6 +100,7 @@
 
     // Track the current route
     let activeRoute: RouteDefinition | null = null;
+    let highlightedRoute: RouteDefinition | null = null;
 
     // All routes for multi-route functionality
     let allRoutes: RouteDefinition[] = [];
@@ -185,6 +188,12 @@
         }
     }
 
+    // Callback from RouteEditorController when highlighted route changes
+    function onRouteHighlighted(route: RouteDefinition | null) {
+        // Update highlighted route state for list highlighting
+        highlightedRoute = route;
+    }
+
     // Multi-route panel handlers
     function handleRouteSelected(event: any) {
         const { route } = event.detail;
@@ -230,6 +239,11 @@
         // Update route.isSaved to false so heart icon becomes empty
         route.isSaved = false;
         allRoutes = routeEditor!.getAllRoutes();
+    }
+
+    function handleRouteHighlighted(event: any) {
+        const { route } = event.detail;
+        routeEditor!.highlightRoute(route);
     }
 
     export const onopen = (params: any) => {
@@ -350,7 +364,7 @@
 
 
     onMount(() => {
-        routeEditor = new RouteEditorController(map, onRouteUpdated, onActiveRouteChanged);
+        routeEditor = new RouteEditorController(map, onRouteUpdated, onActiveRouteChanged, onRouteHighlighted);
 
         // Initialize weather services
         windyAPI = new WindyAPI();

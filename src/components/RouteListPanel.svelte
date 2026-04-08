@@ -8,6 +8,7 @@
 
     export let routes: RouteDefinition[] = [];
     export let cachedForecasts: Map<string, RouteForecast> = new Map();
+    export let highlightedRoute: RouteDefinition | null = null;
 
     const dispatch = createEventDispatcher();
 
@@ -27,6 +28,14 @@
             // Add to favorites
             dispatch('saveRoute', { route });
         }
+    }
+
+    function onRouteHover(route: RouteDefinition) {
+        dispatch('routeHighlighted', { route });
+    }
+
+    function onRouteUnhover() {
+        dispatch('routeHighlighted', { route: null });
     }
 
     function toggleSelectAll() {
@@ -108,7 +117,7 @@
                             />
                         </div>
 
-                        <div class="route-item" class:unsaved={!route.isSaved} on:click={() => selectRoute(route)} style="border-left: 4px solid {route.color}">
+                        <div class="route-item" class:unsaved={!route.isSaved} class:highlighted={highlightedRoute?.id === route.id} on:click={() => selectRoute(route)} on:mouseover={() => onRouteHover(route)} on:mouseout={onRouteUnhover} style="border-left: 4px solid {route.color}">
                             <div class="route-content">
                                 <div class="route-name">
                                     {getRouteName(route)}
@@ -304,6 +313,10 @@
         transition: background-color 0.15s ease;
 
         &:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        &.highlighted {
             background: rgba(0, 0, 0, 0.05);
         }
 

@@ -57,6 +57,16 @@
         dispatch('saveRoute', { route });
     }
 
+    function handleColorCycle() {
+        if (route) {
+            route.cycleColor();
+            // Dispatch routeUpdated to trigger map and UI updates
+            dispatch('routeUpdated', {
+                route: route
+            });
+        }
+    }
+
     $: showExpandChevron = true;
     $: averageSpeed = calculateAverageSpeed();
     $: routeLeg = route ? {
@@ -79,6 +89,7 @@
         <div class="route-content">
             <div class="route-info">
                 <div class="route-name-row">
+                    <div class="route-color-dot" style="background-color: {route.color}" on:click|stopPropagation={handleColorCycle} title="Click to change route color"></div>
                     <div class="route-name">{route.name || ''}</div>
                     <!-- <div class="save-icon" on:click={handleSaveClick}>💾</div> -->
                 </div>
@@ -164,8 +175,23 @@
 
             .route-name-row {
                 display: flex;
-                justify-content: space-between;
                 align-items: center;
+                gap: 8px;
+            }
+
+            .route-color-dot {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                cursor: pointer;
+                flex-shrink: 0;
+                border: 1px solid rgba(0, 0, 0, 0.1);
+                transition: transform 0.2s ease;
+
+                &:hover {
+                    transform: scale(1.2);
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                }
             }
 
             .route-name {
@@ -173,6 +199,7 @@
                 color: #495057 !important;
                 font-weight: 700;
                 text-align: left;
+                flex: 1;
             }
 
             .save-icon {

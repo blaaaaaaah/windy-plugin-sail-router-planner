@@ -25,9 +25,6 @@ export class RouteEditorController {
 	// Day marker configuration
 	private _dailyDistanceNM = 150; // Default nautical miles per day
 
-	// Color cycling
-	private _colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#FF8C94', '#A8E6CF', '#C7CEEA'];
-	private _currentColorIndex = 0;
 
 	constructor(
 		map: L.Map,
@@ -177,12 +174,41 @@ export class RouteEditorController {
 		console.log('RouteEditorController destroyed and cleaned up');
 	}
 
+	/**
+	 * Find the next available color by checking which colors are least used
+	 */
+	private _getNextAvailableColor(): string {
+		const availableColors = RouteDefinition.getAvailableColors();
+		const colorUsage = new Map<string, number>();
+
+		// Initialize usage count for all colors
+		availableColors.forEach(color => colorUsage.set(color, 0));
+
+		// Count current usage
+		this._routes.forEach(route => {
+			const currentCount = colorUsage.get(route.color) || 0;
+			colorUsage.set(route.color, currentCount + 1);
+		});
+
+		// Find the color with minimum usage
+		let minUsage = Infinity;
+		let bestColor = availableColors[0];
+
+		for (const [color, usage] of colorUsage.entries()) {
+			if (usage < minUsage) {
+				minUsage = usage;
+				bestColor = color;
+			}
+		}
+
+		return bestColor;
+	}
+
 
 	loadRoute(route: RouteDefinition): void {
 		// Assign a color if not already set
 		if (!route.color) {
-			route.color = this._colors[this._currentColorIndex];
-			this._currentColorIndex = (this._currentColorIndex + 1) % this._colors.length;
+			route.color = this._getNextAvailableColor();
 		}
 
 		// Add to routes collection
@@ -215,9 +241,7 @@ export class RouteEditorController {
 
 		if (!this._activeRoute) {
 			// Create new route with next color
-			const color = this._colors[this._currentColorIndex];
-			this._currentColorIndex = (this._currentColorIndex + 1) % this._colors.length;
-
+			const color = this._getNextAvailableColor();
 			this._activeRoute = new RouteDefinition(null, color);
 			this._routes.push(this._activeRoute);
 		}

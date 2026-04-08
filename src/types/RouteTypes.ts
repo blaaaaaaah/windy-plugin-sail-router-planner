@@ -1,6 +1,9 @@
 import type { LatLng } from './Coordinates';
 import { calculateCourse, calculateGreatCircleDistance, interpolateLatLng } from '../utils/NavigationUtils';
 
+// Available route colors for cycling
+const ROUTE_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#FF8C94', '#A8E6CF', '#C7CEEA'];
+
 export interface RouteLeg {
 	startTime: number; // timestamp
 	startPoint: LatLng;
@@ -132,6 +135,30 @@ export class RouteDefinition {
 
 	set color(color: string) {
 		this._color = color;
+	}
+
+	/**
+	 * Cycle to the next available route color
+	 */
+	cycleColor(): void {
+		const currentIndex = ROUTE_COLORS.indexOf(this._color);
+		const nextIndex = (currentIndex + 1) % ROUTE_COLORS.length;
+		this._color = ROUTE_COLORS[nextIndex];
+		this._markAsUnsaved();
+	}
+
+	/**
+	 * Get all available route colors
+	 */
+	static getAvailableColors(): string[] {
+		return [...ROUTE_COLORS];
+	}
+
+	/**
+	 * Get a color by index (useful for auto-assigning colors to new routes)
+	 */
+	static getColorByIndex(index: number): string {
+		return ROUTE_COLORS[index % ROUTE_COLORS.length];
 	}
 
 	get isVisible(): boolean {

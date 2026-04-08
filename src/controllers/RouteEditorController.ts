@@ -77,7 +77,7 @@ export class RouteEditorController {
 
 		// Update the newly highlighted route
 		if (this._highlightedRoute) {
-			this._updateRouteLine(this._highlightedRoute, true);
+			this._updateRouteLine(this._highlightedRoute, false);
 		}
 
 		this._onRouteHighlighted(route);
@@ -129,6 +129,11 @@ export class RouteEditorController {
 
 		// Update progress markers for all routes immediately
 		for (const route of this._routes) {
+			if ( ! route.isVisible ) {	
+				this._hideProgressMarker(route);
+				return;
+			}
+
 			const position = route.getPositionAtTime(timestamp);
 			if (position) {
 				this._updateProgressMarker(route, position);
@@ -276,7 +281,7 @@ export class RouteEditorController {
 	}
 
 	private _updateRouteDisplay(route: RouteDefinition): void {
-		const isHighlighted = this._activeRoute?.id === route.id || this._highlightedRoute?.id === route.id;
+		const isHighlighted = this._activeRoute?.id === route.id;
 		this._updateRouteLine(route, isHighlighted);
 		this._updateWaypointMarkers(route);
 		this._updateDistanceLabels(route);
@@ -402,6 +407,10 @@ export class RouteEditorController {
 		const existingMarkers = this._waypointMarkers.get(route.id) || [];
 		existingMarkers.forEach(marker => this._map.removeLayer(marker));
 
+		if ( ! route.isVisible) {
+			return; // Don't add distance labels if route is hidden
+		}
+
 		// Create new markers
 		const markers: L.Marker[] = [];
 		waypoints.forEach((waypoint, index) => {
@@ -419,6 +428,10 @@ export class RouteEditorController {
 		// Remove existing distance labels
 		const existingLabels = this._distanceLabels.get(route.id) || [];
 		existingLabels.forEach(label => this._map.removeLayer(label));
+
+		if ( ! route.isVisible) {
+			return; // Don't add distance labels if route is hidden
+		}
 
 		// Create new distance labels if we have at least 2 waypoints
 		if (waypoints.length >= 2) {
@@ -455,6 +468,10 @@ export class RouteEditorController {
 		// Remove existing day markers
 		const existingMarkers = this._dayMarkers.get(route.id) || [];
 		existingMarkers.forEach(marker => this._map.removeLayer(marker));
+
+		if (!route.isVisible) {
+			return; // Don't add day markers if route is hidden
+		}
 
 		// Create new day markers if we have at least 2 waypoints
 		if (waypoints.length >= 2) {
@@ -823,7 +840,8 @@ export class RouteEditorController {
 	private _updateMapHighlight(): void {
 		// Update all route lines to show which is active
 		this._routes.forEach(route => {
-			this._updateRouteLine(route, this._activeRoute?.id === route.id);
+			if ( route.isVisible )
+				this._updateRouteLine(route, this._activeRoute?.id === route.id);
 		});
 	}
 

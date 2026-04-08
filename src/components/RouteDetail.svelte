@@ -143,7 +143,6 @@
                     {:else}
                         <div class="route-name" on:click={startEditingName} title="Click to edit route name">{route.name || 'Unnamed Route'}</div>
                     {/if}
-                    <!-- <div class="save-icon" on:click={handleSaveClick}>💾</div> -->
                 </div>
                 <div class="route-summary" on:click={showExpandChevron ? handleClick : undefined}>
                     <div class="departure-time">

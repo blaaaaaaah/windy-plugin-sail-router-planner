@@ -107,7 +107,7 @@ export class RouteEditorController {
 		for (const route of this._routes) {
 			if ( ! route.isVisible ) {	
 				this._hideProgressMarker(route);
-				return;
+				continue;
 			}
 
 			const position = route.getPositionAtTime(timestamp);

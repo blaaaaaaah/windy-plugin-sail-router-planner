@@ -7,7 +7,6 @@ import { calculateGreatCircleDistance, interpolateGreatCircle, interpolateLatLng
 export class RouteEditorController {
 	private _routes: RouteDefinition[] = [];
 	private _activeRoute: RouteDefinition | null = null;
-	private _highlightedRoute: RouteDefinition | null = null;
 	private _map: L.Map;
 	private _onRouteUpdated: (route: RouteDefinition) => void;
 	private _onActiveRouteChanged: (route: RouteDefinition | null) => void;
@@ -53,34 +52,11 @@ export class RouteEditorController {
 		return this._activeRoute;
 	}
 
-	highlightRoute(route: RouteDefinition | null): void {
-		if (this._highlightedRoute === route) {
-			return;
-		}
+	highlightRoute(highlightedRoute: RouteDefinition | null): void {
+		this._routes.forEach(route => this._updateRouteLine(route, 
+							highlightedRoute?.id === route.id || route.id == this._activeRoute?.id));
 
-		const previousHighlighted = this._highlightedRoute;
-		this._highlightedRoute = route;
-
-		// Handle temporary visibility for hidden routes
-		if (route && !route.isVisible) {
-			this._updateRouteDisplay(route);
-		}
-
-		// Update the previously highlighted route
-		if (previousHighlighted) {
-			if (!previousHighlighted.isVisible) {
-				this._removeRouteFromMap(previousHighlighted);
-			} else {
-				this._updateRouteLine(previousHighlighted, this._activeRoute?.id === previousHighlighted.id);
-			}
-		}
-
-		// Update the newly highlighted route
-		if (this._highlightedRoute) {
-			this._updateRouteLine(this._highlightedRoute, false);
-		}
-
-		this._onRouteHighlighted(route);
+		this._onRouteHighlighted(highlightedRoute);
 	}
 
 	setActiveRoute(route: RouteDefinition | null): void {
@@ -299,6 +275,13 @@ export class RouteEditorController {
 		const existingClickableLine = this._routeLayers.get(route.id + '_clickable');
 		if (existingClickableLine) {
 			this._map.removeLayer(existingClickableLine);
+		}
+
+		// small hack here, we abuse the isHighlighted flag to still show the hover effect on the route line even 
+		// when the route is hidden, but we don't want the "active" style
+		if ( ! route.isVisible ) {
+			if ( ! isHighlighted ) return; // Don't add route line if route is hidden (but still update if highlighted to show hover effect)
+			else isHighlighted = false
 		}
 
 		// Create new line if we have at least 2 waypoints

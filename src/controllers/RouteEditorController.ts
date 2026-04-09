@@ -53,8 +53,17 @@ export class RouteEditorController {
 	}
 
 	highlightRoute(highlightedRoute: RouteDefinition | null): void {
-		this._routes.forEach(route => this._updateRouteLine(route, 
-							highlightedRoute?.id === route.id || route.id == this._activeRoute?.id));
+		console.log("Updating route highlight. Highlighted route:", highlightedRoute ? highlightedRoute.id : 'null', "Active route:", this._activeRoute ? this._activeRoute.id : 'null');
+
+		// Use style-only updates for highlighting to prevent recursion
+		this._routes.forEach(route => {
+			const isHighlighted = highlightedRoute?.id === route.id || route.id === this._activeRoute?.id;
+			// Try style-only update first, fallback to full recreation if needed
+			if (!this._updateRouteLineStyle(route, isHighlighted)) {
+				// Line doesn't exist, create it
+				this._updateRouteLine(route, isHighlighted);
+			}
+		});
 
 		this._onRouteHighlighted(highlightedRoute);
 	}
@@ -267,8 +276,36 @@ export class RouteEditorController {
 	private _updateRouteLine(route: RouteDefinition, isHighlighted: boolean = false): void {
 		const waypoints = route.waypoints;
 
-		// Remove existing lines if they exist
+		// For style-only updates (highlighting), try updating existing line first
 		const existingLine = this._routeLayers.get(route.id);
+		if (existingLine && waypoints.length >= 2 && route.isVisible) {
+			// Only do style-only updates for visible routes
+			if (this._updateRouteLineStyle(route, isHighlighted)) {
+				return; // Style updated successfully, no recreation needed
+			}
+		}
+
+		// Handle hidden routes: remove if not highlighted, show unhighlighted if highlighted
+		if (!route.isVisible) {
+			if (!isHighlighted) {
+				// Remove hidden route when not highlighted
+				if (existingLine) {
+					this._map.removeLayer(existingLine);
+					const existingClickableLine = this._routeLayers.get(route.id + '_clickable');
+					if (existingClickableLine) {
+						this._map.removeLayer(existingClickableLine);
+					}
+					this._routeLayers.delete(route.id);
+					this._routeLayers.delete(route.id + '_clickable');
+				}
+				return;
+			} else {
+				// Show hidden route unhighlighted when highlighted (for preview)
+				isHighlighted = false;
+			}
+		}
+
+		// Remove existing lines if they exist (for recreation)
 		if (existingLine) {
 			this._map.removeLayer(existingLine);
 		}
@@ -277,12 +314,7 @@ export class RouteEditorController {
 			this._map.removeLayer(existingClickableLine);
 		}
 
-		// small hack here, we abuse the isHighlighted flag to still show the hover effect on the route line even 
-		// when the route is hidden, but we don't want the "active" style
-		if ( ! route.isVisible ) {
-			if ( ! isHighlighted ) return; // Don't add route line if route is hidden (but still update if highlighted to show hover effect)
-			else isHighlighted = false
-		}
+		// At this point, we know the route should be shown (either visible or highlighted hidden route)
 
 		// Create new line if we have at least 2 waypoints
 		if (waypoints.length >= 2) {
@@ -299,10 +331,9 @@ export class RouteEditorController {
 			});
 
 			// Create visible thin line for display
+			const styleOptions = this._getRouteLineStyle(route.color, isHighlighted);
 			const polyline = L.polyline(pathPoints, {
-				color: route.color,
-				weight: isHighlighted ? 4 : 2,
-				opacity: 0.8,
+				...styleOptions,
 				interactive: false
 			});
 
@@ -826,6 +857,45 @@ export class RouteEditorController {
 			if ( route.isVisible )
 				this._updateRouteLine(route, this._activeRoute?.id === route.id);
 		});
+	}
+
+	// Helper method to get route line style
+	private _getRouteLineStyle(color: string, isHighlighted: boolean) {
+		return {
+			color: color,
+			weight: isHighlighted ? 4 : 3,
+			opacity: isHighlighted ? 0.9 : 0.7,
+			dashArray: undefined,
+		};
+	}
+
+	// Helper method to update only the style (no recreation)
+	private _highlightRouteStyle(route: RouteDefinition, highlighted: boolean): void {
+		const existingLine = this._routeLayers.get(route.id);
+		if (existingLine) {
+			const styleOptions = this._getRouteLineStyle(route.color, highlighted);
+			existingLine.setStyle(styleOptions);
+		}
+		this._onRouteHighlighted(highlighted ? route : null);
+	}
+
+	/**
+	 * Updates route line style without recreating the line (prevents mouseover recursion)
+	 * Returns false for hidden routes that need special handling in _updateRouteLine
+	 */
+	private _updateRouteLineStyle(route: RouteDefinition, isHighlighted: boolean = false): boolean {
+		// Hidden routes need special handling in _updateRouteLine, don't do style-only updates
+		if (!route.isVisible) {
+			return false;
+		}
+
+		const existingLine = this._routeLayers.get(route.id);
+		if (existingLine) {
+			const styleOptions = this._getRouteLineStyle(route.color, isHighlighted);
+			existingLine.setStyle(styleOptions);
+			return true; // Style updated
+		}
+		return false; // Line doesn't exist, needs recreation
 	}
 
 	private _updateProgressMarker(route: RouteDefinition, position: LatLng): void {

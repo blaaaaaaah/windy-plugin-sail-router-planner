@@ -17,23 +17,21 @@ export class RouteStorage {
 
 	saveRoute(route: RouteDefinition): void {
 		const serializedRoute = serializeRoute(route);
-		const routes = this.listSerializedRoutes();
+		const routes = this.getRouteMap();
 
-		// Check if this exact route already exists
-		if (!routes.includes(serializedRoute)) {
-			routes.push(serializedRoute);
-			this.storage.setItem(RouteStorage.STORAGE_KEY, JSON.stringify(routes));
-		}
+		// Save/update route by ID
+		routes[route.id] = serializedRoute;
+		this.storage.setItem(RouteStorage.STORAGE_KEY, JSON.stringify(routes));
 
 		// Mark route as saved
 		route.isSaved = true;
 	}
 
 	listRoutes(): RouteDefinition[] {
-		const serializedRoutes = this.listSerializedRoutes();
+		const routeMap = this.getRouteMap();
 		const routes: RouteDefinition[] = [];
 
-		for (const serialized of serializedRoutes) {
+		for (const serialized of Object.values(routeMap)) {
 			const route = deserializeRoute(serialized);
 			if (route) {
 				// Mark route as saved since it was loaded from storage
@@ -50,21 +48,21 @@ export class RouteStorage {
 	}
 
 	deleteRoute(route: RouteDefinition): void {
-		const serializedRoute = serializeRoute(route);
-		const routes = this.listSerializedRoutes().filter(r => r !== serializedRoute);
+		const routes = this.getRouteMap();
+		delete routes[route.id];
 		this.storage.setItem(RouteStorage.STORAGE_KEY, JSON.stringify(routes));
 	}
 
-	private listSerializedRoutes(): string[] {
+	private getRouteMap(): Record<string, string> {
 		try {
 			const stored = this.storage.getItem(RouteStorage.STORAGE_KEY);
-			if (!stored) return [];
+			if (!stored) return {};
 
 			const routes = JSON.parse(stored);
-			return Array.isArray(routes) ? routes : [];
+			return typeof routes === 'object' && !Array.isArray(routes) ? routes : {};
 		} catch (error) {
 			console.error('Error loading routes from storage:', error);
-			return [];
+			return {};
 		}
 	}
 }

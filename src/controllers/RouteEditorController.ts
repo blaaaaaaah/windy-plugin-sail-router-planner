@@ -223,7 +223,7 @@ export class RouteEditorController {
 		if (!this._activeRoute) {
 			// Create new route with next color
 			const color = this._getNextAvailableColor();
-			this._activeRoute = new RouteDefinition(null, color);
+			this._activeRoute = new RouteDefinition(null, null, color);
 			this._routes.push(this._activeRoute);
 		}
 

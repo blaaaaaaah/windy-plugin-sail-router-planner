@@ -28,10 +28,12 @@ export function serializeRoute(route: RouteDefinition): string {
         parts.push(`s:${speeds.join(',')}`);
     }
 
-    // Visibility (only include if false, default is true)
-    if (!route.isVisible) {
-        parts.push(`v:false`);
+    // Color & name & id
+    parts.push(`c:${route.color}`);
+    if (route.name) {
+        parts.push(`n:${encodeURIComponent(route.name)}`);
     }
+    parts.push(`id:${route.id}`);
 
     return parts.join(';');
 }
@@ -57,7 +59,10 @@ export function deserializeRoute(routeString: string): RouteDefinition | null {
         const waypointsParam = params['w'];
         const departureParam = params['d'];
         const speedsParam = params['s'];
-        const visibilityParam = params['v'];
+
+        const colorParam = params['c'];
+        const nameParam = params['n'];
+        const idParam = params['id'];
 
         if (!waypointsParam) {
             return null;
@@ -76,18 +81,13 @@ export function deserializeRoute(routeString: string): RouteDefinition | null {
             throw new Error('Need at least 2 waypoints');
         }
 
-        // Create route
-        const route = new RouteDefinition();
-
-        // Set departure time
-        if (departureParam) {
-            const departureTime = parseInt(departureParam);
-            if (!isNaN(departureTime)) {
-                route.setDepartureTime(departureTime);
-            }
-        } else {
-            route.setDepartureTime(Date.now());
-        }
+        // Create route with all parameters
+        const route = new RouteDefinition(
+            idParam,
+            nameParam ? decodeURIComponent(nameParam) : null,
+            colorParam || null,
+            departureParam ? parseInt(departureParam) : null
+        );
 
         // Add waypoints
         waypointCoords.forEach(coord => {
@@ -104,10 +104,6 @@ export function deserializeRoute(routeString: string): RouteDefinition | null {
             });
         }
 
-        // Set visibility (default is true)
-        if (visibilityParam === 'false') {
-            route.isVisible = false;
-        }
 
         console.log('Deserialized route:', waypointCoords.length, 'waypoints');
         return route;
@@ -125,8 +121,11 @@ export function serializeState(route: RouteDefinition, windMode: boolean): strin
     const routePart = serializeRoute(route);
     if (!routePart) return '';
 
+    const idPart = `id:${route.id}`;
     const windPart = `wind:${windMode ? 'true' : 'apparent'}`;
-    return `${windPart};${routePart}`;
+    const visiblePart = `visible:${route.isVisible ? 'true' : 'false'}`;
+
+    return `${idPart};${windPart};${routePart};${visiblePart}`;
 }
 
 /**
@@ -150,12 +149,18 @@ export function deserializeState(stateString: string): { route: RouteDefinition;
         const windParam = params['wind'];
         const windMode: boolean = windParam ? windParam === 'true' : true;
 
+        const visibilityParam = params['visible'];
+ 
+
         // Remove wind parameter and deserialize route
-        const routeParts = stateString.split(';').filter(part => !part.startsWith('wind:'));
+        const routeParts = stateString.split(';').filter(part => !part.startsWith('wind:') && !part.startsWith('visible:'));
         const routeString = routeParts.join(';');
 
         const route = deserializeRoute(routeString);
         if (!route) return null;
+
+        if (visibilityParam === 'false')
+            route.isVisible = false;
 
         console.log('Deserialized state:', 'windMode:', windMode);
         return { route, windMode };

@@ -29,16 +29,17 @@ export class RouteDefinition {
 	private _cachedLegs: RouteLeg[] | null = null;
 
 	constructor(
+		id: string | null = null,
 		name: string | null = null,
-		color: string = '',
-		departureTime: number = Math.floor(Date.now() / (1000 * 60 * 60)) * (1000 * 60 * 60),
+		color: string | null = null,
+		departureTime: number | null = null,
 		defaultSpeed: number = 5
 	) {
-		this.id = crypto.randomUUID();
+		this.id = id || crypto.randomUUID();
 		this._name = name;
 		this._cachedGeoName = null;
 		this._color = color || '#FF6B6B';
-		this._departureTime = departureTime;
+		this._departureTime = departureTime || Math.floor(Date.now() / (1000 * 60 * 60)) * (1000 * 60 * 60);
 		this._defaultSpeed = defaultSpeed;
 	}
 
@@ -54,7 +55,6 @@ export class RouteDefinition {
 		}
 		this._clearCache();
 		this._clearGeoNameCache();
-		this._markAsUnsaved();
 	}
 
 	removeWaypoint(index: number): void {
@@ -75,7 +75,6 @@ export class RouteDefinition {
 		if (isFirstOrLast) {
 			this._clearGeoNameCache();
 		}
-		this._markAsUnsaved();
 	}
 
 	updateWaypoint(index: number, position: LatLng): void {
@@ -92,7 +91,6 @@ export class RouteDefinition {
 		if (isFirstOrLast) {
 			this._clearGeoNameCache();
 		}
-		this._markAsUnsaved();
 	}
 
 	setLegSpeed(legIndex: number, speed: number): void {
@@ -106,13 +104,11 @@ export class RouteDefinition {
 		}
 		this._legSpeeds[legIndex] = speed;
 		this._clearCache();
-		this._markAsUnsaved();
 	}
 
 	setDepartureTime(departureTime: number): void {
 		this._departureTime = departureTime;
 		this._clearCache();
-		this._markAsUnsaved();
 	}
 
 	/**
@@ -120,6 +116,13 @@ export class RouteDefinition {
 	 */
 	get name(): string | null {
 		return this._name || this._cachedGeoName;
+	}
+
+	/**
+	 * Indicates if the route has a user-defined name (as opposed to just a cached geo name)
+	 */
+	get hasName(): boolean {
+		return !!this._name;
 	}
 
 	/**
@@ -144,7 +147,6 @@ export class RouteDefinition {
 		const currentIndex = ROUTE_COLORS.indexOf(this._color);
 		const nextIndex = (currentIndex + 1) % ROUTE_COLORS.length;
 		this._color = ROUTE_COLORS[nextIndex];
-		this._markAsUnsaved();
 	}
 
 	/**
@@ -289,8 +291,5 @@ export class RouteDefinition {
 		this._cachedGeoName = null;
 	}
 
-	private _markAsUnsaved(): void {
-		this._isSaved = false;
-	}
 
 }

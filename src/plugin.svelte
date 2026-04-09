@@ -260,23 +260,8 @@
                 showTrueWind = result.windMode;
                 console.log('Loaded wind mode from route:', showTrueWind ? 'True Wind' : 'Apparent Wind');
 
-                // Use URL route string for comparison (ignoring visibility)
-                const urlRouteSerialized = params.route;
-
-                // Check if this route matches any saved route
-                const existingRoute = allRoutes.find(savedRoute => {
-                    // Test both visibility states to ignore visibility flag
-                    const savedVisible = { ...savedRoute } as RouteDefinition;
-                    const savedHidden = { ...savedRoute } as RouteDefinition;
-                    savedVisible.isVisible = true;
-                    savedHidden.isVisible = false;
-
-                    const savedVisibleSerialized = serializeState(savedVisible, result.windMode);
-                    const savedHiddenSerialized = serializeState(savedHidden, result.windMode);
-
-                    return urlRouteSerialized === savedVisibleSerialized ||
-                           urlRouteSerialized === savedHiddenSerialized;
-                });
+                // Check if this route matches any saved route by ID
+                const existingRoute = allRoutes.find(savedRoute => savedRoute.id === result.route.id);
 
                 if (existingRoute) {
                     // Found existing saved route - activate it (RouteEditorController will make it visible)
@@ -306,6 +291,10 @@
 
             logWindyRPlannerRoute(route);
 
+            if ( route.isSaved ) {
+                routeStorage!.saveRoute(route);
+            }
+
             activeRoute = routeEditor!.getActiveRoute();
 
             // Clear cached forecast since route properties changed
@@ -321,6 +310,9 @@
                 });
             }
         } else {
+            if ( route.isSaved ) {
+                routeStorage!.deleteRoute(route);
+            }
             currentForecast = null;
             route.setCachedGeoName(null);
             activeRoute = activeRoute; // Force reactivity

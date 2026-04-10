@@ -338,6 +338,10 @@ export class RouteEditorController {
 				if (this._activeRoute?.id !== route.id) {
 					console.log('Switching to route:', route.id);
 					this.setActiveRoute(route);
+				} else {
+					// If clicking on the active route, insert a waypoint at the click position
+					console.log('Inserting waypoint on active route at:', e.latlng);
+					this.onMapClick(e.latlng);
 				}
 			});
 

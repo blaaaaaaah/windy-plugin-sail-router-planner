@@ -1,4 +1,4 @@
-import type { LatLng, WindyAPIResponse } from '../types';
+import type { LatLng, RouteForecastWindow, WindyAPIResponse } from '../types';
 import { toDateWithHour } from '../utils/TimeUtils';
 
 export class WindyAPI {
@@ -29,7 +29,7 @@ export class WindyAPI {
 		return await this.get(url);
 	}
 
-	async getForecastWindow(): Promise<{ start: number; end: number; premiumStart: number }> {
+	async getForecastWindow(): Promise<RouteForecastWindow> {
 		const W = (window as any).W;
 		if (!W || !W.products || !W.products.ecmwf) {
 			throw new Error('W.products.ecmwf not available');
@@ -45,11 +45,10 @@ export class WindyAPI {
 
 		const start = new Date(ecmwfMinifest.ref).getTime();
 		const end = ecmwfCalendar.end; // Full forecast window for leg calculations
-		const premiumStart = ecmwfCalendar.premiumStart; // For API calls
+		const updated = ecmwfMinifest.update; // Date where the forecast was updated
 
 		console.log(`Forecast window: ${new Date(start).toISOString()} to ${new Date(end).toISOString()}`);
-		console.log(`Premium boundary: ${new Date(premiumStart).toISOString()}`);
-		return { start, end, premiumStart };
+		return { start, end, updated };
 	}
 
 	private async buildRoutePlannerURL(startTime: number, endTime: number, waypoints: LatLng[]): Promise<string> {

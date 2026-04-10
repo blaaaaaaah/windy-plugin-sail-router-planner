@@ -44,11 +44,19 @@ export interface PointForecast {
 	weather: number; // mapping to "icon" API response, will switch to ENUM later (SUN, OVERCAST, RAIN, ...)
 }
 
+export interface RouteForecastWindow {
+	start: number; // when the forecast window starts (timestamp in ms)
+	end: number; // when the forecast window ends (timestamp in ms)
+	updated: number; // when the forecast was last updated (timestamp in ms)
+}
+
+
 export interface RouteForecast {
 	route: RouteDefinition; // reference to access legs, distances, times, etc
 	pointForecasts: PointForecast[];
 	legStats: (WeatherStats | null)[];
 	routeStats: WeatherStats | null;
+	forecastWindow: RouteForecastWindow | null;
 }
 
 // Raw API response types

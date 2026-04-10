@@ -5,7 +5,7 @@
     import type { RouteForecast } from '../types/WeatherTypes';
     import type { RouteDefinition } from '../types/RouteTypes';
     import { formatRelativeDirection, formatPrecipitation, formatWaveHeight, formatWindSpeed } from '../utils/FormatUtils';
-    import { formatTime, formatDayDate} from '../utils/TimeUtils';
+    import { formatTime, formatWeekDayDate} from '../utils/TimeUtils';
 
     export let forecast: RouteForecast | null = null;
     export let routeColor: string = '#3498db';
@@ -694,7 +694,7 @@
             <!-- Table Header -->
             <div class="table-header">
                 <div class="time-column">Time</div>
-                <div class="weather-column" on:click={() => onMetricClick('thunder')}>Weather</div>
+                <div class="weather-column" on:click={() => onMetricClick('rain')}>Weather</div>
                 <div class="wind-column" on:click={() => onMetricClick('wind')}>Wind</div>
                 <div class="gusts-column" on:click={() => onMetricClick('gust')}>Gusts</div>
                 <div class="waves-column" on:click={() => onMetricClick('waves')}>Waves</div>
@@ -764,7 +764,7 @@
                                     {/if}
                                 {/if}
                             </div>
-                            <div class="date">{formatDayDate(data.timestamp)}</div>
+                            <div class="date">{formatWeekDayDate(data.timestamp)}</div>
                         </div>
 
                         <div class="weather-column">

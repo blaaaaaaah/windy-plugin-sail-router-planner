@@ -20,6 +20,14 @@ export function formatDayDate(timestamp: number): string {
     return `${month} ${day}`;
 }
 
+export function formatWeekDayDate(timestamp: number): string { 
+    return new Date(timestamp).toLocaleString(undefined, {
+            day: 'numeric',
+            weekday: 'short'
+    });
+}
+
+
 /**
  * Format time as "HH:MM" (e.g., "14:30")
  */

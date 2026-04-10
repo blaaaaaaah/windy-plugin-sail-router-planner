@@ -275,15 +275,7 @@ export class RouteEditorController {
 
 	private _updateRouteLine(route: RouteDefinition, isHighlighted: boolean = false): void {
 		const waypoints = route.waypoints;
-
-		// For style-only updates (highlighting), try updating existing line first
 		const existingLine = this._routeLayers.get(route.id);
-		if (existingLine && waypoints.length >= 2 && route.isVisible) {
-			// Only do style-only updates for visible routes
-			if (this._updateRouteLineStyle(route, isHighlighted)) {
-				return; // Style updated successfully, no recreation needed
-			}
-		}
 
 		// Handle hidden routes: remove if not highlighted, show unhighlighted if highlighted
 		if (!route.isVisible) {
@@ -869,15 +861,6 @@ export class RouteEditorController {
 		};
 	}
 
-	// Helper method to update only the style (no recreation)
-	private _highlightRouteStyle(route: RouteDefinition, highlighted: boolean): void {
-		const existingLine = this._routeLayers.get(route.id);
-		if (existingLine) {
-			const styleOptions = this._getRouteLineStyle(route.color, highlighted);
-			existingLine.setStyle(styleOptions);
-		}
-		this._onRouteHighlighted(highlighted ? route : null);
-	}
 
 	/**
 	 * Updates route line style without recreating the line (prevents mouseover recursion)

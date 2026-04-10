@@ -98,7 +98,8 @@ export class WeatherForecastService {
 			route,
 			pointForecasts: consolidatedForecasts,
 			legStats,
-			routeStats
+			routeStats,
+			forecastWindow
 		};
 	}
 

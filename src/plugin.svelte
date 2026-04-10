@@ -333,8 +333,8 @@
     function handleTimeHover(event: any) {
         const { timestamp } = event.detail;
 
-        // Update Windy's store - marker will react to this change
         if (timestamp) {
+            // Update Windy's store (this may be ignored for past dates without forecast data)
             store.set('timestamp', timestamp);
         }
     }
@@ -371,9 +371,15 @@
         });
         allRoutes = routeEditor!.getAllRoutes();
 
+
         // Subscribe to timestamp changes to update route marker position
         timestampSubscriptionId = store.on('timestamp', (timestamp: number) => {
             if (routeEditor) {
+                // Windy will emit the value we just gave but will emit right after the clamped value 
+                if ( currentForecast && timestamp == currentForecast.forecastWindow?.start ) {
+                    // If the timestamp is exactly at the start of the forecast window, it's a clamp from Windy. Ignore it to prevent jumping back to the start of the route.
+                    return;
+                }
                 routeEditor.setTimestamp(timestamp);
             }
         });

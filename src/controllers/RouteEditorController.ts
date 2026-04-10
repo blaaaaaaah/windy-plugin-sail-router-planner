@@ -3,6 +3,7 @@ import { RouteDefinition } from '../types/RouteTypes';
 import { markers } from '@windy/map';
 
 import { calculateGreatCircleDistance, interpolateGreatCircle, interpolateLatLng } from '../utils/NavigationUtils';
+import { formatDistance } from '../utils/FormatUtils';
 
 export class RouteEditorController {
 	private _routes: RouteDefinition[] = [];
@@ -20,9 +21,6 @@ export class RouteEditorController {
 	private _distanceLabels = new Map<string, L.Marker[]>();
 	private _dayMarkers = new Map<string, L.Marker[]>();
 	private _currentTimestamp: number | null = null;
-
-	// Day marker configuration
-	private _dailyDistanceNM = 150; // Default nautical miles per day
 
 
 	constructor(
@@ -219,6 +217,16 @@ export class RouteEditorController {
 
 	// Private method to handle native Leaflet map clicks
 	private _handleMapClick(e: L.LeafletMouseEvent): void {
+		const target = e.originalEvent.target as HTMLElement;
+		const markerPane = this._map.getPanes().markerPane;
+
+		// Only proceed if the click was NOT on the marker pane (which includes dragged markers)
+		const isMarkerPaneClick = markerPane.contains(target);
+
+		if (isMarkerPaneClick) {
+			return;
+		}
+
 		// Prevent event propagation to avoid conflicts with other map interactions
 		e.originalEvent.preventDefault();
 		e.originalEvent.stopPropagation();
@@ -228,7 +236,6 @@ export class RouteEditorController {
 	}
 
 	onMapClick(position: LatLng): void {
-
 		if (!this._activeRoute) {
 			// Create new route with next color
 			const color = this._getNextAvailableColor();
@@ -331,16 +338,13 @@ export class RouteEditorController {
 
 			// Add click handler to the invisible thicker line
 			clickableLine.on('click', (e: L.LeafletMouseEvent) => {
-				console.log('Route line clicked:', route.id, 'Current active:', this._activeRoute?.id);
 				e.originalEvent.stopPropagation();
 				e.originalEvent.preventDefault();
 
 				if (this._activeRoute?.id !== route.id) {
-					console.log('Switching to route:', route.id);
 					this.setActiveRoute(route);
 				} else {
 					// If clicking on the active route, insert a waypoint at the click position
-					console.log('Inserting waypoint on active route at:', e.latlng);
 					this.onMapClick(e.latlng);
 				}
 			});
@@ -455,8 +459,8 @@ export class RouteEditorController {
 					lng: (leg.startPoint.lng + leg.endPoint.lng) / 2
 				};
 
-				// Format distance using Windy metrics system (leg.distance is already in meters)
-				const distanceText = W.metrics.distance.convertValue(leg.distance);
+				// Format distance using utils helper (leg.distance is already in meters)
+				const distanceText = formatDistance(leg.distance);
 
 				// Create distance label marker positioned at midpoint with CSS offset
 				const label = this._createDistanceLabel(midpoint, distanceText, route.color, leg.startPoint, leg.endPoint);
@@ -595,7 +599,7 @@ export class RouteEditorController {
 		// Handle click events
 		marker.on('click', (e) => {
 			const target = e.originalEvent.target as HTMLElement;
-
+			
 			// Handle delete button click (only for active route)
 			if (target.classList.contains('waypoint-delete') && isActiveRoute) {
 				e.originalEvent.stopPropagation();

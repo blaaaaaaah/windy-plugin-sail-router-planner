@@ -94,6 +94,7 @@
     let weatherService: WeatherForecastService | null = null;
     let routeStorage: RouteStorage | null = null;
     let timestampSubscriptionId: number | null = null;
+    let forecastUpdateTimer: number | null = null;
 
     // Wind data display mode
     let showTrueWind: boolean = true;
@@ -322,6 +323,40 @@
         allRoutes = routeEditor!.getAllRoutes();
     }
 
+    async function checkForForecastUpdates() {
+        if (!weatherService) return;
+
+        console.log('Checking for forecast updates...');
+
+        // Check all cached forecasts for updates
+        let currentForecastUpdated = false;
+
+        for (const [routeId, forecast] of cachedForecasts) {
+            try {
+                const hasUpdate = await weatherService.hasUpdatedForecast(forecast);
+                if (hasUpdate) {
+                    console.log(`Forecast updated for route ${routeId}, removing from cache`);
+                    cachedForecasts.delete(routeId);
+
+                    // Check if this is the current active forecast
+                    if (activeRoute && activeRoute.id === routeId) {
+                        currentForecastUpdated = true;
+                    }
+                }
+            } catch (error) {
+                console.error(`Error checking forecast update for route ${routeId}:`, error);
+            }
+        }
+
+        // If current forecast is outdated, reload it
+        if (currentForecastUpdated) {
+            console.log('Current forecast is outdated, reloading...');
+            generateForecastFromRoute(activeRoute!);
+        } else {
+            currentForecast = currentForecast; // Force reactivity to update "Updated X minutes ago" timestamp
+        }
+    }
+
     function logWindyRPlannerRoute(route: RouteDefinition) {
         let coordinates = route.waypoints.map(wp => `${wp.lat.toFixed(4)},${wp.lng.toFixed(4)}`).join(';');
         let url = `https://www.windy.com/route-planner/boat/${coordinates}?1.370,-85.912,6,p:cities`;
@@ -384,6 +419,9 @@
             }
         });
 
+        // Start forecast update timer (check every minute)
+        forecastUpdateTimer = setInterval(checkForForecastUpdates, 60000);
+
         console.log('Weather services initialized');
     });
 
@@ -393,6 +431,11 @@
         if (timestampSubscriptionId !== null) {
             // TODO wrong usage, fix me
             store.off('timestamp', timestampSubscriptionId);
+        }
+
+        // Clean up forecast update timer
+        if (forecastUpdateTimer !== null) {
+            clearInterval(forecastUpdateTimer);
         }
 
         // Clean up route editor and all map layers/markers

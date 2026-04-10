@@ -45,7 +45,7 @@ export class WindyAPI {
 
 		const start = new Date(ecmwfMinifest.ref).getTime();
 		const end = ecmwfCalendar.end; // Full forecast window for leg calculations
-		const updated = ecmwfMinifest.update; // Date where the forecast was updated
+		const updated = new Date(ecmwfMinifest.update).getTime(); // Date where the forecast was updated
 
 		console.log(`Forecast window: ${new Date(start).toISOString()} to ${new Date(end).toISOString()}`);
 		return { start, end, updated };

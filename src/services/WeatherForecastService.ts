@@ -893,4 +893,14 @@ export class WeatherForecastService {
 			return null;
 		}
 	}
+
+	async hasUpdatedForecast(forecast: RouteForecast): Promise<boolean> {
+		try {
+			const currentForecastWindow = await this.windyAPI.getForecastWindow();
+			return currentForecastWindow.updated > forecast.forecastWindow.updated;
+		} catch (error) {
+			console.error('Error checking forecast updates:', error);
+			return false;
+		}
+	}
 }

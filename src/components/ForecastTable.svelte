@@ -5,7 +5,7 @@
     import type { RouteForecast } from '../types/WeatherTypes';
     import type { RouteDefinition } from '../types/RouteTypes';
     import { formatRelativeDirection, formatPrecipitation, formatWaveHeight, formatWindSpeed } from '../utils/FormatUtils';
-    import { formatTime, formatWeekDayDate} from '../utils/TimeUtils';
+    import { formatTime, formatWeekDayDate, formatTimeAgo } from '../utils/TimeUtils';
 
     export let forecast: RouteForecast | null = null;
     export let routeColor: string = '#3498db';
@@ -893,6 +893,15 @@
             </div>
         </section>
     </div>
+
+    <!-- Footer with forecast update timestamp -->
+    <div class="forecast-table-footer">
+        {#if forecast?.forecastWindow?.updated}
+            <p>Updated {formatTimeAgo(forecast.forecastWindow.updated)}</p>
+        {:else}
+            <p>&nbsp;</p>
+        {/if}
+    </div>
 </div>
 
 <style lang="less">
@@ -1498,6 +1507,19 @@
 
     .uiyellow {
         color: #f39c12;
+    }
+
+    .forecast-table-footer {
+        padding: 8px 16px;
+        border-top: 1px solid #dee2e6;
+        background: #f8f9fa;
+        text-align: right;
+
+        p {
+            margin: 0;
+            font-size: 12px;
+            color: #6c757d;
+        }
     }
 
 </style>

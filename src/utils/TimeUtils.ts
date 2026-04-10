@@ -65,3 +65,31 @@ export function formatDuration(durationMs: number): string {
 export function formatDateTime(timestamp: number): string {
     return `${formatDayDate(timestamp)} ${formatTime(timestamp)}`;
 }
+
+/**
+ * Format time ago relative to now
+ * Examples: "2 minutes ago", "1 hour ago", "3 days ago"
+ */
+export function formatTimeAgo(timestamp: number): string {
+    console.log('Formatting time ago for timestamp:', new Date(timestamp));
+    const now = Date.now();
+    const diffMs = now - timestamp;
+
+    if (diffMs < 0) {
+        return "just now";
+    }
+
+    const minutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+        return days === 1 ? "1 day ago" : `${days} days ago`;
+    } else if (hours > 0) {
+        return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
+    } else if (minutes > 0) {
+        return minutes === 1 ? "1 minute ago" : `${minutes} minutes ago`;
+    } else {
+        return "just now";
+    }
+}

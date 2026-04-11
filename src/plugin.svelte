@@ -32,10 +32,10 @@
             </div>
 
             <div class="forecast-container">
-                <ForecastContainer
+                <ForecastTable
                     forecast={currentForecast}
                     isLoading={isLoadingForecast}
-                    activeRoute={activeRoute}
+                    route={activeRoute}
                     showTrueWind={showTrueWind}
                     on:windModeChanged={handleWindModeChanged}
                     on:timeHover={handleTimeHover}
@@ -54,7 +54,7 @@
     import { RouteDefinition } from './types/RouteTypes';
     import { WindyAPI, WeatherForecastService, RouteStorage } from './services';
     import { RouteEditorController } from './controllers/RouteEditorController';
-    import ForecastContainer from './components/ForecastContainer.svelte';
+    import ForecastTable from './components/ForecastTable.svelte';
     import RouteListPanel from './components/RouteListPanel.svelte';
     import { serializeState, deserializeState } from './utils/RouteSerializer';
     import { setUrl } from '@windy/location';

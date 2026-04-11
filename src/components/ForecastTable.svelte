@@ -618,7 +618,7 @@
         flex-direction: column;
         height: 100%;
 
-        &.loading {
+        &.loading .table-container {
             opacity: 0.6;
             pointer-events: none;
         }

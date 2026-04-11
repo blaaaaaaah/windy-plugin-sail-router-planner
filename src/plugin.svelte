@@ -78,6 +78,7 @@
 
     import config from './pluginConfig';
     import { RouteForecast } from "./types/WeatherTypes";
+    import { Timeout } from "@windy/types";
 
     const { title } = config;
 
@@ -93,8 +94,10 @@
     let windyAPI: WindyAPI | null = null;
     let weatherService: WeatherForecastService | null = null;
     let routeStorage: RouteStorage | null = null;
-    let timestampSubscriptionId: number | null = null;
-    let forecastUpdateTimer: number | null = null;
+    let forecastUpdateTimer: Timeout | null = null;
+
+    // Store bound functions for proper cleanup
+    let timestampHandler: ((timestamp: number) => void) | null = null;
 
     // Wind data display mode
     let showTrueWind: boolean = true;
@@ -391,7 +394,16 @@
 
 
     onMount(() => {
-        routeEditor = new RouteEditorController(map, onRouteUpdated, onActiveRouteChanged, onRouteHighlighted);
+        console.log('🚀 Creating new plugin instances...');
+
+        // There's currently a windy bug where when the plugin is opened from url and not from menu, destroy is not called
+        // when the plugin is removed
+        if ( (window as any).SRPRouteEditor ) {
+            console.warn('Existing SRPRouteEditor instance found, destroying it before creating a new one');
+            (window as any).SRPRouteEditor.destroy();
+        }
+
+        (window as any).SRPRouteEditor = routeEditor = new RouteEditorController(map, onRouteUpdated, onActiveRouteChanged, onRouteHighlighted);
 
         // Initialize weather services
         windyAPI = new WindyAPI();
@@ -408,29 +420,31 @@
 
 
         // Subscribe to timestamp changes to update route marker position
-        timestampSubscriptionId = store.on('timestamp', (timestamp: number) => {
+        timestampHandler = (timestamp: number) => {
             if (routeEditor) {
-                // Windy will emit the value we just gave but will emit right after the clamped value 
+                // Windy will emit the value we just gave but will emit right after the clamped value
                 if ( currentForecast && timestamp == currentForecast.forecastWindow?.start ) {
                     // If the timestamp is exactly at the start of the forecast window, it's a clamp from Windy. Ignore it to prevent jumping back to the start of the route.
                     return;
                 }
                 routeEditor.setTimestamp(timestamp);
             }
-        });
+        };
+        store.on('timestamp', timestampHandler);
 
         // Start forecast update timer (check every minute)
         forecastUpdateTimer = setInterval(checkForForecastUpdates, 60000);
 
         console.log('Weather services initialized');
+
     });
 
     onDestroy(() => {
-
+        console.warn("plugin destroyed, cleaning up instances and subscriptions...");
         // Clean up timestamp subscription
-        if (timestampSubscriptionId !== null) {
-            // TODO wrong usage, fix me
-            store.off('timestamp', timestampSubscriptionId);
+        if (timestampHandler !== null) {
+            store.off('timestamp', timestampHandler);
+            timestampHandler = null;
         }
 
         // Clean up forecast update timer
@@ -441,7 +455,7 @@
         // Clean up route editor and all map layers/markers
         if (routeEditor) {
             routeEditor.destroy();
-            routeEditor = null;
+            (window as any).SRPRouteEditor = routeEditor = null;
         }
 
         // Clear forecast data

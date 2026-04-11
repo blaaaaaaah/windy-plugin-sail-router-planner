@@ -23,6 +23,10 @@ export class RouteEditorController {
 	private _currentTimestamp: number | null = null;
 
 
+	// Store bound function references for proper cleanup
+	private _boundHandleMapClick: (e: L.LeafletMouseEvent) => void;
+	private _boundOnZoomChange: () => void;
+
 	constructor(
 		map: L.Map,
 		onRouteUpdated: (route: RouteDefinition) => void,
@@ -34,11 +38,15 @@ export class RouteEditorController {
 		this._onActiveRouteChanged = onActiveRouteChanged;
 		this._onRouteHighlighted = onRouteHighlighted;
 
+		// Store bound function references to ensure proper cleanup
+		this._boundHandleMapClick = this._handleMapClick.bind(this);
+		this._boundOnZoomChange = this._onZoomChange.bind(this);
+
 		// Listen for zoom changes to update distance label sizes
-		this._map.on('zoomend', this._onZoomChange.bind(this));
+		this._map.on('zoomend', this._boundOnZoomChange);
 
 		// Handle map clicks directly with native Leaflet events
-		this._map.on('click', this._handleMapClick.bind(this));
+		this._map.on('click', this._boundHandleMapClick);
 	}
 
 	// Public API
@@ -142,9 +150,9 @@ export class RouteEditorController {
 
 
 	destroy(): void {
-		// Remove event listeners
-		this._map.off('click', this._handleMapClick.bind(this));
-		this._map.off('zoomend', this._onZoomChange.bind(this));
+		// Remove event listeners using the stored bound function references
+		this._map.off('click', this._boundHandleMapClick);
+		this._map.off('zoomend', this._boundOnZoomChange);
 
 		// Remove all routes from map
 		this._routes.forEach(route => this._removeRouteFromMap(route));
@@ -830,6 +838,13 @@ export class RouteEditorController {
 		if (routeLine) {
 			this._map.removeLayer(routeLine);
 			this._routeLayers.delete(route.id);
+		}
+
+		// Remove clickable route line
+		const clickableRouteLine = this._routeLayers.get(route.id + '_clickable');
+		if (clickableRouteLine) {
+			this._map.removeLayer(clickableRouteLine);
+			this._routeLayers.delete(route.id + '_clickable');
 		}
 
 		// Remove waypoint markers

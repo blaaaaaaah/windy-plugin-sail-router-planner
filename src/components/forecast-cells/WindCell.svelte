@@ -3,14 +3,14 @@
 	import DirectionIcon from './DirectionIcon.svelte';
 	import type { PointForecast } from '../../types/WeatherTypes';
 
-	export let forecast: PointForecast;
+	export let forecast: PointForecast | null;
 	export let apparent: boolean;
 	export let isGust: boolean = false;
 
-	$: weatherData = apparent ? forecast.apparent : forecast.northUp;
+	$: weatherData = apparent ? forecast?.apparent : forecast?.northUp;
 	$: windSpeed = isGust ? weatherData?.gustsSpeed : weatherData?.windSpeed;
 	$: windDirection = apparent ? weatherData?.relativeWindDirection : weatherData?.trueWindDirection;
-	$: boatCourse = apparent ? 0 : forecast.bearing;
+	$: boatCourse = apparent ? 0 : forecast?.bearing;
 
 	$: tooltip = (() => {
 		if (apparent) {

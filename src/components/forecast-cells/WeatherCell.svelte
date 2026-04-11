@@ -2,7 +2,7 @@
 	import { formatPrecipitation } from '../../utils/FormatUtils';
 	import type { PointForecast } from '../../types/WeatherTypes';
 
-	export let forecast: PointForecast;
+	export let forecast: PointForecast | null;
 
 	function getWeatherIcon(weatherCode: number): string {
 		// Map weather codes to icon paths
@@ -19,7 +19,7 @@
 </script>
 
 <div class="weather-container">
-	{#if forecast.weather != null}
+	{#if forecast?.weather != null}
 		<img
 			src="/img/icons7/png_27@2x/{getWeatherIcon(forecast.weather)}"
 			alt="Weather"
@@ -27,7 +27,7 @@
 		/>
 	{/if}
 	<div class="rain-value">
-		{forecast.precipitations != null ? formatPrecipitation(forecast.precipitations) : '--'}
+		{forecast?.precipitations != null ? formatPrecipitation(forecast.precipitations) : '--'}
 	</div>
 </div>
 

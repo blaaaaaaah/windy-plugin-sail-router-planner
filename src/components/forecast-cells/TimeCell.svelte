@@ -2,7 +2,7 @@
 	import { formatTime, formatWeekDayDate } from '../../utils/TimeUtils';
 	import type { PointForecast } from '../../types/WeatherTypes';
 
-	export let forecast: PointForecast;
+	export let forecast: PointForecast | null;
 	export let timestamp: number;
 
 	function getForecastFreshness(forecastData: any, sailingHour: number): { level: string; color: string; tooltip: string } | null {

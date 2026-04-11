@@ -5,6 +5,7 @@
     import WeatherCell from './forecast-cells/WeatherCell.svelte';
     import DirectionIcon from './forecast-cells/DirectionIcon.svelte';
     import WindCell from './forecast-cells/WindCell.svelte';
+    import WaveCell from './forecast-cells/WaveCell.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import type { RouteDefinition } from '../types/RouteTypes';
     import { formatRelativeDirection, formatPrecipitation, formatWaveHeight, formatWindSpeed } from '../utils/FormatUtils';
@@ -270,39 +271,8 @@
         }
     }
 
-    function getWindDirection(forecastData: any): number | undefined {
-        if (showTrueWind) {
-            const relativeAngle = forecastData?.northUp?.relativeWindDirection;
-            if (relativeAngle === undefined) return undefined;
-
-            // For true wind: add boat course to get absolute direction for arrow
-            // since boat icon is rotated by course angle
-            const boatCourse = forecast?.route?.legs?.[0]?.course || 0;
-            let absoluteAngle = relativeAngle + boatCourse;
-            // Normalize to 0-360
-            while (absoluteAngle < 0) absoluteAngle += 360;
-            while (absoluteAngle >= 360) absoluteAngle -= 360;
-            return absoluteAngle;
-        } else {
-            const relativeAngle = forecastData?.apparent?.relativeWindDirection;
-            if (relativeAngle === undefined) return undefined;
-
-            // For apparent wind: just convert -180 to +180 range to 0-360 for arrow rotation
-            return relativeAngle < 0 ? relativeAngle + 360 : relativeAngle;
-        }
-    }
 
 
-    // Reactive boat rotation based on showTrueWind
-    $: boatRotation = (() => {
-        if (showTrueWind) {
-            const course = forecast?.route?.legs?.[0]?.course || 0;
-            return course;
-        } else {
-            // For apparent wind, boat should face up (0 degrees)
-            return 0;
-        }
-    })();
 
     function getGustSpeed(forecastData: any): number {
         if (showTrueWind) {
@@ -356,39 +326,7 @@
         }
     }
 
-    function getWaveDirection(forecastData: any): number | undefined {
-        if (showTrueWind) {
-            return forecastData?.northUp?.wavesDirection;
-        } else {
-            // For apparent wind mode, waves still use true direction relative to boat
-            const waveDir = forecastData?.northUp?.wavesDirection;
-            const boatCourse = forecast?.route?.legs?.[0]?.course || 0;
-            if (waveDir === undefined) return undefined;
 
-            // Calculate relative to boat
-            let relative = waveDir - boatCourse;
-            while (relative > 180) relative -= 360;
-            while (relative <= -180) relative += 360;
-            return relative < 0 ? relative + 360 : relative;
-        }
-    }
-
-    function getWaveDirectionForTooltip(forecastData: any): string {
-        const period = forecastData?.northUp?.wavesPeriod;
-        const periodText = period !== undefined ? `Period: ${Math.round(period)}s\n` : '';
-
-        if (showTrueWind) {
-            const dir = forecastData?.northUp?.wavesDirection;
-            const dirText = dir !== undefined ? `Direction: ${dir.toFixed(0)}°` : 'Direction: N/A';
-            return periodText + dirText;
-        } else {
-            // In apparent mode, use the pre-calculated relative wave direction
-            const relativeDir = forecastData?.apparent?.wavesDirection;
-            if (relativeDir === undefined) return periodText + 'Direction: N/A';
-
-            return periodText + `Direction: ${formatRelativeDirection(relativeDir)}`;
-        }
-    }
 
 
 
@@ -663,20 +601,11 @@
                             index < hourlyData.length - 1 ? getSeaIndexForForecast(hourlyData[index + 1].forecast) : null,
                             getSeaIndexColor
                         )}">
-                            <div class="metric-value wave-value combined-wave" title="{getWaveDirectionForTooltip(data.forecast)}">
-                                {#if data.forecast?.northUp?.wavesHeight != null}
-                                    <div class="wave-text">
-                                        <span class="wave-height">{formatWaveHeight(data.forecast.northUp.wavesHeight)}</span>
-                                    </div>
-                                    {#if getWaveDirection(data.forecast) !== undefined}
-                                        <DirectionIcon
-                                            windDirection={getWaveDirection(data.forecast)}
-                                            boatCourse={boatRotation}
-                                        />
-                                    {/if}
-                                {:else}
-                                    <div class="wave-text">--</div>
-                                {/if}
+                            <div class="metric-value wave-value combined-wave">
+                                <WaveCell
+                                    forecast={data.forecast}
+                                    apparent={!showTrueWind}
+                                />
                             </div>
                         </div>
 

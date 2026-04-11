@@ -4,6 +4,7 @@
     import RouteDetail from './RouteDetail.svelte';
     import WeatherCell from './forecast-cells/WeatherCell.svelte';
     import DirectionIcon from './forecast-cells/DirectionIcon.svelte';
+    import WindCell from './forecast-cells/WindCell.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import type { RouteDefinition } from '../types/RouteTypes';
     import { formatRelativeDirection, formatPrecipitation, formatWaveHeight, formatWindSpeed } from '../utils/FormatUtils';
@@ -291,23 +292,6 @@
         }
     }
 
-    function getWindDirectionForTooltip(forecastData: any): string {
-        if (showTrueWind) {
-            const relativeDir = forecastData?.northUp?.relativeWindDirection;
-            const trueDir = forecastData?.northUp?.trueWindDirection;
-
-            if (relativeDir === undefined || trueDir === undefined) return 'N/A';
-
-            return `TWA: ${formatRelativeDirection(relativeDir)}\nTWD: ${trueDir.toFixed(0)}°`;
-        } else {
-            const relativeDir = forecastData?.apparent?.relativeWindDirection;
-            const trueDir = forecastData?.northUp?.trueWindDirection;
-
-            if (relativeDir === undefined || trueDir === undefined) return 'N/A';
-
-            return `AWA: ${formatRelativeDirection(relativeDir)}\nTWD: ${trueDir.toFixed(0)}°`;
-        }
-    }
 
     // Reactive boat rotation based on showTrueWind
     $: boatRotation = (() => {
@@ -639,8 +623,7 @@
 
                         <div class="weather-column">
                             <WeatherCell
-                                weatherCode={data.forecast?.weather}
-                                precipitation={data.forecast?.precipitations}
+                                forecast={data.forecast}
                             />
                         </div>
 
@@ -650,20 +633,12 @@
                             index < hourlyData.length - 1 ? getWindSpeed(hourlyData[index + 1].forecast) : null,
                             getWindColor
                         )}">
-                            <div class="metric-value combined-wind" title="{getWindDirectionForTooltip(data.forecast) || ''}">
-                                {#if getWindSpeed(data.forecast)}
-                                    <div class="wind-text">
-                                        {formatWindSpeed(getWindSpeed(data.forecast))}
-                                    </div>
-                                    {#if getWindDirection(data.forecast) !== undefined}
-                                        <DirectionIcon
-                                            windDirection={getWindDirection(data.forecast)}
-                                            boatCourse={boatRotation}
-                                        />
-                                    {/if}
-                                {:else}
-                                    <div class="wind-text">--</div>
-                                {/if}
+                            <div class="metric-value combined-wind">
+                                <WindCell
+                                    forecast={data.forecast}
+                                    apparent={!showTrueWind}
+                                    isGust={false}
+                                />
                             </div>
                         </div>
 
@@ -673,20 +648,12 @@
                             index < hourlyData.length - 1 ? getGustSpeed(hourlyData[index + 1].forecast) : null,
                             getWindColor
                         )}">
-                            <div class="metric-value combined-gust" title="{getWindDirectionForTooltip(data.forecast) || ''}">
-                                {#if getGustSpeed(data.forecast)}
-                                    <div class="gust-text">
-                                        {formatWindSpeed(getGustSpeed(data.forecast))}
-                                    </div>
-                                    {#if getWindDirection(data.forecast) !== undefined}
-                                        <DirectionIcon
-                                            windDirection={getWindDirection(data.forecast)}
-                                            boatCourse={boatRotation}
-                                        />
-                                    {/if}
-                                {:else}
-                                    <div class="gust-text">--</div>
-                                {/if}
+                            <div class="metric-value combined-gust">
+                                <WindCell
+                                    forecast={data.forecast}
+                                    apparent={!showTrueWind}
+                                    isGust={true}
+                                />
                             </div>
                         </div>
 

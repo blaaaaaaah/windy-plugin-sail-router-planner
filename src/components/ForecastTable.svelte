@@ -739,17 +739,19 @@
                     >
                         <div class="time-column">
                             <div class="time-row">
-                                <div class="time">{formatTime(data.timestamp)}</div>
-                                {#if data.forecast && getForecastFreshness(data.forecast, data.timestamp)}
-                                    {@const freshness = getForecastFreshness(data.forecast, data.timestamp)}
-                                    {#if freshness.level !== 'fresh'}
-                                        <div class="freshness-indicator" style="color: {freshness.color}" title={freshness.tooltip}>
-                                            ⚠
-                                        </div>
+                                <div class="time-line">
+                                    <div class="time">{formatTime(data.timestamp)}</div>
+                                    {#if data.forecast && getForecastFreshness(data.forecast, data.timestamp)}
+                                        {@const freshness = getForecastFreshness(data.forecast, data.timestamp)}
+                                        {#if freshness.level !== 'fresh'}
+                                            <div class="freshness-indicator" style="color: {freshness.color}" title={freshness.tooltip}>
+                                                ⚠
+                                            </div>
+                                        {/if}
                                     {/if}
-                                {/if}
+                                </div>
+                                <div class="date">{formatWeekDayDate(data.timestamp)}</div>
                             </div>
-                            <div class="date">{formatWeekDayDate(data.timestamp)}</div>
                         </div>
 
                         <div class="weather-column">
@@ -947,7 +949,7 @@
         border-bottom: 2px solid #dee2e6;
         display: flex;
         align-items: center;
-        padding: 8px 12px 8px 26px;
+        padding: 8px 16px 8px 20px;
         font-weight: 600;
         font-size: 11px;
         color: #495057;
@@ -955,19 +957,17 @@
         letter-spacing: 0.5px;
 
         .time-column {
-            width: 52px;
-            //margin-right: 9px;
-            flex-shrink: 0;
+            min-width: 60px;
+            flex: 1;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
-            text-align: left;
+            justify-content: center;
+            text-align: center;
         }
 
         .weather-column {
-            width: 47px;
-            margin-right: 9px;
-            flex-shrink: 0;
+            min-width: 60px;
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -985,9 +985,8 @@
         .wind-column,
         .gusts-column,
         .waves-column {
-            width: 60px;
-            //margin-right: 12px;
-            flex-shrink: 0;
+            min-width: 60px;
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1034,7 +1033,7 @@
     .forecast-item {
         display: flex;
         align-items: center;
-        padding: 0px 12px;
+        //padding: 0px 6px;
         //border-bottom: 1px solid #f0f0f0;
         border-left: 4px solid transparent;
         background: white;
@@ -1061,12 +1060,22 @@
     }
 
     .forecast-item .time-column {
-        width: 52px;
-        //margin-right: 9px;
-        flex-shrink: 0;
+        min-width: 60px;
+        flex: 1;
+        margin-left: 8px;
         position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
 
         .time-row {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+        }
+
+        .time-line {
             display: flex;
             align-items: center;
             gap: 4px;
@@ -1389,14 +1398,13 @@
     
 
     .forecast-item .weather-column {
-        width: 47px;
-        margin-right: 9px;
+        min-width: 60px;
+        flex: 1;
         text-align: center;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 4px;
-        flex-shrink: 0;
 
         .weather-icon {
             width: 24px;
@@ -1412,10 +1420,9 @@
 
     .forecast-item .wind-column,
     .forecast-item .gusts-column {
-        width: 60px;
-        //margin-right: 12px;
+        min-width: 60px;
+        flex: 1;
         padding: 6px;
-        flex-shrink: 0;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -1462,10 +1469,10 @@
     }
 
     .forecast-item .waves-column {
-        width: 60px;
-        //margin-right: 12px;
+        min-width: 60px;
+        flex: 1;
         padding: 6px;
-        flex-shrink: 0;
+
         display: flex;
         justify-content: center;
         align-items: center;

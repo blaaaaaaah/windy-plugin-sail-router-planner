@@ -6,6 +6,7 @@
     import type { RouteDefinition } from '../types/RouteTypes';
     import { formatRelativeDirection, formatPrecipitation, formatWaveHeight, formatWindSpeed } from '../utils/FormatUtils';
     import { formatTime, formatWeekDayDate, formatTimeAgo } from '../utils/TimeUtils';
+    import { computeSeaIndex } from '../utils/NavigationUtils';
 
     export let forecast: RouteForecast | null = null;
     export let routeColor: string = '#3498db';
@@ -68,8 +69,7 @@
 
 
     let windDetailColor:any = null
-    let wavesDetailColor:any = null
-    let wavesPeriodColor:any = null
+    let seaIndexColor:any = null
 
     // Color helper function using windDetail palette
     function getWindColor(windSpeedMs: number): string {
@@ -102,61 +102,48 @@
         return 'rgba(0, 119, 190, 0.1)'; // fallback
     }
 
-    function getWaveColor(waveHeightMeters: number): string {
-        if ( ! wavesDetailColor ) {
+    function getSeaIndexColor(seaIndex: number): string {
+        if ( ! seaIndexColor ) {
             try {
-                wavesDetailColor = new W.Color.Color({
-                    ident: "wavesDetail",
+                seaIndexColor = new W.Color.Color({
+                    ident: "seaIndex",
                     default: [
-                        [0, "rgba(255,255,255,0)"],
-                        [0.1, "rgba(255,255,255,0)"],
-                        [1, "rgb(180,180,255)"],
-                        [2.5, "rgb(254,174,0)"],
-                        [20, "rgb(255,255,255)"]
+                        [0, "rgb(243,243,243)"],      // Blue - very comfortable (< 0.6)
+                        [0.6, "rgb(34,197,94)"],    // Green - comfortable
+                        [0.9, "rgb(132,204,22)"],   // Light green - comfortable
+                        [1.2, "rgb(251,191,36)"],   // Yellow - moderate
+                        [1.6, "rgb(249,115,22)"],   // Orange - rough
+                        [2.0, "rgb(239,68,68)"],    // Red - hard
+                        [3.0, "rgb(153,27,27)"]     // Dark red - very hard
                     ]
                 });
-                console.log('wavesDetailColor created successfully');
+                console.log('seaIndexColor created successfully');
             } catch (error) {
-                console.error('Failed to create wavesDetail color:', error);
+                console.error('Failed to create seaIndex color:', error);
             }
         }
-        if (wavesDetailColor && typeof waveHeightMeters === 'number' && !isNaN(waveHeightMeters)) {
+        if (seaIndexColor && typeof seaIndex === 'number' && !isNaN(seaIndex)) {
             try {
-                return wavesDetailColor.getColor().color(waveHeightMeters);
+                return seaIndexColor.getColor().color(seaIndex);
             } catch (error) {
-                console.warn('WavesDetail color failed:', error);
+                console.warn('SeaIndex color failed:', error);
             }
         }
         return 'rgba(40, 146, 199, 0.1)'; // fallback
     }
 
-    function getWavePeriodColor(wavePeriodSeconds: number): string {
-        if ( ! wavesPeriodColor ) {
-            try {
-                wavesPeriodColor = new W.Color.Color({
-                    ident: "wavesPeriod",
-                    default: [
-                        [0, "rgba(255,255,255,0)"],
-                        [2, "rgb(151,50,222)"],      // Purple for short periods (2-3s)
-                        [3, "rgb(151,50,222)"],      // Purple for short periods
-                        [5, "rgb(254,174,0)"],       // Orange for medium periods
-                        [7, "rgb(180,180,255)"],     // Blue for long periods (8+s)
-                        [15, "rgb(180,180,255)"]
-                    ]
-                });
-                console.log('wavesPeriodColor created successfully');
-            } catch (error) {
-                console.error('Failed to create wavesPeriod color:', error);
-            }
+    function getSeaIndexForForecast(forecastData: any): number {
+        if (!forecastData?.northUp || !forecast?.route?.legs?.[0]) {
+            return 0;
         }
-        if (wavesPeriodColor && typeof wavePeriodSeconds === 'number' && !isNaN(wavePeriodSeconds)) {
-            try {
-                return wavesPeriodColor.getColor().color(wavePeriodSeconds);
-            } catch (error) {
-                console.warn('WavesPeriod color failed:', error);
-            }
-        }
-        return 'rgba(120, 120, 255, 0.1)'; // fallback
+
+        const waveHeight = forecastData.northUp.wavesHeight || 0;
+        const wavePeriod = forecastData.northUp.wavesPeriod || 8;
+        const waveDirection = forecastData.northUp.wavesDirection || 0;
+        const boatSpeed = forecast.route.legs[0].averageSpeed || 5;
+        const boatCourse = forecast.route.legs[0].course || 0;
+
+        return computeSeaIndex(waveHeight, wavePeriod, waveDirection, boatSpeed, boatCourse);
     }
 
     // Helper function to interpolate between two RGB colors
@@ -498,20 +485,19 @@
     }
 
     function getWaveDirectionForTooltip(forecastData: any): string {
+        const period = forecastData?.northUp?.wavesPeriod;
+        const periodText = period !== undefined ? `Period: ${Math.round(period)}s\n` : '';
+
         if (showTrueWind) {
             const dir = forecastData?.northUp?.wavesDirection;
-            return dir !== undefined ? `${dir.toFixed(0)}°` : 'N/A°';
+            const dirText = dir !== undefined ? `Direction: ${dir.toFixed(0)}°` : 'Direction: N/A';
+            return periodText + dirText;
         } else {
-            // In apparent mode, show wave direction relative to boat
-            const waveDir = forecastData?.northUp?.wavesDirection;
-            const boatCourse = forecast?.route?.legs?.[0]?.course || 0;
-            if (waveDir === undefined) return 'N/A°';
+            // In apparent mode, use the pre-calculated relative wave direction
+            const relativeDir = forecastData?.apparent?.wavesDirection;
+            if (relativeDir === undefined) return periodText + 'Direction: N/A';
 
-            let relative = waveDir - boatCourse;
-            while (relative > 180) relative -= 360;
-            while (relative <= -180) relative += 360;
-
-            return `${Math.abs(relative).toFixed(0)}° ${relative >= 0 ? 'S' : 'P'}`;
+            return periodText + `Direction: ${formatRelativeDirection(relativeDir)}`;
         }
     }
 
@@ -698,7 +684,6 @@
                 <div class="wind-column" on:click={() => onMetricClick('wind')}>Wind</div>
                 <div class="gusts-column" on:click={() => onMetricClick('gust')}>Gusts</div>
                 <div class="waves-column" on:click={() => onMetricClick('waves')}>Waves</div>
-                <div class="period-column" on:click={() => onMetricClick('waves')}>Period</div>
             </div>
 
             <!-- Vertical Data List -->
@@ -782,29 +767,34 @@
                             index < hourlyData.length - 1 ? getWindSpeed(hourlyData[index + 1].forecast) : null,
                             getWindColor
                         )}">
-                            <div class="metric-value">
-                                {getWindSpeed(data.forecast) ? formatWindSpeed(getWindSpeed(data.forecast)) : '--'}
-                                {#if getWindDirection(data.forecast) !== undefined}
-                                    <div class="direction-container">
-                                        <svg class="wind-dir" width="18" height="24" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
-                                            <title>{getWindDirectionForTooltip(data.forecast)}</title>
-                                            <!-- Arrow shaft -->
-                                            <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
-                                            <!-- Arrow head -->
-                                            <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
-                                        </svg>
-                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
-                                            <path d="
-                                                M35 150
-                                                L65 150
-                                                Q70 100 50 50
-                                                Q30 100 35 150
-                                                Z"
-                                                fill="white"
-                                                stroke="gray"
-                                                stroke-width="4"/>
-                                        </svg>
+                            <div class="metric-value combined-wind" title="{getWindDirectionForTooltip(data.forecast) || ''}">
+                                {#if getWindSpeed(data.forecast)}
+                                    <div class="wind-text">
+                                        {formatWindSpeed(getWindSpeed(data.forecast))}
                                     </div>
+                                    {#if getWindDirection(data.forecast) !== undefined}
+                                        <div class="direction-container">
+                                            <svg class="wind-dir" width="16" height="20" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
+                                                <!-- Arrow shaft -->
+                                                <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
+                                                <!-- Arrow head -->
+                                                <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
+                                            </svg>
+                                            <svg class="boat-icon" width="16" height="16" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
+                                                <path d="
+                                                    M35 150
+                                                    L65 150
+                                                    Q70 100 50 50
+                                                    Q30 100 35 150
+                                                    Z"
+                                                    fill="white"
+                                                    stroke="gray"
+                                                    stroke-width="4"/>
+                                            </svg>
+                                        </div>
+                                    {/if}
+                                {:else}
+                                    <div class="wind-text">--</div>
                                 {/if}
                             </div>
                         </div>
@@ -815,74 +805,73 @@
                             index < hourlyData.length - 1 ? getGustSpeed(hourlyData[index + 1].forecast) : null,
                             getWindColor
                         )}">
-                            <div class="metric-value gust-value">
-                                {getGustSpeed(data.forecast) ? formatWindSpeed(getGustSpeed(data.forecast)) : '--'}
-                                {#if getWindDirection(data.forecast) !== undefined}
-                                    <div class="direction-container">
-                                        <svg class="wind-dir" width="18" height="24" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
-                                            <title>{getWindDirectionForTooltip(data.forecast)}</title>
-                                            <!-- Arrow shaft -->
-                                            <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
-                                            <!-- Arrow head -->
-                                            <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
-                                        </svg>
-                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
-                                            <path d="
-                                                M35 150
-                                                L65 150
-                                                Q70 100 50 50
-                                                Q30 100 35 150
-                                                Z"
-                                                fill="white"
-                                                stroke="gray"
-                                                stroke-width="4"/>
-                                        </svg>
+                            <div class="metric-value combined-gust" title="{getWindDirectionForTooltip(data.forecast) || ''}">
+                                {#if getGustSpeed(data.forecast)}
+                                    <div class="gust-text">
+                                        {formatWindSpeed(getGustSpeed(data.forecast))}
                                     </div>
+                                    {#if getWindDirection(data.forecast) !== undefined}
+                                        <div class="direction-container">
+                                            <svg class="wind-dir" width="16" height="20" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
+                                                <!-- Arrow shaft -->
+                                                <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
+                                                <!-- Arrow head -->
+                                                <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
+                                            </svg>
+                                            <svg class="boat-icon" width="16" height="16" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
+                                                <path d="
+                                                    M35 150
+                                                    L65 150
+                                                    Q70 100 50 50
+                                                    Q30 100 35 150
+                                                    Z"
+                                                    fill="white"
+                                                    stroke="gray"
+                                                    stroke-width="4"/>
+                                            </svg>
+                                        </div>
+                                    {/if}
+                                {:else}
+                                    <div class="gust-text">--</div>
                                 {/if}
                             </div>
                         </div>
 
                         <div class="waves-column" style="background: {createGradientBackground(
-                            data.forecast?.northUp?.wavesHeight || 0,
-                            index > 0 ? hourlyData[index - 1].forecast?.northUp?.wavesHeight || null : null,
-                            index < hourlyData.length - 1 ? hourlyData[index + 1].forecast?.northUp?.wavesHeight || null : null,
-                            getWaveColor
+                            getSeaIndexForForecast(data.forecast),
+                            index > 0 ? getSeaIndexForForecast(hourlyData[index - 1].forecast) : null,
+                            index < hourlyData.length - 1 ? getSeaIndexForForecast(hourlyData[index + 1].forecast) : null,
+                            getSeaIndexColor
                         )}">
-                            <div class="metric-value wave-value">
-                                {data.forecast?.northUp?.wavesHeight != null ? formatWaveHeight(data.forecast.northUp.wavesHeight) : '--'}
-                                {#if getWaveDirection(data.forecast) !== undefined}
-                                    <div class="direction-container">
-                                        <svg class="wave-dir" width="18" height="24" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWaveDirection(data.forecast) + 180}deg)">
-                                            <title>{getWaveDirectionForTooltip(data.forecast)}</title>
-                                            <!-- Arrow shaft -->
-                                            <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
-                                            <!-- Arrow head -->
-                                            <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
-                                        </svg>
-                                        <svg class="boat-icon" width="18" height="18" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
-                                            <path d="
-                                                M35 150
-                                                L65 150
-                                                Q70 100 50 50
-                                                Q30 100 35 150
-                                                Z"
-                                                fill="white"
-                                                stroke="gray"
-                                                stroke-width="4"/>
-                                        </svg>
+                            <div class="metric-value wave-value combined-wave" title="{getWaveDirectionForTooltip(data.forecast)}">
+                                {#if data.forecast?.northUp?.wavesHeight != null}
+                                    <div class="wave-text">
+                                        <span class="wave-height">{formatWaveHeight(data.forecast.northUp.wavesHeight)}</span>
                                     </div>
+                                    {#if getWaveDirection(data.forecast) !== undefined}
+                                        <div class="direction-container">
+                                            <svg class="wave-dir" width="16" height="20" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWaveDirection(data.forecast) + 180}deg)">
+                                                <!-- Arrow shaft -->
+                                                <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
+                                                <!-- Arrow head -->
+                                                <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
+                                            </svg>
+                                            <svg class="boat-icon" width="16" height="16" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
+                                                <path d="
+                                                    M35 150
+                                                    L65 150
+                                                    Q70 100 50 50
+                                                    Q30 100 35 150
+                                                    Z"
+                                                    fill="white"
+                                                    stroke="gray"
+                                                    stroke-width="4"/>
+                                            </svg>
+                                        </div>
+                                    {/if}
+                                {:else}
+                                    <div class="wave-text">--</div>
                                 {/if}
-                            </div>
-                        </div>
-
-                        <div class="period-column" style="background: {createGradientBackground(
-                            data.forecast?.northUp?.wavesPeriod || 0,
-                            index > 0 ? hourlyData[index - 1].forecast?.northUp?.wavesPeriod || null : null,
-                            index < hourlyData.length - 1 ? hourlyData[index + 1].forecast?.northUp?.wavesPeriod || null : null,
-                            getWavePeriodColor
-                        )}">
-                            <div class="metric-value period-value">
-                                {data.forecast?.northUp?.wavesPeriod != null ? `${data.forecast.northUp.wavesPeriod.toFixed(1)}s` : '--'}
                             </div>
                         </div>
 
@@ -995,8 +984,7 @@
 
         .wind-column,
         .gusts-column,
-        .waves-column,
-        .period-column {
+        .waves-column {
             width: 60px;
             //margin-right: 12px;
             flex-shrink: 0;
@@ -1423,9 +1411,7 @@
     }
 
     .forecast-item .wind-column,
-    .forecast-item .waves-column,
-    .forecast-item .gusts-column,
-    .forecast-item .period-column {
+    .forecast-item .gusts-column {
         width: 60px;
         //margin-right: 12px;
         padding: 6px;
@@ -1440,13 +1426,96 @@
             font-size: 14px;
             font-weight: bold;
             color: #333;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 3px;
             text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
             position: relative;
             z-index: 1;
+            width: 100%;
+
+            &.combined-wind,
+            &.combined-gust {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 2px;
+
+                .wind-text,
+                .gust-text {
+                    font-size: 14px;
+                    font-weight: bold;
+                    line-height: 1.1;
+                    text-align: center;
+                    white-space: nowrap;
+                }
+
+                .direction-container {
+                    margin-top: -2px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    width: 20px;
+                    height: 20px;
+                }
+            }
+        }
+    }
+
+    .forecast-item .waves-column {
+        width: 60px;
+        //margin-right: 12px;
+        padding: 6px;
+        flex-shrink: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 50px;
+        position: relative;
+
+        .metric-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+            position: relative;
+            z-index: 1;
+            width: 100%;
+
+            &.combined-wave {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 2px;
+
+                .wave-text {
+                    line-height: 1.1;
+                    text-align: center;
+                    white-space: nowrap;
+
+                    .wave-height {
+                        font-size: 14px;
+                        font-weight: bold;
+                    }
+
+                    .wave-period {
+                        font-size: 10px;
+                        font-weight: 500;
+                        opacity: 0.8;
+                        margin-left: 2px;
+                    }
+                }
+
+                .direction-container {
+                    margin-top: -2px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    width: 20px;
+                    height: 20px;
+                }
+            }
         }
     }
 

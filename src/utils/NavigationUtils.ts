@@ -215,3 +215,41 @@ export function formatCoordinate(degrees: number, isLatitude: boolean): string {
 
 	return `${deg.toString().padStart(2, '0')}°${minutesFormatted}${hemisphere}`;
 }
+
+/**
+ * Compute sea comfort index for sailing conditions assessment
+ * @param waveHeight Wave height in meters
+ * @param wavePeriod Wave period in seconds
+ * @param waveDirection Wave direction in degrees (0-360)
+ * @param boatSpeed Boat speed in knots
+ * @param boatCourse Boat course in degrees (0-360)
+ * @returns Sea comfort index (lower = more comfortable)
+ */
+export function computeSeaIndex(
+	waveHeight: number,    // meters
+	wavePeriod: number,    // seconds
+	waveDirection: number, // true degrees (0-360)
+	boatSpeed: number,     // knots
+	boatCourse: number     // true degrees (0-360)
+): number {
+	// --- 1. Relative angle normalized [-180, +180]
+	let delta = ((waveDirection - boatCourse + 180) % 360) - 180;
+	if (delta < -180) delta += 360; // JS safety
+
+	const rad = delta * Math.PI / 180;
+
+	// --- 2. Wave phase speed (knots)
+	const C = 1.56 * wavePeriod;
+
+	// --- 3. Encounter factor (clamped for stability)
+	const rawFe = 1 - (boatSpeed / C) * Math.cos(rad);
+	const Fe = Math.max(0.3, rawFe);
+
+	// --- 4. Convert m -> ft
+	const H_ft = waveHeight * 3.28084;
+
+	// --- 5. Final Sea Index
+	const seaIndex = (H_ft / wavePeriod) * Fe;
+
+	return seaIndex;
+}

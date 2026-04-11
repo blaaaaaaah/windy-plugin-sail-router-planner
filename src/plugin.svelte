@@ -29,23 +29,6 @@
                 on:click={handleBackToRoutes}
             >
                 Routes
-                <span class="wind-toggle-compact">
-                    <span
-                        class="toggle-option"
-                        class:active={showTrueWind}
-                        on:click|stopPropagation={() => setShowTrueWind(true)}
-                    >
-                        True
-                    </span>
-                    <span class="toggle-separator">/</span>
-                    <span
-                        class="toggle-option"
-                        class:active={!showTrueWind}
-                        on:click|stopPropagation={() => setShowTrueWind(false)}
-                    >
-                        Apparent
-                    </span>
-                </span>
             </div>
 
             <div class="forecast-container">
@@ -112,21 +95,16 @@
     // Forecast caching
     let cachedForecasts: Map<string, RouteForecast> = new Map();
 
-    function setShowTrueWind(value: boolean) {
-        showTrueWind = value;
-
-        // Update URL to persist wind mode
-        if (activeRoute) {
-            const serializedState = serializeState(activeRoute, value);
-            setUrl(config.name, { route: serializedState });
-        } else {
-            // If no route, create minimal route with just wind mode
-        }
-    }
 
     function handleWindModeChanged(event: any) {
         const { showTrueWind: newShowTrueWind } = event.detail;
-        setShowTrueWind(newShowTrueWind);
+        showTrueWind = newShowTrueWind;
+
+        // Update URL to persist wind mode
+        if (activeRoute) {
+            const serializedState = serializeState(activeRoute, newShowTrueWind);
+            setUrl(config.name, { route: serializedState });
+        }
     }
 
     // Fetch geo name for route if needed
@@ -659,40 +637,5 @@
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     }
 
-    /* Compact wind toggle in title */
-    .wind-toggle-compact {
-        position: absolute;
-        right: 12px;
-        bottom: 12px;
-        font-size: 11px;
-        color: #ccc;
-        display: inline-flex;
-        align-items: center;
-    }
-
-    .wind-toggle-compact .toggle-option {
-        cursor: pointer;
-        transition: color 0.2s ease;
-        font-weight: 500;
-        padding: 2px 4px;
-        border-radius: 2px;
-        color: #bbb;
-    }
-
-    .wind-toggle-compact .toggle-option.active {
-        color: #fff;
-        font-weight: 600;
-        background: rgba(255, 255, 255, 0.15);
-    }
-
-    .wind-toggle-compact .toggle-option:not(.active):hover {
-        color: #fff;
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    .wind-toggle-compact .toggle-separator {
-        margin: 0 4px;
-        color: #888;
-    }
 </style>
 

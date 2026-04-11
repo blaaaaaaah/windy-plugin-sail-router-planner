@@ -25,6 +25,10 @@
     function handleRouteUpdated(event: any) {
         dispatch('routeUpdated', event.detail);
     }
+
+    function handleWindModeChanged(event: any) {
+        dispatch('windModeChanged', event.detail);
+    }
 </script>
 
 <div class="forecast-container-wrapper">
@@ -39,6 +43,7 @@
             on:timeHover={handleTimeHover}
             on:metricClick={handleMetricClick}
             on:routeUpdated={handleRouteUpdated}
+            on:windModeChanged={handleWindModeChanged}
         />
     </div>
 </div>

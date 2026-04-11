@@ -17,7 +17,7 @@
     export let isLoading: boolean = false;
     export let showTrueWind: boolean = true;
     export let route: RouteDefinition | null = null;
-
+    
     // Data that needs to be recalculated when forecast changes
     let hourlyData: any[] = [];
     let waypointPositions: any[] = [];
@@ -55,6 +55,10 @@
         refresh();
     }
 
+    $: if ( route ) {
+        hasUserScrolled = false;
+    }
+
     const dispatch = createEventDispatcher();
 
     let currentHoverIndex: number | null = null;
@@ -62,29 +66,14 @@
     let dragStartIndex: number | null = null;
     let dragDropTargetIndex: number | null = null;
     let autoScrollTimer: number | null = null;
+    let hasUserScrolled: boolean = false; // Track if user has manually scrolled to disable auto-scroll after initial load
     let tableScrollContainer: HTMLElement | null = null;
     let scrollContainer: HTMLElement | null = null;
     let rowPositions: Array<{top: number, bottom: number, index: number}> = [];
 
-
-
-    function getSeaIndexForForecast(forecastData: any): number {
-        if (!forecastData?.northUp || !forecast?.route?.legs?.[0]) {
-            return 0;
-        }
-
-        const waveHeight = forecastData.northUp.wavesHeight || 0;
-        const wavePeriod = forecastData.northUp.wavesPeriod || 8;
-        const waveDirection = forecastData.northUp.wavesDirection || 0;
-        const boatSpeed = forecast.route.legs[0].averageSpeed || 5;
-        const boatCourse = forecast.route.legs[0].course || 0;
-
-        return computeSeaIndex(waveHeight, wavePeriod, waveDirection, boatSpeed, boatCourse);
-    }
-
-
-
     
+
+    // functions to handle data generation and processing for the table
 
     function generateHourlyData() {
         if (!forecast) {
@@ -173,7 +162,16 @@
     }
 
 
+    function isCurrentHour(timestamp: number): boolean {
+        const now = Date.now();
+        const currentHourStart = Math.floor(now / (60 * 60 * 1000)) * (60 * 60 * 1000);
+        const currentHourEnd = currentHourStart + (60 * 60 * 1000);
 
+        return timestamp >= currentHourStart && timestamp < currentHourEnd;
+    }
+
+
+    // Functions to handle hover
     function handleHover(index: number | null) {
         currentHoverIndex = index;
         if (index !== null && hourlyData[index]) {
@@ -205,7 +203,7 @@
         if (!scrollContainer || !forecast || rowPositions.length === 0) return;
 
         // Only auto-scroll if currently at the top (user hasn't manually scrolled)
-        if (scrollContainer.scrollTop > 0) return;
+        if (hasUserScrolled) return;
 
         const now = Date.now();
         const departureTime = forecast.route.departureTime;
@@ -246,6 +244,8 @@
     function handleScroll() {
         if (!scrollContainer || rowPositions.length === 0) return;
 
+        hasUserScrolled = true;
+
         const scrollTop = scrollContainer.scrollTop;
         const containerHeight = scrollContainer.clientHeight;
         const centerY = scrollTop + (containerHeight / 2);
@@ -261,6 +261,8 @@
         }
     }
 
+
+
     // Helper functions to get wind data based on showTrueWind setting
     function getWindSpeed(forecastData: any): number {
         if (showTrueWind) {
@@ -270,9 +272,6 @@
         }
     }
 
-
-
-
     function getGustSpeed(forecastData: any): number {
         if (showTrueWind) {
             return forecastData?.northUp?.gustsSpeed || 0;
@@ -281,15 +280,23 @@
         }
     }
 
+    function getSeaIndexForForecast(forecastData: any): number {
+        if (!forecastData?.northUp || !forecast?.route?.legs?.[0]) {
+            return 0;
+        }
 
+        const waveHeight = forecastData.northUp.wavesHeight;
+        const wavePeriod = forecastData.northUp.wavesPeriod;
+        const waveDirection = forecastData.northUp.wavesDirection;
+        const boatSpeed = forecast.route.legs[0].averageSpeed;
+        const boatCourse = forecast.route.legs[0].course;
 
-
-
-
-    function onMetricClick(metric: string) {
-        dispatch('metricClick', { metric });
+        return computeSeaIndex(waveHeight, wavePeriod, waveDirection, boatSpeed, boatCourse);
     }
 
+
+
+    // functinos to handle drag and drop for route start time adjustment
 
     function handleDragStart(event: DragEvent, index: number) {
         isDragging = true;
@@ -391,6 +398,18 @@
     }
 
 
+
+    // functions that will dispatch events
+
+    function onMetricClick(metric: string) {
+        dispatch('metricClick', { metric });
+    }
+
+    function handleWindModeChange(trueWind: boolean) {
+        showTrueWind = trueWind;
+        dispatch('windModeChanged', { showTrueWind: trueWind });
+    }
+
     function handleLegSpeedUpdate(event: any) {
         const { legIndex, newSpeed } = event.detail;
         console.log(`Updating leg ${legIndex} speed to ${newSpeed}`);
@@ -414,13 +433,6 @@
         dispatch('routeUpdated', event.detail);
     }
 
-    function isCurrentHour(timestamp: number): boolean {
-        const now = Date.now();
-        const currentHourStart = Math.floor(now / (60 * 60 * 1000)) * (60 * 60 * 1000);
-        const currentHourEnd = currentHourStart + (60 * 60 * 1000);
-
-        return timestamp >= currentHourStart && timestamp < currentHourEnd;
-    }
 
 </script>
 
@@ -563,13 +575,34 @@
         </section>
     </div>
 
-    <!-- Footer with forecast update timestamp -->
+    <!-- Footer with wind toggle and timestamp -->
     <div class="forecast-table-footer">
-        {#if forecast?.forecastWindow?.updated}
-            <p>Updated {formatTimeAgo(forecast.forecastWindow.updated)}</p>
-        {:else}
-            <p>&nbsp;</p>
-        {/if}
+        <div class="footer-left">
+            <span class="wind-toggle">
+                <span
+                    class="toggle-option"
+                    class:active={showTrueWind}
+                    on:click={() => handleWindModeChange(true)}
+                >
+                    True
+                </span>
+                <span class="toggle-separator">/</span>
+                <span
+                    class="toggle-option"
+                    class:active={!showTrueWind}
+                    on:click={() => handleWindModeChange(false)}
+                >
+                    Apparent
+                </span>
+            </span>
+        </div>
+        <div class="footer-right">
+            {#if forecast?.forecastWindow?.updated}
+                <p>Updated {formatTimeAgo(forecast.forecastWindow.updated)}</p>
+            {:else}
+                <p>&nbsp;</p>
+            {/if}
+        </div>
     </div>
 </div>
 
@@ -643,6 +676,7 @@
         letter-spacing: 0.5px;
 
         .time-column {
+            margin-left: 8px;
             .column-base();
         }
 
@@ -656,7 +690,6 @@
         .waves-column {
             .column-base();
             .clickable-column();
-            padding: 6px;
         }
     }
 
@@ -806,12 +839,56 @@
         padding: 8px 16px;
         border-top: 1px solid #dee2e6;
         background: #f8f9fa;
-        text-align: right;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .footer-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .footer-right {
+            display: flex;
+            align-items: center;
+        }
 
         p {
             margin: 0;
             font-size: 12px;
             color: #6c757d;
+        }
+    }
+
+    .wind-toggle {
+        font-size: 12px;
+        color: #6c757d;
+        display: inline-flex;
+        align-items: center;
+
+        .toggle-option {
+            cursor: pointer;
+            transition: color 0.2s ease;
+            font-weight: 500;
+            padding: 4px 6px;
+            border-radius: 3px;
+            color: #6c757d;
+
+            &.active {
+                color: #495057;
+                font-weight: 600;
+                background: rgba(108, 117, 125, 0.1);
+            }
+
+            &:not(.active):hover {
+                color: #495057;
+                background: rgba(108, 117, 125, 0.05);
+            }
+        }
+
+        .toggle-separator {
+            margin: 0 4px;
+            color: #adb5bd;
         }
     }
 

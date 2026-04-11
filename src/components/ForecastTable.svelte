@@ -896,6 +896,8 @@
 </div>
 
 <style lang="less">
+
+    // Main Container
     .forecast-table-container {
         background: #f5f5f5;
         margin: 0;
@@ -904,19 +906,14 @@
         display: flex;
         flex-direction: column;
         height: 100%;
+
+        &.loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
     }
 
-    .forecast-table-container.loading {
-        opacity: 0.6;
-        pointer-events: none;
-    }
-
-
-    @keyframes spin {
-        from { transform: translate(-50%, -50%) rotate(0deg); }
-        to { transform: translate(-50%, -50%) rotate(360deg); }
-    }
-
+    // Container Layout
     .table-container {
         display: flex;
         flex-direction: column;
@@ -924,23 +921,34 @@
         height: 0; /* Force flex to constrain height */
     }
 
-    @keyframes pulse-green {
-        0%, 100% { box-shadow: 0 2px 6px rgba(0,0,0,0.2), 0 0 0 0 rgba(5, 150, 105, 0.7); }
-        50% { box-shadow: 0 2px 6px rgba(0,0,0,0.2), 0 0 0 6px rgba(5, 150, 105, 0); }
-    }
-
-    @keyframes pulse-drop {
-        0%, 100% { box-shadow: 0 1px 4px rgba(245, 158, 11, 0.4), 0 0 0 0 rgba(34, 197, 94, 0.7); }
-        50% { box-shadow: 0 1px 4px rgba(245, 158, 11, 0.4), 0 0 0 4px rgba(34, 197, 94, 0); }
-    }
-
-    /* Table Content */
     .table-content {
         display: flex;
         flex-direction: column;
         height: 100%;
     }
 
+    // Common column base styles
+    .column-base {
+        min-width: 60px;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .clickable-column {
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.2s ease;
+
+        &:hover {
+            background: rgba(0, 124, 186, 0.15);
+            color: #007cba;
+        }
+    }
+
+    // Table Header
     .table-header {
         position: sticky;
         top: 0;
@@ -957,52 +965,24 @@
         letter-spacing: 0.5px;
 
         .time-column {
-            min-width: 60px;
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
+            .column-base();
         }
 
         .weather-column {
-            min-width: 60px;
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background 0.2s ease;
-
-            &:hover {
-                background: rgba(0, 124, 186, 0.15);
-                color: #007cba;
-            }
+            .column-base();
+            .clickable-column();
         }
 
         .wind-column,
         .gusts-column,
         .waves-column {
-            min-width: 60px;
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background 0.2s ease;
+            .column-base();
+            .clickable-column();
             padding: 6px;
-
-            &:hover {
-                background: rgba(0, 124, 186, 0.15);
-                color: #007cba;
-            }
         }
     }
 
+    // Main table layout
     .main-table {
         display: flex;
         flex-direction: column;
@@ -1010,7 +990,6 @@
         flex: 1;
         height: 0; /* Force flex to constrain height */
     }
-
 
     .data-table {
         flex: 1;
@@ -1030,11 +1009,10 @@
         overflow: visible;
     }
 
+    // Forecast item base styles
     .forecast-item {
         display: flex;
         align-items: center;
-        //padding: 0px 6px;
-        //border-bottom: 1px solid #f0f0f0;
         border-left: 4px solid transparent;
         background: white;
         transition: background 0.2s ease;
@@ -1051,12 +1029,11 @@
 
         &.current-hour {
             background: #e6e6e6;
-        }
 
-        &.current-hour.in-route {
-            background: rgba(var(--route-color-rgb), 0.15);
+            &.in-route {
+                background: rgba(var(--route-color-rgb), 0.15);
+            }
         }
-
     }
 
     .forecast-item .time-column {
@@ -1117,7 +1094,6 @@
         border-bottom: none;
         cursor: grab;
         z-index: 20;
-        //margin: 2px 0;
         border-left: 4px solid var(--route-color);
         overflow: visible;
         border-top: 2px solid white;
@@ -1128,30 +1104,6 @@
             cursor: grabbing;
         }
 
-        &.waypoint-row {
-            cursor: pointer;
-            //background: rgba(var(--route-color-rgb), 0.15);
-            transition: all 0.2s ease;
-
-            &:hover {
-                background: rgba(var(--route-color-rgb), 0.25);
-            }
-
-            .waypoint-number {
-                background: var(--route-color);
-                opacity: 0.8;
-            }
-        }
-
-        &.destination-waypoint {
-            cursor: default;
-
-            &:hover {
-                background: rgba(var(--route-color-rgb), 0.8); // Keep original background
-            }
-        }
-
-
         .start-beanie-content {
             display: flex;
             align-items: center;
@@ -1159,66 +1111,6 @@
             width: 100%;
             position: relative;
             height: 100%;
-        }
-
-        .waypoint-info {
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: center;
-            //margin-left: 24px;
-            flex: 1;
-            padding-right: 30px;
-
-            .leg-datetime,
-            .leg-distance,
-            .leg-speed,
-            .leg-duration {
-                font-size: 10px;
-                color: #333 !important;
-                font-weight: 500;
-                line-height: 1;
-                white-space: nowrap;
-                flex: 1;
-                text-align: center;
-            }
-
-            .leg-datetime {
-                text-align: left;
-                flex: 1.5; /* Give more space for datetime since it's longer */
-            }
-
-            .leg-placeholder {
-                font-size: 10px;
-                color: #6c757d !important;
-                font-style: italic;
-                text-align: left;
-                flex: 1.5;
-            }
-        }
-
-        .waypoint-speed {
-            font-size: 10px;
-            color: #333 !important;
-            font-weight: 500;
-            line-height: 1;
-            margin-left: auto;
-            padding-right: 20px;
-        }
-
-        .expand-chevron {
-            position: absolute;
-            right: 6px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 12px;
-            color: #666 !important;
-            transition: transform 0.2s ease;
-            pointer-events: none;
-
-            &.rotated {
-                transform: translateY(-50%) rotate(180deg);
-            }
         }
 
         .waypoint-number {
@@ -1253,147 +1145,8 @@
             font-weight: 500;
             margin-left: 24px;
         }
-
     }
 
-    .waypoint-row-container {
-        position: relative;
-    }
-
-    .leg-detail-wrapper {
-        border-left: 4px solid var(--route-color);
-        border-bottom: 1px solid var(--route-color);
-    }
-
-    .waypoint-expanded {
-        background: rgba(var(--route-color-rgb), 0.08);
-        border-left: 4px solid var(--route-color);
-        border-bottom: 1px solid var(--route-color);
-        padding: 12px 16px;
-        margin: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease-out, padding 0.3s ease-out;
-
-        .expanded-content {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .leg-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            align-items: flex-end;
-            margin-bottom: 12px;
-        }
-
-        .leg-item {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-
-            label {
-                font-weight: 600;
-                color: #444 !important;
-                font-size: 9px;
-                text-transform: uppercase;
-                letter-spacing: 0.4px;
-                text-align: center;
-            }
-
-            .value {
-                color: #555 !important;
-                font-size: 12px;
-                font-weight: 600;
-                text-align: center;
-            }
-        }
-
-        .leg-item.speed-input {
-            .input-group {
-                display: flex;
-                align-items: center;
-                gap: 4px;
-                height: 12px; /* Match the line-height of .value elements */
-            }
-
-            .compact-input {
-                width: 45px;
-                padding: 0 6px;
-                border: 1px solid #ddd;
-                border-radius: 3px;
-                font-size: 10px;
-                font-weight: 600;
-                text-align: center;
-                background: white;
-                color: #333 !important;
-                height: 14px; /* Match the height of .value text */
-                line-height: 16px;
-
-                &:focus {
-                    outline: none;
-                    border-color: var(--route-color);
-                    box-shadow: 0 0 0 2px rgba(var(--route-color-rgb), 0.2);
-                }
-            }
-
-            .unit {
-                font-size: 10px;
-                color: #666 !important;
-                font-weight: 500;
-            }
-        }
-
-
-        .leg-stat {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-
-            label {
-                font-weight: 600;
-                color: #444 !important;
-                font-size: 10px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-
-            input {
-                width: 100%;
-                padding: 6px 8px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                font-size: 11px;
-                background: white;
-                color: #333 !important;
-
-                &:focus {
-                    outline: none;
-                    border-color: var(--route-color);
-                    box-shadow: 0 0 0 2px rgba(var(--route-color-rgb), 0.2);
-                }
-            }
-
-            .unit {
-                font-size: 10px;
-                color: #666 !important;
-                margin-left: 4px;
-            }
-
-            &.readonly {
-                span {
-                    color: #555 !important;
-                    font-size: 11px;
-                    font-weight: 500;
-                    padding: 6px 0;
-                    display: block;
-                }
-            }
-        }
-    }
 
     
 
@@ -1418,14 +1171,10 @@
         }
     }
 
-    .forecast-item .wind-column,
-    .forecast-item .gusts-column {
-        min-width: 60px;
-        flex: 1;
+    // Common metric column styles
+    .metric-column-base {
+        .column-base();
         padding: 6px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
         min-height: 50px;
         position: relative;
 
@@ -1437,153 +1186,98 @@
             position: relative;
             z-index: 1;
             width: 100%;
+        }
 
-            &.combined-wind,
-            &.combined-gust {
+        .combined-metric {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+
+            .direction-container {
+                margin-top: -2px;
                 display: flex;
-                flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                gap: 2px;
+                position: relative;
+                width: 20px;
+                height: 20px;
+            }
+        }
 
-                .wind-text,
-                .gust-text {
+        .metric-text {
+            font-size: 14px;
+            font-weight: bold;
+            line-height: 1.1;
+            text-align: center;
+            white-space: nowrap;
+        }
+    }
+
+    // Forecast item columns
+    .forecast-item {
+        .wind-column,
+        .gusts-column {
+            .metric-column-base();
+
+            .metric-value.combined-wind,
+            .metric-value.combined-gust {
+                .combined-metric();
+            }
+
+            .wind-text,
+            .gust-text {
+                .metric-text();
+            }
+        }
+
+        .waves-column {
+            .metric-column-base();
+
+            .metric-value.combined-wave {
+                .combined-metric();
+            }
+
+            .wave-text {
+                .metric-text();
+
+                .wave-height {
                     font-size: 14px;
                     font-weight: bold;
-                    line-height: 1.1;
-                    text-align: center;
-                    white-space: nowrap;
                 }
 
-                .direction-container {
-                    margin-top: -2px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    position: relative;
-                    width: 20px;
-                    height: 20px;
+                .wave-period {
+                    font-size: 10px;
+                    font-weight: 500;
+                    opacity: 0.8;
+                    margin-left: 2px;
                 }
             }
         }
     }
 
-    .forecast-item .waves-column {
-        min-width: 60px;
-        flex: 1;
-        padding: 6px;
-
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 50px;
-        position: relative;
-
-        .metric-value {
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-            position: relative;
-            z-index: 1;
-            width: 100%;
-
-            &.combined-wave {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                gap: 2px;
-
-                .wave-text {
-                    line-height: 1.1;
-                    text-align: center;
-                    white-space: nowrap;
-
-                    .wave-height {
-                        font-size: 14px;
-                        font-weight: bold;
-                    }
-
-                    .wave-period {
-                        font-size: 10px;
-                        font-weight: 500;
-                        opacity: 0.8;
-                        margin-left: 2px;
-                    }
-                }
-
-                .direction-container {
-                    margin-top: -2px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    position: relative;
-                    width: 20px;
-                    height: 20px;
-                }
-            }
-        }
-    }
-
-    .wind-column {
-        .wind-speed {
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 2px;
-        }
-
-        .gust-speed {
-            font-size: 11px;
-            color: #666;
-            font-weight: 500;
-        }
-    }
-
-    .direction-container {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 20px;
-        height: 20px;
-    }
-
-    .wind-dir, .wave-dir {
+    // Direction icons common styles
+    .direction-icon-base {
         position: absolute;
         top: 50%;
         left: 50%;
         transform-origin: center;
         transform: translate(-50%, -50%) rotate(0deg);
         transition: transform 0.3s ease;
+    }
+
+    .wind-dir,
+    .wave-dir {
+        .direction-icon-base();
         z-index: 2;
     }
 
     .boat-icon {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform-origin: center;
-        transform: translate(-50%, -50%) rotate(0deg);
-        transition: transform 0.3s ease;
+        .direction-icon-base();
         z-index: 1;
     }
 
-
-
-
-
-    .bg-gray-dark {
-        background: #34495e;
-    }
-
-    .uiyellow {
-        color: #f39c12;
-    }
 
     .forecast-table-footer {
         padding: 8px 16px;

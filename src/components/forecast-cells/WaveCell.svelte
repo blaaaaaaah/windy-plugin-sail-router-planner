@@ -55,12 +55,12 @@
 
 <style lang="less">
 	.wave-text {
-		color: #333;
 		font-size: 12px;
+		color: #999;
 	}
 
 	.wave-height {
-		font-size: 12px;
+		color: #333;
 		font-weight: 500;
 	}
 </style>

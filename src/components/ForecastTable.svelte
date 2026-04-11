@@ -3,13 +3,12 @@
     import LegWaypoint from './LegWaypoint.svelte';
     import RouteDetail from './RouteDetail.svelte';
     import WeatherCell from './forecast-cells/WeatherCell.svelte';
-    import DirectionIcon from './forecast-cells/DirectionIcon.svelte';
     import WindCell from './forecast-cells/WindCell.svelte';
     import WaveCell from './forecast-cells/WaveCell.svelte';
+    import TimeCell from './forecast-cells/TimeCell.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import type { RouteDefinition } from '../types/RouteTypes';
-    import { formatRelativeDirection, formatPrecipitation, formatWaveHeight, formatWindSpeed } from '../utils/FormatUtils';
-    import { formatTime, formatWeekDayDate, formatTimeAgo } from '../utils/TimeUtils';
+    import { formatTime, formatTimeAgo } from '../utils/TimeUtils';
     import { computeSeaIndex } from '../utils/NavigationUtils';
     import { getWindColor, getSeaIndexColor, createGradientBackground, hexToRgb } from '../utils/ColorUtils';
 
@@ -282,49 +281,6 @@
         }
     }
 
-    function getForecastFreshness(forecastData: any, sailingHour: number): { level: string; color: string; tooltip: string } | null {
-        if (!forecastData?.forecastTimestamp) {
-            return null;
-        }
-
-        // Calculate the absolute time difference in minutes first
-        const timeDiffMinutes = Math.abs(sailingHour - forecastData.forecastTimestamp) / (1000 * 60);
-        const hoursDiff = timeDiffMinutes / 60;
-
-        const forecastTimeStr = new Date(forecastData.forecastTimestamp).toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: false
-        });
-
-        if (timeDiffMinutes < 90) { // Less than 1.5 hours
-            return {
-                level: 'fresh',
-                color: '#22c55e', // green
-                tooltip: `Fresh forecast from ${forecastTimeStr}`
-            };
-        } else if (hoursDiff < 6) {
-            return {
-                level: 'good',
-                color: '#eab308', // yellow
-                tooltip: `Forecast from ${forecastTimeStr} (${Math.round(hoursDiff)}h off)`
-            };
-        } else if (hoursDiff < 12) {
-            return {
-                level: 'stale',
-                color: '#f97316', // orange
-                tooltip: `Stale forecast from ${forecastTimeStr} (${Math.round(hoursDiff)}h off)`
-            };
-        } else {
-            return {
-                level: 'very-stale',
-                color: '#ef4444', // red
-                tooltip: `Very stale forecast from ${forecastTimeStr} (${Math.round(hoursDiff)}h off)`
-            };
-        }
-    }
 
 
 
@@ -543,20 +499,10 @@
                         on:drop|preventDefault={(e) => handleDrop(e, index)}
                     >
                         <div class="time-column">
-                            <div class="time-row">
-                                <div class="time-line">
-                                    <div class="time">{formatTime(data.timestamp)}</div>
-                                    {#if data.forecast && getForecastFreshness(data.forecast, data.timestamp)}
-                                        {@const freshness = getForecastFreshness(data.forecast, data.timestamp)}
-                                        {#if freshness.level !== 'fresh'}
-                                            <div class="freshness-indicator" style="color: {freshness.color}" title={freshness.tooltip}>
-                                                ⚠
-                                            </div>
-                                        {/if}
-                                    {/if}
-                                </div>
-                                <div class="date">{formatWeekDayDate(data.timestamp)}</div>
-                            </div>
+                            <TimeCell
+                                forecast={data.forecast}
+                                timestamp={data.timestamp}
+                            />
                         </div>
 
                         <div class="weather-column">
@@ -768,53 +714,6 @@
         }
     }
 
-    .forecast-item .time-column {
-        min-width: 60px;
-        flex: 1;
-        margin-left: 8px;
-        position: relative;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-
-        .time-row {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 2px;
-        }
-
-        .time-line {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .time {
-            font-weight: bold;
-            font-size: 13px;
-            color: #333;
-            line-height: 1.2;
-        }
-
-        .freshness-indicator {
-            font-size: 12px;
-            cursor: help;
-            line-height: 1;
-            opacity: 0.8;
-
-            &:hover {
-                opacity: 1;
-                transform: scale(1.1);
-            }
-        }
-
-        .date {
-            font-size: 10px;
-            color: #666;
-            margin-top: 2px;
-        }
-    }
 
     .start-beanie-row {
         height: 18px;
@@ -882,91 +781,24 @@
 
     
 
-    .forecast-item .weather-column {
-        min-width: 60px;
-        flex: 1;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-    }
-
-    // Common metric column styles
-    .metric-column-base {
-        .column-base();
-        padding: 6px;
-        min-height: 50px;
-        position: relative;
-
-        .metric-value {
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-            position: relative;
-            z-index: 1;
-            width: 100%;
-        }
-
-        .combined-metric {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 2px;
-        }
-
-        .metric-text {
-            font-size: 14px;
-            font-weight: bold;
-            line-height: 1.1;
-            text-align: center;
-            white-space: nowrap;
-        }
-    }
-
     // Forecast item columns
     .forecast-item {
+        .time-column,
+        .weather-column,
         .wind-column,
-        .gusts-column {
-            .metric-column-base();
-
-            .metric-value.combined-wind,
-            .metric-value.combined-gust {
-                .combined-metric();
-            }
-
-            .wind-text,
-            .gust-text {
-                .metric-text();
-            }
+        .gusts-column,
+        .waves-column {
+            .column-base();
+            min-height: 50px;
+            position: relative;
         }
 
-        .waves-column {
-            .metric-column-base();
-
-            .metric-value.combined-wave {
-                .combined-metric();
-            }
-
-            .wave-text {
-                .metric-text();
-
-                .wave-height {
-                    font-size: 14px;
-                    font-weight: bold;
-                }
-
-                .wave-period {
-                    font-size: 10px;
-                    font-weight: 500;
-                    opacity: 0.8;
-                    margin-left: 2px;
-                }
-            }
+        .time-column {
+            margin-left: 8px;
         }
     }
+
+
 
 
 

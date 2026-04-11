@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { formatPrecipitation } from '../../utils/FormatUtils';
+	import type { PointForecast } from '../../types/WeatherTypes';
 
-	export let weatherCode: number | null | undefined;
-	export let precipitation: number | null | undefined;
+	export let forecast: PointForecast;
 
 	function getWeatherIcon(weatherCode: number): string {
 		// Map weather codes to icon paths
@@ -18,18 +18,28 @@
 	}
 </script>
 
-{#if weatherCode != null}
-	<img
-		src="/img/icons7/png_27@2x/{getWeatherIcon(weatherCode)}"
-		alt="Weather"
-		class="weather-icon"
-	/>
-{/if}
-<div class="rain-value">
-	{precipitation != null ? formatPrecipitation(precipitation) : '--'}
+<div class="weather-container">
+	{#if forecast.weather != null}
+		<img
+			src="/img/icons7/png_27@2x/{getWeatherIcon(forecast.weather)}"
+			alt="Weather"
+			class="weather-icon"
+		/>
+	{/if}
+	<div class="rain-value">
+		{forecast.precipitations != null ? formatPrecipitation(forecast.precipitations) : '--'}
+	</div>
 </div>
 
 <style lang="less">
+	.weather-container {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4px;
+		text-align: center;
+	}
+
 	.weather-icon {
 		width: 24px;
 		height: 24px;

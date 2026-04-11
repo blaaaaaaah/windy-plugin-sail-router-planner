@@ -214,7 +214,7 @@ export class WeatherForecastService {
 
 		// Consolidate each hour's forecasts
 		const consolidatedForecasts: PointForecast[] = [];
-		for (const [hour, forecasts] of hourlyGroups) {
+		for (const [, forecasts] of hourlyGroups) {
 			// If multiple forecasts for the same hour, average them
 			// This happens when we cover a distance range that spans multiple API data points
 			let consolidatedForecast: PointForecast;
@@ -895,6 +895,9 @@ export class WeatherForecastService {
 	}
 
 	async hasUpdatedForecast(forecast: RouteForecast): Promise<boolean> {
+		if ( !forecast?.forecastWindow?.updated) {	
+			return false;
+		}
 		try {
 			const currentForecastWindow = await this.windyAPI.getForecastWindow();
 			return currentForecastWindow.updated > forecast.forecastWindow.updated;

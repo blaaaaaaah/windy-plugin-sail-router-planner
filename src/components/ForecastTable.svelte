@@ -3,6 +3,7 @@
     import LegWaypoint from './LegWaypoint.svelte';
     import RouteDetail from './RouteDetail.svelte';
     import WeatherCell from './forecast-cells/WeatherCell.svelte';
+    import DirectionIcon from './forecast-cells/DirectionIcon.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import type { RouteDefinition } from '../types/RouteTypes';
     import { formatRelativeDirection, formatPrecipitation, formatWaveHeight, formatWindSpeed } from '../utils/FormatUtils';
@@ -655,25 +656,10 @@
                                         {formatWindSpeed(getWindSpeed(data.forecast))}
                                     </div>
                                     {#if getWindDirection(data.forecast) !== undefined}
-                                        <div class="direction-container">
-                                            <svg class="wind-dir" width="16" height="20" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
-                                                <!-- Arrow shaft -->
-                                                <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
-                                                <!-- Arrow head -->
-                                                <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
-                                            </svg>
-                                            <svg class="boat-icon" width="16" height="16" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
-                                                <path d="
-                                                    M35 150
-                                                    L65 150
-                                                    Q70 100 50 50
-                                                    Q30 100 35 150
-                                                    Z"
-                                                    fill="white"
-                                                    stroke="gray"
-                                                    stroke-width="4"/>
-                                            </svg>
-                                        </div>
+                                        <DirectionIcon
+                                            windDirection={getWindDirection(data.forecast)}
+                                            boatCourse={boatRotation}
+                                        />
                                     {/if}
                                 {:else}
                                     <div class="wind-text">--</div>
@@ -693,25 +679,10 @@
                                         {formatWindSpeed(getGustSpeed(data.forecast))}
                                     </div>
                                     {#if getWindDirection(data.forecast) !== undefined}
-                                        <div class="direction-container">
-                                            <svg class="wind-dir" width="16" height="20" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWindDirection(data.forecast) + 180}deg)">
-                                                <!-- Arrow shaft -->
-                                                <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
-                                                <!-- Arrow head -->
-                                                <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
-                                            </svg>
-                                            <svg class="boat-icon" width="16" height="16" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
-                                                <path d="
-                                                    M35 150
-                                                    L65 150
-                                                    Q70 100 50 50
-                                                    Q30 100 35 150
-                                                    Z"
-                                                    fill="white"
-                                                    stroke="gray"
-                                                    stroke-width="4"/>
-                                            </svg>
-                                        </div>
+                                        <DirectionIcon
+                                            windDirection={getWindDirection(data.forecast)}
+                                            boatCourse={boatRotation}
+                                        />
                                     {/if}
                                 {:else}
                                     <div class="gust-text">--</div>
@@ -731,25 +702,10 @@
                                         <span class="wave-height">{formatWaveHeight(data.forecast.northUp.wavesHeight)}</span>
                                     </div>
                                     {#if getWaveDirection(data.forecast) !== undefined}
-                                        <div class="direction-container">
-                                            <svg class="wave-dir" width="16" height="20" viewBox="0 0 20 27" style="transform: translate(-50%, -50%) rotate({getWaveDirection(data.forecast) + 180}deg)">
-                                                <!-- Arrow shaft -->
-                                                <line x1="10" y1="22.5" x2="10" y2="4.5" stroke="#007cba" stroke-width="1"/>
-                                                <!-- Arrow head -->
-                                                <polygon points="10,1.8 7,7.2 13,7.2" fill="#007cba"/>
-                                            </svg>
-                                            <svg class="boat-icon" width="16" height="16" viewBox="0 0 100 200" style="transform: translate(-50%, -50%) rotate({boatRotation}deg)">
-                                                <path d="
-                                                    M35 150
-                                                    L65 150
-                                                    Q70 100 50 50
-                                                    Q30 100 35 150
-                                                    Z"
-                                                    fill="white"
-                                                    stroke="gray"
-                                                    stroke-width="4"/>
-                                            </svg>
-                                        </div>
+                                        <DirectionIcon
+                                            windDirection={getWaveDirection(data.forecast)}
+                                            boatCourse={boatRotation}
+                                        />
                                     {/if}
                                 {:else}
                                     <div class="wave-text">--</div>
@@ -1063,16 +1019,6 @@
             align-items: center;
             justify-content: center;
             gap: 2px;
-
-            .direction-container {
-                margin-top: -2px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                position: relative;
-                width: 20px;
-                height: 20px;
-            }
         }
 
         .metric-text {
@@ -1126,26 +1072,6 @@
         }
     }
 
-    // Direction icons common styles
-    .direction-icon-base {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform-origin: center;
-        transform: translate(-50%, -50%) rotate(0deg);
-        transition: transform 0.3s ease;
-    }
-
-    .wind-dir,
-    .wave-dir {
-        .direction-icon-base();
-        z-index: 2;
-    }
-
-    .boat-icon {
-        .direction-icon-base();
-        z-index: 1;
-    }
 
 
     .forecast-table-footer {

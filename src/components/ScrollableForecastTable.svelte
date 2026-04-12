@@ -7,6 +7,15 @@
 
 	let scrollContainer: HTMLElement | null = null;
 	let rowPositions: Array<{top: number, bottom: number, index: number}> = [];
+	let currentHoverIndex: number | null = null;
+
+	// Dispatch row hover only when index changes
+	function dispatchRowHover(index: number) {
+		if (currentHoverIndex !== index) {
+			currentHoverIndex = index;
+			dispatch('rowHover', { index });
+		}
+	}
 
 	// Cache row positions after DOM updates
 	function cacheRowPositions() {
@@ -64,17 +73,33 @@
 		// Find the row that contains the center Y position
 		for (const row of rowPositions) {
 			if (centerY >= row.top && centerY <= row.bottom) {
-				// Dispatch scroll event with the hovered index
-				dispatch('scrollHover', { index: row.index });
+				dispatchRowHover(row.index);
 				break;
 			}
 		}
 	}
+
+	// Handle mouse events via event delegation
+	function handleMouseOver(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		const forecastItem = target.closest('.forecast-item');
+
+		if (forecastItem) {
+			const index = parseInt(forecastItem.getAttribute('data-index') || '', 10);
+			if (!isNaN(index)) {
+				dispatchRowHover(index);
+			}
+		}
+	}
+
 </script>
 
 <div class="data-table vertical-scroll"
 	bind:this={scrollContainer}
-	on:scroll={handleScroll}>
+	on:scroll={handleScroll}
+	on:mouseover={handleMouseOver}
+
+	>
 	<slot></slot>
 </div>
 

@@ -76,7 +76,6 @@
 
     const dispatch = createEventDispatcher();
 
-    let currentHoverIndex: number | null = null;
     let isDragging = false;
     let dragStartIndex: number | null = null;
     let dragDropTargetIndex: number | null = null;
@@ -87,11 +86,9 @@
 
     // functions to handle data generation and processing for the table
 
-    function handleScrollHover(event: CustomEvent) {
+    function handleRowHover(event: CustomEvent) {
         const index = event.detail.index;
-        if (currentHoverIndex !== index && hourlyData[index]) {
-            handleHover(index);
-        }
+        handleHover(index);
     }
 
     function calculateScrollIndex(hourlyData: any[], departureTime: number): number | null {
@@ -214,7 +211,6 @@
 
     // Functions to handle hover
     function handleHover(index: number | null) {
-        currentHoverIndex = index;
         if (index !== null && hourlyData[index]) {
             dispatch('timeHover', {
                 timestamp: hourlyData[index].timestamp,
@@ -426,7 +422,7 @@
             <div class="main-table">
                 <ScrollableForecastTable
                      {scrollToIndex}
-                     on:scrollHover={handleScrollHover}>
+                     on:rowHover={handleRowHover}>
                     <div class="forecast-list">
                 {#each hourlyData as data, index}
                     <!-- Waypoint beanie rows -->
@@ -467,8 +463,7 @@
                         class="forecast-item"
                         class:in-route={data.isInRoute}
                         class:current-hour={isCurrentHour(data.timestamp)}
-                        on:mouseenter={() => handleHover(index)}
-                        on:mouseleave={() => handleHover(null)}
+                        data-index={index}
                         on:dragover|preventDefault={(e) => handleDragOver(e, index)}
                         on:dragleave={() => handleDragLeave()}
                         on:drop|preventDefault={(e) => handleDrop(e, index)}

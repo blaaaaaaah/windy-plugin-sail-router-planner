@@ -7,8 +7,9 @@
     import WaveCell from './forecast-cells/WaveCell.svelte';
     import TimeCell from './forecast-cells/TimeCell.svelte';
     import ScrollableForecastTable from './ScrollableForecastTable.svelte';
+    import DraggableWaypointForecastTable from './DraggableWaypointForecastTable.svelte';
+    import DraggableWaypoint from './DraggableWaypoint.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
-    import type { RouteDefinition } from '../types/RouteTypes';
     import { formatTime, formatTimeAgo } from '../utils/TimeUtils';
     import { computeSeaIndex } from '../utils/NavigationUtils';
     import { getWindColor, getSeaIndexColor, createGradientBackground, hexToRgb } from '../utils/ColorUtils';
@@ -76,11 +77,6 @@
 
     const dispatch = createEventDispatcher();
 
-    let isDragging = false;
-    let dragStartIndex: number | null = null;
-    let dragDropTargetIndex: number | null = null;
-    let autoScrollTimer: number | null = null;
-    let tableScrollContainer: HTMLElement | null = null;
 
     
 
@@ -88,7 +84,12 @@
 
     function handleRowHover(event: CustomEvent) {
         const index = event.detail.index;
-        handleHover(index);
+        if (index !== null && hourlyData[index]) {
+            dispatch('timeHover', {
+                timestamp: hourlyData[index].timestamp,
+                forecast: hourlyData[index].forecast
+            });
+        }    
     }
 
     function calculateScrollIndex(hourlyData: any[], departureTime: number): number | null {
@@ -209,15 +210,6 @@
     }
 
 
-    // Functions to handle hover
-    function handleHover(index: number | null) {
-        if (index !== null && hourlyData[index]) {
-            dispatch('timeHover', {
-                timestamp: hourlyData[index].timestamp,
-                forecast: hourlyData[index].forecast
-            });
-        }
-    }
 
 
 
@@ -255,93 +247,14 @@
 
 
 
-    // functinos to handle drag and drop for route start time adjustment
+    // Handle waypoint index changes from drag operations
+    function handleWaypointIndexChanged(event: CustomEvent) {
+        const { fromIndex, toIndex } = event.detail;
 
-    function handleDragStart(event: DragEvent, index: number) {
-        isDragging = true;
-        dragStartIndex = index;
-        dragDropTargetIndex = null;
-        event.dataTransfer?.setData('text/plain', index.toString());
-
-        // Set drag image to be invisible
-        const dragImage = new Image();
-        dragImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
-        event.dataTransfer?.setDragImage(dragImage, 0, 0);
-
-        // Find table scroll container
-        tableScrollContainer = document.querySelector('.data-table');
-    }
-
-    function handleDragEnd() {
-        isDragging = false;
-        dragStartIndex = null;
-        dragDropTargetIndex = null;
-
-        // Clear auto-scroll timer
-        if (autoScrollTimer) {
-            clearInterval(autoScrollTimer);
-            autoScrollTimer = null;
-        }
-
-        tableScrollContainer = null;
-    }
-
-    function handleDragOver(event: DragEvent, targetIndex: number) {
-        event.preventDefault();
-
-        if (isDragging && dragStartIndex !== null) {
-            // Only show drop target if it's a different position
-            if (targetIndex !== dragStartIndex) {
-                dragDropTargetIndex = targetIndex;
-            } else {
-                dragDropTargetIndex = null;
-            }
-
-            // Auto-scroll logic
-            const element = event.target as HTMLElement;
-            const rect = element.getBoundingClientRect();
-            const container = tableScrollContainer;
-
-            if (container) {
-                const containerRect = container.getBoundingClientRect();
-                const scrollThreshold = 50;
-
-                // Clear existing timer
-                if (autoScrollTimer) {
-                    clearInterval(autoScrollTimer);
-                }
-
-                // Check if we need to scroll up
-                if (rect.top - containerRect.top < scrollThreshold) {
-                    autoScrollTimer = setInterval(() => {
-                        container.scrollTop -= 5;
-                    }, 16) as any;
-                }
-                // Check if we need to scroll down
-                else if (containerRect.bottom - rect.bottom < scrollThreshold) {
-                    autoScrollTimer = setInterval(() => {
-                        container.scrollTop += 5;
-                    }, 16) as any;
-                }
-            }
-        }
-    }
-
-    function handleDragLeave() {
-        // Clear auto-scroll when leaving drag area
-        if (autoScrollTimer) {
-            clearInterval(autoScrollTimer);
-            autoScrollTimer = null;
-        }
-    }
-
-    function handleDrop(event: DragEvent, targetIndex: number) {
-        event.preventDefault();
-
-        if (dragStartIndex !== null && targetIndex !== dragStartIndex) {
-            const newStartTime = hourlyData[targetIndex]?.timestamp;
+        if (fromIndex !== null && toIndex !== fromIndex) {
+            const newStartTime = hourlyData[toIndex]?.timestamp;
             if (newStartTime && forecast?.route) {
-                console.log(`Moving route start from ${formatTime(hourlyData[dragStartIndex].timestamp)} to ${formatTime(newStartTime)}`);
+                console.log(`Moving route start from ${formatTime(hourlyData[fromIndex].timestamp)} to ${formatTime(newStartTime)}`);
 
                 // Update the route departure time directly
                 forecast.route.setDepartureTime(newStartTime);
@@ -352,8 +265,6 @@
                 });
             }
         }
-
-        handleDragEnd();
     }
 
 
@@ -420,19 +331,31 @@
 
             <!-- Vertical Data List -->
             <div class="main-table">
-                <ScrollableForecastTable
-                     {scrollToIndex}
-                     on:rowHover={handleRowHover}>
+                <DraggableWaypointForecastTable
+                     on:waypointIndexChanged={handleWaypointIndexChanged}
+                     let:isDragging
+                     let:dragStartIndex
+                     let:dragDropTargetIndex>
+                    <ScrollableForecastTable
+                         {scrollToIndex}
+                         on:rowHover={handleRowHover}>
                     <div class="forecast-list">
                 {#each hourlyData as data, index}
                     <!-- Waypoint beanie rows -->
                     {#each waypointPositions.filter(wp => wp.index === index) as waypoint}
-                        <div
-                            class:dragging={isDragging && dragStartIndex === index && waypoint.isStart}
-                            draggable={waypoint.isStart ? "true" : "false"}
-                            on:dragstart={waypoint.isStart ? (e) => handleDragStart(e, index) : undefined}
-                            on:dragend={waypoint.isStart ? () => handleDragEnd() : undefined}
-                        >
+                        {#if waypoint.isStart}
+                            <DraggableWaypoint {index}>
+                                <LegWaypoint
+                                    waypointNumber={waypoint.number}
+                                    isStart={waypoint.isStart}
+                                    leg={waypoint.number <= forecast.route.legs.length ? forecast.route.legs[waypoint.number - 1] : null}
+                                    legStats={waypoint.number <= forecast.legStats.length ? forecast.legStats[waypoint.number - 1] : null}
+                                    arrivalTime={waypoint.number === forecast.route.waypoints.length ? forecast.route.arrivalTime : null}
+                                    {routeColor}
+                                    on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
+                                />
+                            </DraggableWaypoint>
+                        {:else}
                             <LegWaypoint
                                 waypointNumber={waypoint.number}
                                 isStart={waypoint.isStart}
@@ -442,16 +365,13 @@
                                 {routeColor}
                                 on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
                             />
-                        </div>
+                        {/if}
                     {/each}
 
                     <!-- Insert drop target row if dragging (only if not dropping back to original position) -->
                     {#if isDragging && dragDropTargetIndex === index && dragStartIndex !== index}
                         <div class="start-beanie-row"
-                             style="opacity: 0.7;"
-                             on:dragover|preventDefault={(e) => handleDragOver(e, index)}
-                             on:dragleave={() => handleDragLeave()}
-                             on:drop|preventDefault={(e) => handleDrop(e, index)}>
+                             style="opacity: 0.7;">
                             <div class="start-beanie-content">
                                 <div class="waypoint-number">1</div>
                                 <div class="start-time-text">{formatTime(data.timestamp)}</div>
@@ -464,9 +384,6 @@
                         class:in-route={data.isInRoute}
                         class:current-hour={isCurrentHour(data.timestamp)}
                         data-index={index}
-                        on:dragover|preventDefault={(e) => handleDragOver(e, index)}
-                        on:dragleave={() => handleDragLeave()}
-                        on:drop|preventDefault={(e) => handleDrop(e, index)}
                     >
                         <div class="time-column">
                             <TimeCell
@@ -528,7 +445,8 @@
                     </div>
                     {/each}
                     </div>
-                </ScrollableForecastTable>
+                    </ScrollableForecastTable>
+                </DraggableWaypointForecastTable>
             </div>
         </section>
     </div>
@@ -721,8 +639,7 @@
         border-top: 2px solid white;
         border-bottom: 2px solid white;
 
-        &:active,
-        &.dragging {
+        &:active {
             cursor: grabbing;
         }
 

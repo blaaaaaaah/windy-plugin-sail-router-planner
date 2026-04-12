@@ -53,7 +53,7 @@ export interface RouteForecastWindow {
 
 export interface RouteForecast {
 	route: RouteDefinition; // reference to access legs, distances, times, etc
-	pointForecasts: PointForecast[];
+	pointForecasts: PointForecast[] | null; // null indicates loading state
 	legStats: (WeatherStats | null)[];
 	routeStats: WeatherStats | null;
 	forecastWindow: RouteForecastWindow | null;

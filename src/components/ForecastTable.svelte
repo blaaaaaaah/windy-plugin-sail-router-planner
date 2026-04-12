@@ -14,10 +14,15 @@
 
     export let forecast: RouteForecast | null = null;
     export let routeColor: string = '#3498db';
-    export let isLoading: boolean = false;
     export let showTrueWind: boolean = true;
-    export let route: RouteDefinition | null = null;
-    
+
+    // Derived state from forecast
+    $: isLoading = forecast === null || forecast?.pointForecasts === null;
+    $: route = forecast?.route || null;
+
+    // Track current route ID to detect route changes
+    let currentRouteId: string | null = null;
+
     // Data that needs to be recalculated when forecast changes
     let hourlyData: any[] = [];
     let waypointPositions: any[] = [];
@@ -38,9 +43,9 @@
                 autoScrollToDeparture();
             }, 0);
         } else {
-            // Generate placeholder data when loading, otherwise clear
-            hourlyData = generateHourlyData(); // Will generate placeholder if isLoading
-            waypointPositions = []; // No waypoints for placeholder data
+            // No forecast available - clear data
+            hourlyData = generateHourlyData(); // Will generate placeholder when isLoading
+            waypointPositions = []; // No waypoints when no forecast
             rowPositions = [];
 
             // Cache row positions for placeholder data
@@ -51,13 +56,10 @@
     }
 
     // Reactive updates when forecast or showTrueWind changes
-    $: if (forecast || showTrueWind !== undefined || isLoading) {
+    $: if (forecast || showTrueWind !== undefined) {
         refresh();
     }
 
-    $: if ( route ) {
-        hasUserScrolled = false;
-    }
 
     const dispatch = createEventDispatcher();
 
@@ -77,12 +79,30 @@
 
     function generateHourlyData() {
         if (!forecast) {
-            // If loading and no forecast yet, create empty placeholder rows
-            if (isLoading) {
-                return generatePlaceholderRows();
-            }
-            return [];
+            // No forecast at all - show placeholders
+            currentRouteId = null;
+            hasUserScrolled = false;
+
+            return generatePlaceholderRows();
         }
+
+        const routeId = forecast.route.id;
+
+        if (!forecast.pointForecasts) {
+            // Loading forecast for a route
+            if (currentRouteId !== routeId) {
+                // New route - clear and show placeholders
+                currentRouteId = routeId;
+                hasUserScrolled = false;
+                return generatePlaceholderRows();
+            } else {
+                // Same route being updated - keep existing data
+                return hourlyData;
+            }
+        }
+
+        // Update current route ID
+        currentRouteId = routeId;
 
         if (!forecast.pointForecasts.length) return [];
 

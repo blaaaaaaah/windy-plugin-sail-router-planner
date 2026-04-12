@@ -34,8 +34,6 @@
             <div class="forecast-container">
                 <ForecastTable
                     forecast={currentForecast}
-                    isLoading={isLoadingForecast}
-                    route={activeRoute}
                     showTrueWind={showTrueWind}
                     on:windModeChanged={handleWindModeChanged}
                     on:timeHover={handleTimeHover}
@@ -71,7 +69,6 @@
 
     // Forecast data
     let currentForecast: RouteForecast|null = null;
-    let isLoadingForecast: boolean = false;
 
     // Weather service instances
     let windyAPI: WindyAPI | null = null;
@@ -128,20 +125,28 @@
         }
 
         try {
-            isLoadingForecast = true;
+            // Create loading RouteForecast object with null forecast data
+            currentForecast = {
+                route: route,
+                pointForecasts: null, // null indicates loading
+                legStats: [],
+                routeStats: null,
+                forecastWindow: null
+            };
+
             console.log('Generating forecast for route with', route.waypoints.length, 'waypoints');
 
             const forecast = await weatherService.getRouteForecast(route);
             // Cache the forecast for future route switches
             cachedForecasts.set(route.id, forecast);
-            // Force Svelte reactivity with new object reference
-            currentForecast = { ...forecast };
+            // Set the populated forecast
+            currentForecast = forecast;
 
             console.log('Forecast generated:', forecast.pointForecasts.length, 'points');
         } catch (error) {
             console.error('Failed to generate forecast:', error);
-        } finally {
-            isLoadingForecast = false;
+            // On error, clear the forecast
+            currentForecast = null;
         }
     }
 
@@ -183,15 +188,19 @@
         // Set active route immediately (triggers panel slide)
         routeEditor!.setActiveRoute(route);
 
-        // Clear current forecast and set loading state
-        currentForecast = null;
-        isLoadingForecast = true;
+        // Set loading state with empty RouteForecast object
+        currentForecast = {
+            route: route,
+            pointForecasts: null, // null indicates loading
+            legStats: [],
+            routeStats: null,
+            forecastWindow: null
+        };
 
         // Check cache first, then generate forecast
         if (cachedForecasts.has(route.id)) {
             setTimeout(() => {
                 currentForecast = cachedForecasts.get(route.id)!;
-                isLoadingForecast = false;
             }, 0);
         } else {
             generateForecastFromRoute(route);

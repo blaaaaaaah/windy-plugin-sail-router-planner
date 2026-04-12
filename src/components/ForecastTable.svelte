@@ -6,6 +6,7 @@
     import WindCell from './forecast-cells/WindCell.svelte';
     import WaveCell from './forecast-cells/WaveCell.svelte';
     import TimeCell from './forecast-cells/TimeCell.svelte';
+    import ScrollableForecastTable from './ScrollableForecastTable.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import type { RouteDefinition } from '../types/RouteTypes';
     import { formatTime, formatTimeAgo } from '../utils/TimeUtils';
@@ -22,6 +23,7 @@
 
     // Track current route ID to detect route changes
     let currentRouteId: string | null = null;
+    let scrollToIndex: number | null = null;
 
     // Data that needs to be recalculated when forecast changes
     let hourlyData: any[] = [];
@@ -30,28 +32,39 @@
     // Refresh method to recalculate data
     function refresh() {
         if (forecast) {
-
             routeColor = forecast.route.color;
 
-            // Recalculate data
-            hourlyData = generateHourlyData();
-            waypointPositions = calculateWaypointPositions();
+            // Check if this is a new route
+            const isNewRoute = currentRouteId !== forecast.route.id;
+            if (isNewRoute) {
+                currentRouteId = forecast.route.id;
+                scrollToIndex = null; // Reset scroll index for new route
+            }
 
-            // Cache row positions after DOM updates and handle auto-scroll
-            setTimeout(() => {
-                cacheRowPositions();
-                autoScrollToDeparture();
-            }, 0);
+            // Only regenerate data if we have actual forecast data
+            // This preserves existing data during loading states
+            if (forecast.pointForecasts) {
+                hourlyData = generateHourlyData();
+                waypointPositions = calculateWaypointPositions();
+
+                // Calculate scroll index when we don't have one yet and data is available
+                if (scrollToIndex === null && hourlyData.length > 0) {
+                    scrollToIndex = calculateScrollIndex(hourlyData, forecast.route.departureTime);
+                    console.log(`Setting scrollToIndex to ${scrollToIndex} for route ${forecast.route.id}`);
+                }
+            } else if (isNewRoute) {
+                // New route with no data yet - show placeholders
+                hourlyData = generateHourlyData();
+                waypointPositions = [];
+            }
+            // If same route but no pointForecasts (loading), keep existing data
+
         } else {
             // No forecast available - clear data
+            currentRouteId = null;
+            scrollToIndex = null;
             hourlyData = generateHourlyData(); // Will generate placeholder when isLoading
             waypointPositions = []; // No waypoints when no forecast
-            rowPositions = [];
-
-            // Cache row positions for placeholder data
-            if (hourlyData.length > 0) {
-                setTimeout(() => cacheRowPositions(), 0);
-            }
         }
     }
 
@@ -68,41 +81,49 @@
     let dragStartIndex: number | null = null;
     let dragDropTargetIndex: number | null = null;
     let autoScrollTimer: number | null = null;
-    let hasUserScrolled: boolean = false; // Track if user has manually scrolled to disable auto-scroll after initial load
     let tableScrollContainer: HTMLElement | null = null;
-    let scrollContainer: HTMLElement | null = null;
-    let rowPositions: Array<{top: number, bottom: number, index: number}> = [];
 
     
 
     // functions to handle data generation and processing for the table
 
-    function generateHourlyData() {
-        if (!forecast) {
-            // No forecast at all - show placeholders
-            currentRouteId = null;
-            hasUserScrolled = false;
-
-            return generatePlaceholderRows();
+    function handleScrollHover(event: CustomEvent) {
+        const index = event.detail.index;
+        if (currentHoverIndex !== index && hourlyData[index]) {
+            handleHover(index);
         }
+    }
 
-        const routeId = forecast.route.id;
+    function calculateScrollIndex(hourlyData: any[], departureTime: number): number | null {
+        if (!hourlyData.length) return null;
 
-        if (!forecast.pointForecasts) {
-            // Loading forecast for a route
-            if (currentRouteId !== routeId) {
-                // New route - clear and show placeholders
-                currentRouteId = routeId;
-                hasUserScrolled = false;
-                return generatePlaceholderRows();
-            } else {
-                // Same route being updated - keep existing data
-                return hourlyData;
+        const now = Date.now();
+        const targetTime = now < departureTime ? departureTime : now;
+        const fourHoursBeforeTarget = targetTime - (4 * 60 * 60 * 1000);
+
+        // Find closest index
+        let bestIndex = 0;
+        let closestDiff = Infinity;
+
+        for (let i = 0; i < hourlyData.length; i++) {
+            const diff = Math.abs(hourlyData[i].timestamp - fourHoursBeforeTarget);
+            if (diff < closestDiff) {
+                closestDiff = diff;
+                bestIndex = i;
             }
         }
 
-        // Update current route ID
-        currentRouteId = routeId;
+        return bestIndex;
+    }
+
+    function generateHourlyData() {
+        if (!forecast) {
+            return generatePlaceholderRows();
+        }
+
+        if (!forecast.pointForecasts) {
+            return generatePlaceholderRows();
+        }
 
         if (!forecast.pointForecasts.length) return [];
 
@@ -202,84 +223,6 @@
         }
     }
 
-    function cacheRowPositions() {
-        if (!scrollContainer) return;
-
-        rowPositions = [];
-        const forecastItems = scrollContainer.querySelectorAll('.forecast-item');
-
-        forecastItems.forEach((item, index) => {
-            const rect = item.getBoundingClientRect();
-            const containerRect = scrollContainer!.getBoundingClientRect();
-            rowPositions.push({
-                top: rect.top - containerRect.top + scrollContainer!.scrollTop,
-                bottom: rect.bottom - containerRect.top + scrollContainer!.scrollTop,
-                index: index
-            });
-        });
-    }
-
-    function autoScrollToDeparture() {
-        if (!scrollContainer || !forecast || rowPositions.length === 0) return;
-
-        // Only auto-scroll if currently at the top (user hasn't manually scrolled)
-        if (hasUserScrolled) return;
-
-        const now = Date.now();
-        const departureTime = forecast.route.departureTime;
-
-        // Determine target time: departure (if pre-departure) or current time (if post-departure)
-        const targetTime = now < departureTime ? departureTime : now;
-        const fourHoursBeforeTarget = targetTime - (4 * 60 * 60 * 1000);
-
-        // Find the index of the forecast point closest to 4 hours before target
-        let targetIndex = -1;
-        let closestTimeDiff = Infinity;
-
-        for (let i = 0; i < hourlyData.length; i++) {
-            const timeDiff = Math.abs(hourlyData[i].timestamp - fourHoursBeforeTarget);
-            if (timeDiff < closestTimeDiff) {
-                closestTimeDiff = timeDiff;
-                targetIndex = i;
-            }
-        }
-
-        // Scroll to show the target row if found
-        if (targetIndex >= 0 && targetIndex < rowPositions.length) {
-            const targetRow = rowPositions[targetIndex];
-
-            // Position the target row at the top of visible area to show 4h before departure prominently
-            const offsetFromTop = 0; // Show target row at the very top
-            const targetScrollTop = Math.max(0, targetRow.top - offsetFromTop);
-
-            const targetLabel = now < departureTime ? 'departure' : 'current time';
-            console.log(`Auto-scrolling to ${new Date(fourHoursBeforeTarget).toISOString()} (4h before ${targetLabel})`);
-            scrollContainer.scrollTo({
-                top: targetScrollTop,
-                behavior: 'smooth'
-            });
-        }
-    }
-
-    function handleScroll() {
-        if (!scrollContainer || rowPositions.length === 0) return;
-
-        hasUserScrolled = true;
-
-        const scrollTop = scrollContainer.scrollTop;
-        const containerHeight = scrollContainer.clientHeight;
-        const centerY = scrollTop + (containerHeight / 2);
-
-        // Find the row that contains the center Y position
-        for (const row of rowPositions) {
-            if (centerY >= row.top && centerY <= row.bottom) {
-                if (currentHoverIndex !== row.index && hourlyData[row.index]) {
-                    handleHover(row.index);
-                }
-                break;
-            }
-        }
-    }
 
 
 
@@ -481,9 +424,9 @@
 
             <!-- Vertical Data List -->
             <div class="main-table">
-                <div class="data-table vertical-scroll"
-                     bind:this={scrollContainer}
-                     on:scroll={handleScroll}>
+                <ScrollableForecastTable
+                     {scrollToIndex}
+                     on:scrollHover={handleScrollHover}>
                     <div class="forecast-list">
                 {#each hourlyData as data, index}
                     <!-- Waypoint beanie rows -->
@@ -590,7 +533,7 @@
                     </div>
                     {/each}
                     </div>
-                </div>
+                </ScrollableForecastTable>
             </div>
         </section>
     </div>

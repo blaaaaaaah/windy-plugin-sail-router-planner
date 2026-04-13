@@ -1,0 +1,388 @@
+import type { RouteForecast, PointForecast, WeatherStats } from '../types/WeatherTypes';
+import type { RouteLeg, RouteDefinition } from '../types/RouteTypes';
+import { createGradientBackground, getWindColor, getSeaIndexColor } from '../utils/ColorUtils';
+
+export interface LegWaypointData {
+	leg: RouteLeg;
+	isStart: boolean;
+	isLast: boolean;
+	number: number;
+	stats: WeatherStats | null;
+	route: RouteDefinition;
+	onDepartureTimeChange?: (newTime: number) => void;
+}
+
+export interface ForecastCellData {
+	type: 'time' | 'wind' | 'wave' | 'weather' | 'route-color';
+
+	// Common properties
+	backgroundColor?: string;
+	apparent?: boolean;
+
+	// Time cell properties
+	timestamp?: number;
+	forecastTimestamp?: number | null;
+
+	// Route color properties
+	color?: string;
+	waypointNumber?: number;
+
+	// Wind cell properties
+	windSpeed?: number | null;
+	relativeWindDirection?: number | null;
+	trueWindDirection?: number | null;
+	course?: number;
+	isGusts?: boolean;
+
+	// Wave cell properties
+	wavesHeight?: number | null;
+	wavesPeriod?: number | null;
+	wavesDirection?: number | null;
+
+	// Weather cell properties
+	precipitations?: number | null;
+	weather?: number | null;
+	warnings?: any;
+}
+
+export interface ForecastTableRowData {
+	timestamp: number;
+	type: 'row' | 'waypoint';
+	isCurrentHour: boolean;
+
+	// If type === 'waypoint' (single-route mode only)
+	waypointData?: LegWaypointData;
+
+	// If type === 'row'
+	cells?: ForecastCellData[];
+}
+
+export class ForecastTableDataSource {
+	constructor(
+		private routeForecast: RouteForecast
+	) {}
+
+	/**
+	 * Main method - converts RouteForecast to table rows
+	 */
+	getRowsData(showApparent: boolean = false): ForecastTableRowData[] {
+		// Generate unified timeline
+		const timeline = this.generateTimeline();
+
+		if (!timeline.length) {
+			return [];
+		}
+
+		// Map timeline to forecast points for easier lookup
+		const timelineData = timeline.map(timestamp => ({
+			timestamp,
+			forecastPoint: this.findForecastPointForTimestamp(timestamp)
+		}));
+
+		// Calculate waypoint positions
+		const waypointDataList = this.calculateWaypointPositions(timeline);
+
+		// Generate rows - alternate between waypoint and data rows
+		const rows: ForecastTableRowData[] = [];
+
+		for (let i = 0; i < timelineData.length; i++) {
+			const { timestamp, forecastPoint } = timelineData[i];
+
+			// Check if there's a waypoint at this position
+			const waypointData = waypointDataList.find(wp => wp.position === i);
+
+			const isCurrentHour = this.isCurrentHour(timestamp);
+
+			if (waypointData) {
+				// Add waypoint row
+				rows.push({
+					timestamp,
+					type: 'waypoint',
+					isCurrentHour,
+					waypointData: waypointData.data
+				});
+			}
+
+			// Add data row
+			rows.push({
+				timestamp,
+				type: 'row',
+				isCurrentHour,
+				cells: this.generateCellsForTimestamp(timestamp, forecastPoint, i, timelineData, showApparent)
+			});
+		}
+
+		return rows;
+	}
+
+	/**
+	 * Generate unified timeline of hourly timestamps
+	 */
+	private generateTimeline(): number[] {
+		const timeline: number[] = [];
+
+		if (this.routeForecast.pointForecasts && this.routeForecast.pointForecasts.length > 0) {
+			// Full timeline: departure-6h to arrival+6h
+			const sixHours = 6 * 60 * 60 * 1000;
+			const startTime = this.routeForecast.route.departureTime - sixHours;
+			const endTime = this.routeForecast.route.arrivalTime + sixHours;
+
+			// Generate hourly timestamps
+			const startHour = Math.floor(startTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
+			const endHour = Math.ceil(endTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
+
+			for (let timestamp = startHour; timestamp <= endHour; timestamp += 60 * 60 * 1000) {
+				timeline.push(timestamp);
+			}
+		} else {
+			// Placeholder timeline: just a few hours from now
+			const now = Date.now();
+			const nextHour = Math.ceil(now / (60 * 60 * 1000)) * (60 * 60 * 1000);
+
+			for (let i = 0; i < 24; i++) {
+				timeline.push(nextHour + (i * 60 * 60 * 1000));
+			}
+		}
+
+		return timeline;
+	}
+
+	/**
+	 * Calculate waypoint positions and return LegWaypointData objects directly
+	 */
+	private calculateWaypointPositions(timeline: number[]): Array<{
+		position: number;
+		data: LegWaypointData;
+	}> {
+		if (!timeline.length) return [];
+
+		const routeWaypoints = this.routeForecast.route.waypoints;
+		const totalWaypoints = routeWaypoints.length;
+		const routeLegs = this.routeForecast.route.legs;
+
+		if (totalWaypoints === 0) return [];
+
+		const waypointDataList: Array<{ position: number; data: LegWaypointData }> = [];
+
+		// Find the timeline position closest to each waypoint timestamp
+		for (let waypointIndex = 0; waypointIndex < totalWaypoints; waypointIndex++) {
+			let targetTime: number;
+			let currentLeg: RouteLeg;
+
+			if (waypointIndex === 0) {
+				// First waypoint: departure time
+				targetTime = this.routeForecast.route.departureTime;
+				if (routeLegs.length > 0) {
+					currentLeg = routeLegs[0]; // First leg for departure waypoint
+				} else {
+					continue; // No legs available
+				}
+			} else {
+				// Subsequent waypoints: leg end times
+				const legIndex = waypointIndex - 1;
+				if (legIndex >= routeLegs.length) continue;
+
+				currentLeg = routeLegs[legIndex];
+				targetTime = currentLeg.endTime;
+			}
+
+			// Find closest timeline position to target time
+			const closestIndex = this.findClosestTimestampIndex(timeline, targetTime);
+			if (closestIndex !== -1) {
+				waypointDataList.push({
+					position: closestIndex,
+					data: {
+						leg: currentLeg,
+						isStart: waypointIndex === 0,
+						isLast: waypointIndex === totalWaypoints - 1,
+						number: waypointIndex + 1,
+						stats: this.routeForecast.legStats && waypointIndex < this.routeForecast.legStats.length
+							? this.routeForecast.legStats[waypointIndex]
+							: null,
+						route: this.routeForecast.route,
+						// Note: onDepartureTimeChange will be connected in ForecastTable
+					}
+				});
+			}
+		}
+
+		return waypointDataList;
+	}
+
+	/**
+	 * Find the timeline index closest to a target timestamp
+	 */
+	private findClosestTimestampIndex(timeline: number[], targetTime: number): number {
+		if (timeline.length === 0) return -1;
+
+		let bestIndex = 0;
+		let minDiff = Math.abs(timeline[0] - targetTime);
+
+		for (let i = 1; i < timeline.length; i++) {
+			const diff = Math.abs(timeline[i] - targetTime);
+			if (diff < minDiff) {
+				minDiff = diff;
+				bestIndex = i;
+			}
+		}
+
+		return bestIndex;
+	}
+
+	/**
+	 * Generate cells for a specific timestamp
+	 * Cell order: time | route-color | wind | gust | waves | weather
+	 */
+	private generateCellsForTimestamp(
+		timestamp: number,
+		forecastPoint: PointForecast | null,
+		index: number,
+		timelineData: Array<{ timestamp: number; forecastPoint: PointForecast | null }>,
+		showApparent: boolean
+	): ForecastCellData[] {
+		const cells: ForecastCellData[] = [];
+
+		// Time cell (no gradient background)
+		cells.push({
+			type: 'time',
+			timestamp,
+			forecastTimestamp: forecastPoint?.forecastTimestamp || null
+		});
+
+		// Route color cell (no gradient background)
+		cells.push({
+			type: 'route-color',
+			color: this.routeForecast.route.color
+			// waypointNumber will be added when applicable
+		});
+
+		// Weather cell (no gradient background)
+		cells.push({
+			type: 'weather',
+			precipitations: forecastPoint?.precipitations,
+			weather: forecastPoint?.weather,
+			warnings: forecastPoint?.warnings
+		});
+
+		// Wind cell (with gradient background)
+		const currentWindSpeed = this.getWindSpeed(forecastPoint, showApparent);
+		const prevWindSpeed = index > 0 ? this.getWindSpeed(timelineData[index - 1].forecastPoint, showApparent) : null;
+		const nextWindSpeed = index < timelineData.length - 1 ? this.getWindSpeed(timelineData[index + 1].forecastPoint, showApparent) : null;
+		const windBackground = createGradientBackground(currentWindSpeed, prevWindSpeed, nextWindSpeed, getWindColor);
+
+		const weatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
+		cells.push({
+			type: 'wind',
+			windSpeed: weatherData?.windSpeed || null,
+			relativeWindDirection: weatherData?.relativeWindDirection || null,
+			trueWindDirection: weatherData?.trueWindDirection || null,
+			course: forecastPoint?.leg?.course || 0,
+			apparent: showApparent,
+			backgroundColor: windBackground
+		});
+
+		// Gusts cell (with gradient background)
+		const currentGustSpeed = this.getGustSpeed(forecastPoint, showApparent);
+		const prevGustSpeed = index > 0 ? this.getGustSpeed(timelineData[index - 1].forecastPoint, showApparent) : null;
+		const nextGustSpeed = index < timelineData.length - 1 ? this.getGustSpeed(timelineData[index + 1].forecastPoint, showApparent) : null;
+		const gustsBackground = createGradientBackground(currentGustSpeed, prevGustSpeed, nextGustSpeed, getWindColor);
+
+		cells.push({
+			type: 'wind',
+			windSpeed: weatherData?.gustsSpeed || null,
+			relativeWindDirection: weatherData?.relativeWindDirection || null,
+			trueWindDirection: weatherData?.trueWindDirection || null,
+			course: forecastPoint?.leg?.course || 0,
+			apparent: showApparent,
+			backgroundColor: gustsBackground,
+			isGusts: true
+		});
+
+		// Waves cell (with gradient background)
+		const currentSeaIndex = forecastPoint?.northUp?.wavesIndex || 0;
+		const prevSeaIndex = index > 0 ? (timelineData[index - 1].forecastPoint?.northUp?.wavesIndex || 0) : null;
+		const nextSeaIndex = index < timelineData.length - 1 ? (timelineData[index + 1].forecastPoint?.northUp?.wavesIndex || 0) : null;
+
+
+		const wavesBackground = createGradientBackground(currentSeaIndex, prevSeaIndex, nextSeaIndex, getSeaIndexColor);
+
+		const waveWeatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
+		cells.push({
+			type: 'wave',
+			wavesHeight: waveWeatherData?.wavesHeight || null,
+			wavesPeriod: waveWeatherData?.wavesPeriod || null,
+			wavesDirection: waveWeatherData?.wavesDirection || null,
+			course: forecastPoint?.leg?.course || 0,
+			apparent: showApparent,
+			backgroundColor: wavesBackground
+		});
+
+		return cells;
+	}
+
+
+	/**
+	 * Get wind speed from forecast data (replicating ForecastTable logic)
+	 */
+	private getWindSpeed(forecastPoint: PointForecast | null, showApparent: boolean): number {
+		if (!forecastPoint) return 0;
+
+		const weatherData = showApparent ? forecastPoint.apparent : forecastPoint.northUp;
+		if (!weatherData) return 0;
+
+		return weatherData.windSpeed;
+	}
+
+	/**
+	 * Get gust speed from forecast data (replicating ForecastTable logic)
+	 */
+	private getGustSpeed(forecastPoint: PointForecast | null, showApparent: boolean): number {
+		if (!forecastPoint) return 0;
+
+		const weatherData = showApparent ? forecastPoint.apparent : forecastPoint.northUp;
+		if (!weatherData) return 0;
+
+		return weatherData.gustsSpeed;
+	}
+
+
+	/**
+	 * Find forecast point that matches (or is closest to) the given timestamp
+	 */
+	private findForecastPointForTimestamp(timestamp: number): PointForecast | null {
+		if (!this.routeForecast.pointForecasts || this.routeForecast.pointForecasts.length === 0) {
+			return null;
+		}
+
+		// Find the forecast point with timestamp closest to our target
+		// (This handles the case where forecast timestamps don't exactly match hourly boundaries)
+		let closestPoint: PointForecast | null = null;
+		let minDiff = Infinity;
+
+		for (const point of this.routeForecast.pointForecasts) {
+			const diff = Math.abs(point.timestamp - timestamp);
+			if (diff < minDiff) {
+				minDiff = diff;
+				closestPoint = point;
+			}
+		}
+
+		// Only return if reasonably close (within 30 minutes)
+		if (closestPoint && minDiff <= 30 * 60 * 1000) {
+			return closestPoint;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Check if timestamp is in current hour (replicating ForecastTable logic)
+	 */
+	private isCurrentHour(timestamp: number): boolean {
+		const now = Date.now();
+		const currentHourStart = Math.floor(now / (60 * 60 * 1000)) * (60 * 60 * 1000);
+		const currentHourEnd = currentHourStart + (60 * 60 * 1000);
+
+		return timestamp >= currentHourStart && timestamp < currentHourEnd;
+	}
+}

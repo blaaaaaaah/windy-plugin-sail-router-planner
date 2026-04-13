@@ -1,50 +1,37 @@
 <script lang="ts">
 	import { formatWaveHeight } from '../../utils/FormatUtils';
 	import DirectionIcon from './DirectionIcon.svelte';
-	import type { PointForecast } from '../../types/WeatherTypes';
 
-	export let forecast: PointForecast | null;
-	export let apparent: boolean;
+	export let wavesHeight: number | null = null;
+	export let wavesPeriod: number | null = null;
+	export let wavesDirection: number | null = null;
+	export let course: number = 0;
+	export let apparent: boolean = false;
 
-	$: waveHeight = forecast?.northUp?.wavesHeight;
-	$: wavePeriod = forecast?.northUp?.wavesPeriod;
-
-	$: waveDirection = (() => {
-		if (apparent) {
-			// For apparent wind mode, waves use relative direction
-			return forecast?.apparent?.wavesDirection;
-		} else {
-			// For true wind mode, waves use true direction
-			return forecast?.northUp?.wavesDirection;
-		}
-	})();
-
-	$: boatCourse = apparent ? 0 : forecast?.bearing;
+	$: boatCourse = apparent ? 0 : course;
 
 	$: tooltip = (() => {
-		const periodText = wavePeriod !== undefined ? `Period: ${Math.round(wavePeriod)}s\n` : '';
+		const periodText = wavesPeriod !== null ? `Period: ${Math.round(wavesPeriod)}s\n` : '';
 		if (apparent) {
 			// In apparent mode, use relative wave direction
-			const relativeDir = forecast?.apparent?.wavesDirection;
-			const dirText = relativeDir !== undefined ? `Relative: ${relativeDir.toFixed(0)}°` : 'Direction: N/A';
+			const dirText = wavesDirection !== null ? `Relative: ${wavesDirection.toFixed(0)}°` : 'Direction: N/A';
 			return periodText + dirText;
 		} else {
 			// In true wind mode, use true wave direction
-			const dir = forecast?.northUp?.wavesDirection;
-			const dirText = dir !== undefined ? `Direction: ${dir.toFixed(0)}°` : 'Direction: N/A';
+			const dirText = wavesDirection !== null ? `Direction: ${wavesDirection.toFixed(0)}°` : 'Direction: N/A';
 			return periodText + dirText;
 		}
 	})();
 </script>
 
 <div title={tooltip}>
-	{#if waveHeight != null}
+	{#if wavesHeight != null}
 		<div class="wave-text">
-			<span class="wave-height">{formatWaveHeight(waveHeight)}</span>
+			<span class="wave-height">{formatWaveHeight(wavesHeight)}</span>
 		</div>
-		{#if waveDirection !== undefined}
+		{#if wavesDirection !== null}
 			<DirectionIcon
-				windDirection={waveDirection}
+				windDirection={wavesDirection}
 				boatCourse={boatCourse}
 			/>
 		{/if}

@@ -11,8 +11,8 @@
     import DraggableWaypoint from './DraggableWaypoint.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import { formatTime, formatTimeAgo } from '../utils/TimeUtils';
-    import { computeSeaIndex } from '../utils/NavigationUtils';
     import { getWindColor, getSeaIndexColor, createGradientBackground, hexToRgb } from '../utils/ColorUtils';
+    import { ForecastTableDataSource, type ForecastTableRowData } from '../services/ForecastTableDataSource';
 
     export let forecast: RouteForecast | null = null;
     export let routeColor: string = '#3498db';
@@ -26,9 +26,9 @@
     let currentRouteId: string | null = null;
     let scrollToIndex: number | null = null;
 
-    // Data that needs to be recalculated when forecast changes
-    let hourlyData: any[] = [];
-    let waypointPositions: any[] = [];
+    // Data source and generated rows
+    let dataSource: ForecastTableDataSource | null = null;
+    let rowsData: ForecastTableRowData[] = [];
 
     // Refresh method to recalculate data
     function refresh() {
@@ -42,36 +42,39 @@
                 scrollToIndex = null; // Reset scroll index for new route
             }
 
-            // Only regenerate data if we have actual forecast data
-            // This preserves existing data during loading states
-            if (forecast.pointForecasts) {
-                hourlyData = generateHourlyData();
-                waypointPositions = calculateWaypointPositions();
 
-                // Calculate scroll index when we don't have one yet and data is available
-                if (scrollToIndex === null && hourlyData.length > 0) {
-                    scrollToIndex = calculateScrollIndex(hourlyData, forecast.route.departureTime);
-                    console.log(`Setting scrollToIndex to ${scrollToIndex} for route ${forecast.route.id}`);
-                }
-            } else if (isNewRoute) {
-                // New route with no data yet - show placeholders
-                hourlyData = generateHourlyData();
-                waypointPositions = [];
+            if (isNewRoute || forecast.pointForecasts !== null) {
+                // Create or update data source (handles placeholders internally)
+                dataSource = new ForecastTableDataSource(forecast);
+                rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
             }
-            // If same route but no pointForecasts (loading), keep existing data
+
+
+            // Calculate scroll index when we don't have one yet and data is available
+            if (forecast.pointForecasts && scrollToIndex === null && rowsData.length > 0) {
+                scrollToIndex = calculateScrollIndexForRows(rowsData, forecast.route.departureTime);
+                console.log(`Setting scrollToIndex to ${scrollToIndex} for route ${forecast.route.id}`);
+            }
+            
 
         } else {
             // No forecast available - clear data
             currentRouteId = null;
             scrollToIndex = null;
-            hourlyData = generateHourlyData(); // Will generate placeholder when isLoading
-            waypointPositions = []; // No waypoints when no forecast
+            dataSource = null;
+            rowsData = [];
         }
     }
 
-    // Reactive updates when forecast or showTrueWind changes
-    $: if (forecast || showTrueWind !== undefined) {
+    // Reactive updates when forecast changes
+    $: if (forecast) {
         refresh();
+    }
+
+    // Efficient update when only wind mode changes (reuse existing data source)
+    $: if (dataSource && showTrueWind !== undefined) {
+        rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
+        console.log('ForecastTableDataSource generated', rowsData.length, 'rows');
     }
 
 
@@ -84,129 +87,37 @@
 
     function handleRowHover(event: CustomEvent) {
         const index = event.detail.index;
-        if (index !== null && hourlyData[index]) {
+        if (index !== null && rowsData[index]) {
             dispatch('timeHover', {
-                timestamp: hourlyData[index].timestamp,
-                forecast: hourlyData[index].forecast
+                timestamp: rowsData[index].timestamp
             });
-        }    
+        }
     }
 
-    function calculateScrollIndex(hourlyData: any[], departureTime: number): number | null {
-        if (!hourlyData.length) return null;
+    function calculateScrollIndexForRows(rowsData: ForecastTableRowData[], departureTime: number): number | null {
+        if (rowsData.length === 0) return null;
 
         const now = Date.now();
         const targetTime = now < departureTime ? departureTime : now;
         const fourHoursBeforeTarget = targetTime - (4 * 60 * 60 * 1000);
 
-        // Find closest index
-        let bestIndex = 0;
+        // Find closest index among data rows only (since ScrollableForecastTable only counts .forecast-item)
+        let bestDataRowIndex = 0;
         let closestDiff = Infinity;
+        let dataRowCount = 0;
 
-        for (let i = 0; i < hourlyData.length; i++) {
-            const diff = Math.abs(hourlyData[i].timestamp - fourHoursBeforeTarget);
-            if (diff < closestDiff) {
-                closestDiff = diff;
-                bestIndex = i;
+        for (let i = 0; i < rowsData.length; i++) {
+            if (rowsData[i].type === 'row') {
+                const diff = Math.abs(rowsData[i].timestamp - fourHoursBeforeTarget);
+                if (diff < closestDiff) {
+                    closestDiff = diff;
+                    bestDataRowIndex = dataRowCount; // Index among data rows only
+                }
+                dataRowCount++;
             }
         }
 
-        return bestIndex;
-    }
-
-    function generateHourlyData() {
-        if (!forecast) {
-            return generatePlaceholderRows();
-        }
-
-        if (!forecast.pointForecasts) {
-            return generatePlaceholderRows();
-        }
-
-        if (!forecast.pointForecasts.length) return [];
-
-        const startTime = forecast.route.departureTime;
-        const endTime = forecast.route.arrivalTime;
-
-        // Use the actual forecast points directly - they're already hourly
-        return forecast.pointForecasts.map(forecastPoint => ({
-            timestamp: forecastPoint.timestamp,
-            isInRoute: forecastPoint.timestamp >= startTime && forecastPoint.timestamp <= endTime,
-            forecast: forecastPoint,
-            hour: new Date(forecastPoint.timestamp).getHours(),
-            day: new Date(forecastPoint.timestamp).getDate()
-        }));
-    }
-
-    function generatePlaceholderRows() {
-        // Generate 24 hours of placeholder data starting from now
-        const now = Date.now();
-        const nextHour = Math.ceil(now / (60 * 60 * 1000)) * (60 * 60 * 1000);
-        const placeholderRows = [];
-
-        for (let i = 0; i < 24; i++) {
-            const timestamp = nextHour + (i * 60 * 60 * 1000);
-            placeholderRows.push({
-                timestamp,
-                isInRoute: false, // All placeholder rows are not in route
-                forecast: null, // No actual forecast data
-                hour: new Date(timestamp).getHours(),
-                day: new Date(timestamp).getDate(),
-                isPlaceholder: true
-            });
-        }
-
-        return placeholderRows;
-    }
-
-    function calculateWaypointPositions() {
-        if (!hourlyData.length || !forecast) return [];
-
-        const routeWaypoints = forecast.route.waypoints;
-        const totalWaypoints = routeWaypoints.length;
-        const routeLegs = forecast.route.legs;
-
-        if (totalWaypoints === 0) return [];
-
-        const waypoints = [];
-
-        // Calculate waypoint positions based on actual leg start times
-        for (let i = 0; i < totalWaypoints; i++) {
-            let waypointTime;
-
-            if (i === 0) {
-                // First waypoint - use departure time
-                waypointTime = forecast.route.departureTime;
-            } else if (i < routeLegs.length + 1) {
-                // Intermediate waypoints - use leg start time (which is end of previous leg)
-                waypointTime = routeLegs[i - 1].endTime;
-            } else {
-                // Last waypoint - use arrival time
-                waypointTime = forecast.route.arrivalTime;
-            }
-
-            const waypointIndex = hourlyData.findIndex(h => h.timestamp >= waypointTime);
-
-            if (waypointIndex >= 0) {
-                waypoints.push({
-                    index: waypointIndex,
-                    number: i + 1,
-                    timestamp: waypointTime,
-                    isStart: i === 0
-                });
-            }
-        }
-
-        return waypoints;
-    }
-
-
-    function isCurrentHour(timestamp: number): boolean {
-        const now = Date.now();
-        const currentHourStart = Math.floor(now / (60 * 60 * 1000)) * (60 * 60 * 1000);
-        const currentHourEnd = currentHourStart + (60 * 60 * 1000);
-
-        return timestamp >= currentHourStart && timestamp < currentHourEnd;
+        return bestDataRowIndex;
     }
 
 
@@ -214,36 +125,8 @@
 
 
 
-    // Helper functions to get wind data based on showTrueWind setting
-    function getWindSpeed(forecastData: any): number {
-        if (showTrueWind) {
-            return forecastData?.northUp?.windSpeed || 0;
-        } else {
-            return forecastData?.apparent?.windSpeed || 0;
-        }
-    }
 
-    function getGustSpeed(forecastData: any): number {
-        if (showTrueWind) {
-            return forecastData?.northUp?.gustsSpeed || 0;
-        } else {
-            return forecastData?.apparent?.gustsSpeed || 0;
-        }
-    }
 
-    function getSeaIndexForForecast(forecastData: any): number {
-        if (!forecastData?.northUp || !forecast?.route?.legs?.[0]) {
-            return 0;
-        }
-
-        const waveHeight = forecastData.northUp.wavesHeight;
-        const wavePeriod = forecastData.northUp.wavesPeriod;
-        const waveDirection = forecastData.northUp.wavesDirection;
-        const boatSpeed = forecast.route.legs[0].averageSpeed;
-        const boatCourse = forecast.route.legs[0].course;
-
-        return computeSeaIndex(waveHeight, wavePeriod, waveDirection, boatSpeed, boatCourse);
-    }
 
 
 
@@ -252,9 +135,9 @@
         const { fromIndex, toIndex } = event.detail;
 
         if (fromIndex !== null && toIndex !== fromIndex) {
-            const newStartTime = hourlyData[toIndex]?.timestamp;
+            const newStartTime = rowsData[toIndex]?.timestamp;
             if (newStartTime && forecast?.route) {
-                console.log(`Moving route start from ${formatTime(hourlyData[fromIndex].timestamp)} to ${formatTime(newStartTime)}`);
+                console.log(`Moving route start from ${formatTime(rowsData[fromIndex].timestamp)} to ${formatTime(newStartTime)}`);
 
                 // Update the route departure time directly
                 forecast.route.setDepartureTime(newStartTime);
@@ -323,6 +206,7 @@
             <!-- Table Header -->
             <div class="table-header">
                 <div class="time-column">Time</div>
+                <div class="route-color-header"></div>
                 <div class="weather-column" on:click={() => onMetricClick('rain')}>Weather</div>
                 <div class="wind-column" on:click={() => onMetricClick('wind')}>Wind</div>
                 <div class="gusts-column" on:click={() => onMetricClick('gust')}>Gusts</div>
@@ -340,33 +224,33 @@
                          {scrollToIndex}
                          on:rowHover={handleRowHover}>
                     <div class="forecast-list">
-                {#each hourlyData as data, index}
+                {#each rowsData as rowData, index}
                     <!-- Waypoint beanie rows -->
-                    {#each waypointPositions.filter(wp => wp.index === index) as waypoint}
-                        {#if waypoint.isStart}
+                    {#if rowData.type === 'waypoint' && rowData.waypointData}
+                        {#if rowData.waypointData.isStart}
                             <DraggableWaypoint {index}>
                                 <LegWaypoint
-                                    waypointNumber={waypoint.number}
-                                    isStart={waypoint.isStart}
-                                    leg={waypoint.number <= forecast.route.legs.length ? forecast.route.legs[waypoint.number - 1] : null}
-                                    legStats={waypoint.number <= forecast.legStats.length ? forecast.legStats[waypoint.number - 1] : null}
-                                    arrivalTime={waypoint.number === forecast.route.waypoints.length ? forecast.route.arrivalTime : null}
-                                    {routeColor}
+                                    waypointNumber={rowData.waypointData.number}
+                                    isStart={rowData.waypointData.isStart}
+                                    leg={rowData.waypointData.leg}
+                                    legStats={rowData.waypointData.stats}
+                                    arrivalTime={rowData.waypointData.isLast ? rowData.waypointData.route.arrivalTime : null}
+                                    routeColor={rowData.waypointData.route.color}
                                     on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
                                 />
                             </DraggableWaypoint>
                         {:else}
                             <LegWaypoint
-                                waypointNumber={waypoint.number}
-                                isStart={waypoint.isStart}
-                                leg={waypoint.number <= forecast.route.legs.length ? forecast.route.legs[waypoint.number - 1] : null}
-                                legStats={waypoint.number <= forecast.legStats.length ? forecast.legStats[waypoint.number - 1] : null}
-                                arrivalTime={waypoint.number === forecast.route.waypoints.length ? forecast.route.arrivalTime : null}
-                                {routeColor}
+                                waypointNumber={rowData.waypointData.number}
+                                isStart={rowData.waypointData.isStart}
+                                leg={rowData.waypointData.leg}
+                                legStats={rowData.waypointData.stats}
+                                arrivalTime={rowData.waypointData.isLast ? rowData.waypointData.route.arrivalTime : null}
+                                routeColor={rowData.waypointData.route.color}
                                 on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
                             />
                         {/if}
-                    {/each}
+                    {/if}
 
                     <!-- Insert drop target row if dragging (only if not dropping back to original position) -->
                     {#if isDragging && dragDropTargetIndex === index && dragStartIndex !== index}
@@ -374,75 +258,62 @@
                              style="opacity: 0.7;">
                             <div class="start-beanie-content">
                                 <div class="waypoint-number">1</div>
-                                <div class="start-time-text">{formatTime(data.timestamp)}</div>
+                                <div class="start-time-text">{formatTime(rowData.timestamp)}</div>
                             </div>
                         </div>
                     {/if}
 
+                    {#if rowData.type === 'row'}
                     <div
                         class="forecast-item"
-                        class:in-route={data.isInRoute}
-                        class:current-hour={isCurrentHour(data.timestamp)}
+                        class:current-hour={rowData.isCurrentHour}
                         data-index={index}
                     >
-                        <div class="time-column">
-                            <TimeCell
-                                forecast={data.forecast}
-                                timestamp={data.timestamp}
-                            />
-                        </div>
-
-                        <div class="weather-column">
-                            <WeatherCell
-                                forecast={data.forecast}
-                            />
-                        </div>
-
-                        <div class="wind-column" style="background: {createGradientBackground(
-                            getWindSpeed(data.forecast),
-                            index > 0 ? getWindSpeed(hourlyData[index - 1].forecast) : null,
-                            index < hourlyData.length - 1 ? getWindSpeed(hourlyData[index + 1].forecast) : null,
-                            getWindColor
-                        )}">
-                            <div class="metric-value combined-wind">
-                                <WindCell
-                                    forecast={data.forecast}
-                                    apparent={!showTrueWind}
-                                    isGust={false}
-                                />
-                            </div>
-                        </div>
-
-                        <div class="gusts-column" style="background: {createGradientBackground(
-                            getGustSpeed(data.forecast),
-                            index > 0 ? getGustSpeed(hourlyData[index - 1].forecast) : null,
-                            index < hourlyData.length - 1 ? getGustSpeed(hourlyData[index + 1].forecast) : null,
-                            getWindColor
-                        )}">
-                            <div class="metric-value combined-gust">
-                                <WindCell
-                                    forecast={data.forecast}
-                                    apparent={!showTrueWind}
-                                    isGust={true}
-                                />
-                            </div>
-                        </div>
-
-                        <div class="waves-column" style="background: {createGradientBackground(
-                            getSeaIndexForForecast(data.forecast),
-                            index > 0 ? getSeaIndexForForecast(hourlyData[index - 1].forecast) : null,
-                            index < hourlyData.length - 1 ? getSeaIndexForForecast(hourlyData[index + 1].forecast) : null,
-                            getSeaIndexColor
-                        )}">
-                            <div class="metric-value wave-value combined-wave">
-                                <WaveCell
-                                    forecast={data.forecast}
-                                    apparent={!showTrueWind}
-                                />
-                            </div>
-                        </div>
+                        {#if rowData.cells}
+                            {#each rowData.cells as cellData}
+                                {#if cellData.type === 'time'}
+                                    <div class="time-column">
+                                        <TimeCell
+                                            timestamp={cellData.timestamp}
+                                            forecastTimestamp={cellData.forecastTimestamp}
+                                        />
+                                    </div>
+                                {:else if cellData.type === 'route-color'}
+                                    <div class="route-color-cell" style="border-left: 4px solid {cellData.color}"></div>
+                                {:else if cellData.type === 'weather'}
+                                    <div class="weather-column">
+                                        <WeatherCell
+                                            precipitations={cellData.precipitations}
+                                            weather={cellData.weather}
+                                            warnings={cellData.warnings}
+                                        />
+                                    </div>
+                                {:else if cellData.type === 'wind'}
+                                    <div class="wind-column" style="background: {cellData.backgroundColor || ''}">
+                                        <WindCell
+                                            windSpeed={cellData.windSpeed}
+                                            relativeWindDirection={cellData.relativeWindDirection}
+                                            trueWindDirection={cellData.trueWindDirection}
+                                            course={cellData.course}
+                                            apparent={cellData.apparent}
+                                        />
+                                    </div>
+                                {:else if cellData.type === 'wave'}
+                                    <div class="waves-column" style="background: {cellData.backgroundColor || ''}">
+                                        <WaveCell
+                                            wavesHeight={cellData.wavesHeight}
+                                            wavesPeriod={cellData.wavesPeriod}
+                                            wavesDirection={cellData.wavesDirection}
+                                            course={cellData.course}
+                                            apparent={cellData.apparent}
+                                        />
+                                    </div>
+                                {/if}
+                            {/each}
+                        {/if}
 
                     </div>
+                    {/if}
                     {/each}
                     </div>
                     </ScrollableForecastTable>
@@ -554,6 +425,12 @@
         .time-column {
             margin-left: 8px;
             .column-base();
+        }
+
+        .route-color-header {
+            width: 4px;
+            min-width: 4px;
+            flex: none;
         }
 
         .weather-column {
@@ -695,7 +572,8 @@
         .weather-column,
         .wind-column,
         .gusts-column,
-        .waves-column {
+        .waves-column,
+        .route-color-cell {
             .column-base();
             min-height: 50px;
             position: relative;
@@ -703,6 +581,12 @@
 
         .time-column {
             margin-left: 8px;
+        }
+
+        .route-color-cell {
+            width: 4px;
+            min-width: 4px;
+            flex: none;
         }
     }
 

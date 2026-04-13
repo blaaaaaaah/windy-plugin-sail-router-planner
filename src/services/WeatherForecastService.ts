@@ -1,6 +1,6 @@
 import type { RouteDefinition, RouteLeg, RouteForecast, PointForecast, WeatherData, WindyAPIResponse, LatLng, WeatherStats } from '../types';
 import { WindyAPI } from './WindyAPI';
-import { calculateApparentWind, calculateRelativeDirection, interpolateLatLng } from '../utils/NavigationUtils';
+import { calculateApparentWind, calculateRelativeDirection, interpolateLatLng, computeSeaIndex } from '../utils/NavigationUtils';
 
 export class WeatherForecastService {
 	private static readonly MAX_LEG_DURATION_HOURS = 67; // Maximum hours per API call
@@ -245,7 +245,8 @@ export class WeatherForecastService {
 					currentDirection: 0, // Current relative to bow
 					wavesHeight: consolidatedForecast.northUp.wavesHeight,
 					wavesPeriod: consolidatedForecast.northUp.wavesPeriod,
-					wavesDirection: 0 // Waves relative to bow
+					wavesDirection: 0, // Waves relative to bow
+					wavesIndex: consolidatedForecast.northUp.wavesIndex // Copy from northUp (same physical conditions)
 				};
 			} else {
 				consolidatedForecast.apparent = null;
@@ -295,7 +296,8 @@ export class WeatherForecastService {
 			currentDirection: this.averageDirections(validForecasts.map(f => f.northUp!.currentDirection)),
 			wavesHeight: validForecasts.reduce((sum, f) => sum + f.northUp!.wavesHeight, 0) / validForecasts.length,
 			wavesPeriod: validForecasts.reduce((sum, f) => sum + f.northUp!.wavesPeriod, 0) / validForecasts.length,
-			wavesDirection: this.averageDirections(validForecasts.map(f => f.northUp!.wavesDirection))
+			wavesDirection: this.averageDirections(validForecasts.map(f => f.northUp!.wavesDirection)),
+			wavesIndex: validForecasts.reduce((sum, f) => sum + f.northUp!.wavesIndex, 0) / validForecasts.length
 		};
 
 		// Average position
@@ -537,7 +539,14 @@ export class WeatherForecastService {
 					currentDirection: 0,
 					wavesHeight: apiResponse.data.waves[i],
 					wavesPeriod: apiResponse.data.wavesPeriod[i],
-					wavesDirection: apiResponse.data.wavesDir[i]
+					wavesDirection: apiResponse.data.wavesDir[i],
+					wavesIndex: computeSeaIndex(
+						apiResponse.data.waves[i],
+						apiResponse.data.wavesPeriod[i],
+						apiResponse.data.wavesDir[i],
+						leg.averageSpeed,
+						leg.course
+					)
 				} : null;
 
 				// Parse warnings
@@ -625,7 +634,8 @@ export class WeatherForecastService {
 			currentDirection: calculateRelativeDirection(northUp.currentDirection, boatCourse),
 			wavesHeight: northUp.wavesHeight,
 			wavesPeriod: northUp.wavesPeriod,
-			wavesDirection: calculateRelativeDirection(northUp.wavesDirection, boatCourse)
+			wavesDirection: calculateRelativeDirection(northUp.wavesDirection, boatCourse),
+			wavesIndex: northUp.wavesIndex // Copy from northUp (same physical conditions)
 		};
 	}
 
@@ -682,7 +692,14 @@ export class WeatherForecastService {
 					currentDirection: 0,
 					wavesHeight: apiResponse.data.waves[closestIndex],
 					wavesPeriod: apiResponse.data.wavesPeriod[closestIndex],
-					wavesDirection: apiResponse.data.wavesDir[closestIndex]
+					wavesDirection: apiResponse.data.wavesDir[closestIndex],
+					wavesIndex: computeSeaIndex(
+						apiResponse.data.waves[closestIndex],
+						apiResponse.data.wavesPeriod[closestIndex],
+						apiResponse.data.wavesDir[closestIndex],
+						0, // Boat speed = 0 for stationary points
+						apiResponse.data.windDir[closestIndex] // Boat faces into wind (wind direction FROM)
+					)
 				} : null;
 
 				const pointForecast: PointForecast = {

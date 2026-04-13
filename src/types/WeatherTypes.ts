@@ -29,6 +29,7 @@ export interface WeatherData {
 	wavesHeight: number; // meters
 	wavesPeriod: number; // seconds
 	wavesDirection: number; // degrees, 0-359 for north up, -180-180 for apparent
+	wavesIndex: number; // computed sea index for sailing conditions
 }
 
 export interface PointForecast {

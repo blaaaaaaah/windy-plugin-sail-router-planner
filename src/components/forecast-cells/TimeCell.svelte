@@ -1,20 +1,21 @@
 <script lang="ts">
 	import { formatTime, formatWeekDayDate } from '../../utils/TimeUtils';
-	import type { PointForecast } from '../../types/WeatherTypes';
 
-	export let forecast: PointForecast | null;
 	export let timestamp: number;
+	export let forecastTimestamp: number | null = null;
 
-	function getForecastFreshness(forecastData: any, sailingHour: number): { level: string; color: string; tooltip: string } | null {
-		if (!forecastData?.forecastTimestamp) {
+	$: freshness = getForecastFreshness(forecastTimestamp, timestamp);
+
+	function getForecastFreshness(forecastTimestamp: number | null, sailingHour: number): { level: string; color: string; tooltip: string } | null {
+		if (!forecastTimestamp) {
 			return null;
 		}
 
 		// Calculate the absolute time difference in minutes first
-		const timeDiffMinutes = Math.abs(sailingHour - forecastData.forecastTimestamp) / (1000 * 60);
+		const timeDiffMinutes = Math.abs(sailingHour - forecastTimestamp) / (1000 * 60);
 		const hoursDiff = timeDiffMinutes / 60;
 
-		const forecastTimeStr = new Date(forecastData.forecastTimestamp).toLocaleString('en-US', {
+		const forecastTimeStr = new Date(forecastTimestamp).toLocaleString('en-US', {
 			month: 'short',
 			day: 'numeric',
 			hour: 'numeric',
@@ -53,13 +54,10 @@
 <div class="time-row">
 	<div class="time-line">
 		<div class="time">{formatTime(timestamp)}</div>
-		{#if forecast && getForecastFreshness(forecast, timestamp)}
-			{@const freshness = getForecastFreshness(forecast, timestamp)}
-			{#if freshness.level !== 'fresh'}
-				<div class="freshness-indicator" style="color: {freshness.color}" title={freshness.tooltip}>
-					⚠
-				</div>
-			{/if}
+		{#if freshness && freshness.level !== 'fresh'}
+			<div class="freshness-indicator" style="color: {freshness.color}" title={freshness.tooltip}>
+				⚠
+			</div>
 		{/if}
 	</div>
 	<div class="date">{formatWeekDayDate(timestamp)}</div>

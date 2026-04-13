@@ -1,28 +1,23 @@
 <script lang="ts">
 	import { formatWindSpeed, formatRelativeDirection } from '../../utils/FormatUtils';
 	import DirectionIcon from './DirectionIcon.svelte';
-	import type { PointForecast } from '../../types/WeatherTypes';
 
-	export let forecast: PointForecast | null;
-	export let apparent: boolean;
-	export let isGust: boolean = false;
+	export let windSpeed: number | null = null;
+	export let relativeWindDirection: number | null = null;
+	export let trueWindDirection: number | null = null;
+	export let course: number = 0;
+	export let apparent: boolean = false;
 
-	$: weatherData = apparent ? forecast?.apparent : forecast?.northUp;
-	$: windSpeed = isGust ? weatherData?.gustsSpeed : weatherData?.windSpeed;
-	$: windDirection = apparent ? weatherData?.relativeWindDirection : weatherData?.trueWindDirection;
-	$: boatCourse = apparent ? 0 : forecast?.bearing;
+	$: windDirection = apparent ? relativeWindDirection : trueWindDirection;
+	$: boatCourse = apparent ? 0 : course;
 
 	$: tooltip = (() => {
 		if (apparent) {
-			const relativeDir = forecast?.apparent?.relativeWindDirection;
-			const trueDir = forecast?.northUp?.trueWindDirection;
-			if (relativeDir === undefined || trueDir === undefined) return 'N/A';
-			return `AWA: ${formatRelativeDirection(relativeDir)}\nTWD: ${trueDir.toFixed(0)}°`;
+			if (relativeWindDirection === null || trueWindDirection === null) return 'N/A';
+			return `AWA: ${formatRelativeDirection(relativeWindDirection)}\nTWD: ${trueWindDirection.toFixed(0)}°`;
 		} else {
-			const relativeDir = forecast?.northUp?.relativeWindDirection;
-			const trueDir = forecast?.northUp?.trueWindDirection;
-			if (relativeDir === undefined || trueDir === undefined) return 'N/A';
-			return `TWA: ${formatRelativeDirection(relativeDir)}\nTWD: ${trueDir.toFixed(0)}°`;
+			if (relativeWindDirection === null || trueWindDirection === null) return 'N/A';
+			return `TWA: ${formatRelativeDirection(relativeWindDirection)}\nTWD: ${trueWindDirection.toFixed(0)}°`;
 		}
 	})();
 </script>

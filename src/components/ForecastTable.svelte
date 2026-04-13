@@ -395,6 +395,17 @@
         text-align: center;
     }
 
+    .time-column-base {
+        width: 60px;
+        min-width: 60px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        text-align: left;
+        padding-left: 12px;
+    }
+
     .clickable-column {
         cursor: pointer;
         border-radius: 4px;
@@ -415,7 +426,7 @@
         border-bottom: 2px solid #dee2e6;
         display: flex;
         align-items: center;
-        padding: 8px 16px 8px 20px;
+        padding: 8px 16px 8px 0px;
         font-weight: 600;
         font-size: 11px;
         color: #495057;
@@ -423,8 +434,7 @@
         letter-spacing: 0.5px;
 
         .time-column {
-            margin-left: 8px;
-            .column-base();
+            .time-column-base();
         }
 
         .route-color-header {
@@ -455,18 +465,6 @@
         height: 0; /* Force flex to constrain height */
     }
 
-    .data-table {
-        flex: 1;
-        overflow-x: visible;
-        overflow-y: auto;
-        height: 100%;
-
-        &.vertical-scroll {
-            padding: 0;
-            padding-left: 12px;
-        }
-    }
-
     .forecast-list {
         display: flex;
         flex-direction: column;
@@ -477,7 +475,7 @@
     .forecast-item {
         display: flex;
         align-items: center;
-        border-left: 4px solid transparent;
+
         background: white;
         transition: background 0.2s ease;
         min-height: 50px;
@@ -580,7 +578,7 @@
         }
 
         .time-column {
-            margin-left: 8px;
+            .time-column-base();
         }
 
         .route-color-cell {

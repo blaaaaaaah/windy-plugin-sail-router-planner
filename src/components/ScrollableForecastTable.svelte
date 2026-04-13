@@ -111,7 +111,6 @@
 		height: 100%;
 		&.vertical-scroll {
 			padding: 0;
-			padding-left: 12px;
 		}
 	}
 </style>

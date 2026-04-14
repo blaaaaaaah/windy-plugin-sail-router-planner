@@ -108,7 +108,7 @@ export class ForecastTableDataSource {
 				timestamp,
 				type: 'row',
 				isCurrentHour,
-				cells: this.generateCellsForTimestamp(timestamp, forecastPoint, i, timelineData, showApparent)
+				cells: this.generateCellsForTimestamp(timestamp, forecastPoint, i, timelineData, showApparent, waypointData?.data)
 			});
 		}
 
@@ -238,7 +238,8 @@ export class ForecastTableDataSource {
 		forecastPoint: PointForecast | null,
 		index: number,
 		timelineData: Array<{ timestamp: number; forecastPoint: PointForecast | null }>,
-		showApparent: boolean
+		showApparent: boolean,
+		waypointData?: LegWaypointData
 	): ForecastCellData[] {
 		const cells: ForecastCellData[] = [];
 

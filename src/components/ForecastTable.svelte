@@ -6,6 +6,7 @@
     import WindCell from './forecast-cells/WindCell.svelte';
     import WaveCell from './forecast-cells/WaveCell.svelte';
     import TimeCell from './forecast-cells/TimeCell.svelte';
+    import RouteColorCell from './forecast-cells/RouteColorCell.svelte';
     import ScrollableForecastTable from './ScrollableForecastTable.svelte';
     import DraggableWaypointForecastTable from './DraggableWaypointForecastTable.svelte';
     import DraggableWaypoint from './DraggableWaypoint.svelte';
@@ -232,6 +233,7 @@
                                 <LegWaypoint
                                     waypointNumber={rowData.waypointData.number}
                                     isStart={rowData.waypointData.isStart}
+                                    isLast={rowData.waypointData.isLast}
                                     leg={rowData.waypointData.leg}
                                     legStats={rowData.waypointData.stats}
                                     arrivalTime={rowData.waypointData.isLast ? rowData.waypointData.route.arrivalTime : null}
@@ -243,9 +245,10 @@
                             <LegWaypoint
                                 waypointNumber={rowData.waypointData.number}
                                 isStart={rowData.waypointData.isStart}
+                                isLast={rowData.waypointData.isLast}
                                 leg={rowData.waypointData.leg}
                                 legStats={rowData.waypointData.stats}
-                                arrivalTime={rowData.waypointData.isLast ? rowData.waypointData.route.arrivalTime : null}
+                                arrivalTime={rowData.waypointData.route.arrivalTime}
                                 routeColor={rowData.waypointData.route.color}
                                 on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
                             />
@@ -279,7 +282,10 @@
                                         />
                                     </div>
                                 {:else if cellData.type === 'route-color'}
-                                    <div class="route-color-cell" style="border-left: 4px solid {cellData.color}"></div>
+                                    <RouteColorCell
+                                        color={cellData.color}
+                                        waypointNumber={cellData.waypointNumber}
+                                    />
                                 {:else if cellData.type === 'weather'}
                                     <div class="weather-column">
                                         <WeatherCell

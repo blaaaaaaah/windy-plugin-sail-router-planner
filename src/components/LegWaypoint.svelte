@@ -8,6 +8,7 @@
 
     export let waypointNumber: number;
     export let isStart: boolean = false; // Is this the departure waypoint?
+    export let isLast: boolean = false; // Is this the arrival waypoint?
     export let leg: RouteLeg | null = null; // Null for destination waypoint
     export let legStats: any | null = null; // Weather statistics, null for destination
     export let arrivalTime: number | null = null; // For destination waypoint only
@@ -17,7 +18,7 @@
     const dispatch = createEventDispatcher();
 
     function handleClick() {
-        if (!isDestinationWaypoint) {
+        if (!isLast) {
             isExpanded = !isExpanded;
         }
     }
@@ -30,23 +31,25 @@
     }
 
 
-    $: isDestinationWaypoint = leg === null;
-    $: showExpandChevron = !isDestinationWaypoint;
+    $: showExpandChevron = !isLast;
 </script>
 
 <div class="waypoint-row-container">
     <div
-        class="start-beanie-row"
-        class:waypoint-row={!isStart}
+        class="waypoint-row"
         class:expanded={isExpanded}
-        class:destination-waypoint={isDestinationWaypoint}
+        class:destination-waypoint={isLast}
         style="--route-color: {routeColor}; --route-color-rgb: {routeColor.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}"
         on:click={showExpandChevron ? handleClick : undefined}
     >
-        <div class="start-beanie-content">
+        <div class="waypoint-content">
             <div class="waypoint-number">{waypointNumber}</div>
             <div class="waypoint-info">
-                {#if leg}
+                {#if isLast && arrivalTime }
+                    <div class="leg-datetime">
+                        Arrival: {formatDateTime(arrivalTime)}
+                    </div>
+                {:else if leg}
                     <div class="leg-datetime">
                         {#if isStart}
                             Departure: {formatDateTime(leg.startTime)}
@@ -57,12 +60,6 @@
                     <div class="leg-distance">{formatDistance(leg.distance)}</div>
                     <div class="leg-speed">{leg.averageSpeed}knts</div>
                     <div class="leg-duration">{formatDuration(leg.duration)}</div>
-                {:else if isDestinationWaypoint && arrivalTime}
-                    <div class="leg-datetime">
-                        Arrival: {formatDateTime(arrivalTime)}
-                    </div>
-                {:else}
-                    <div class="leg-placeholder">No leg data</div>
                 {/if}
             </div>
             <!-- Only show expand chevron for non-destination waypoints -->
@@ -73,7 +70,7 @@
     </div>
 
     <!-- Expanded content - only for non-destination waypoints -->
-    {#if isExpanded && !isDestinationWaypoint && leg}
+    {#if isExpanded && !isLast && leg}
         <div class="leg-detail-wrapper" style="--route-color: {routeColor}; --route-color-rgb: {routeColor.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
             <!-- Coordinates and Course Row -->
             <div class="coordinate-row">
@@ -110,6 +107,7 @@
 <style lang="less">
     .waypoint-row-container {
         position: relative;
+         margin-left: 60px;  // time column + padding
     }
 
     .leg-detail-wrapper {
@@ -151,44 +149,24 @@
         }
     }
 
-    .start-beanie-row {
+    .waypoint-row {
+       
         height: 18px;
         background: rgba(var(--route-color-rgb), 0.8);
         display: flex;
         align-items: center;
-        padding: 0 12px;
         position: relative;
         border-bottom: none;
         cursor: grab;
-        z-index: 20;
-        border-left: 4px solid var(--route-color);
+        //z-index: 20;
+        //border-left: 4px solid var(--route-color);
         overflow: visible;
         border-top: 2px solid white;
         border-bottom: 2px solid white;
 
-        &.waypoint-row {
-            cursor: pointer;
-            transition: all 0.2s ease;
+    
 
-            &:hover {
-                background: rgba(var(--route-color-rgb), 0.25);
-            }
-
-            .waypoint-number {
-                background: var(--route-color);
-                opacity: 0.8;
-            }
-        }
-
-        &.destination-waypoint {
-            cursor: default;
-
-            &:hover {
-                background: rgba(var(--route-color-rgb), 0.8);
-            }
-        }
-
-        .start-beanie-content {
+        .waypoint-content {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -198,6 +176,7 @@
         }
 
         .waypoint-info {
+            margin-left: 16px;
             display: flex;
             flex-direction: row;
             justify-content: space-between;
@@ -250,7 +229,7 @@
 
         .waypoint-number {
             position: absolute;
-            left: -25px;
+            left: -10px;
             background: var(--route-color);
             color: white;
             width: 22px;

@@ -8,7 +8,7 @@
 
     export let legStats: WeatherStats | null; // Leg statistics data
     export let leg: RouteLeg; // Leg data for distance, duration, speed
-    export let routeColor: string = '#3498db';
+    export let color: string = '#3498db';
     export let isSpeedEditable: boolean = true;
 
     const dispatch = createEventDispatcher();
@@ -23,7 +23,7 @@
 </script>
 
 {#if leg}
-    <div class="waypoint-expanded" style="--route-color: {routeColor}; --route-color-rgb: {routeColor.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
+    <div class="waypoint-expanded" style="--route-color: {color}; --route-color-rgb: {color.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
         <div class="expanded-content">
             <!-- Row 1: Speed, Distance, Time -->
             <div class="leg-row">

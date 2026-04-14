@@ -9,14 +9,11 @@
     import RouteColorCell from './forecast-cells/RouteColorCell.svelte';
     import ScrollableForecastTable from './ScrollableForecastTable.svelte';
     import DraggableWaypointForecastTable from './DraggableWaypointForecastTable.svelte';
-    import DraggableWaypoint from './DraggableWaypoint.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import { formatTime, formatTimeAgo } from '../utils/TimeUtils';
-    import { getWindColor, getSeaIndexColor, createGradientBackground, hexToRgb } from '../utils/ColorUtils';
     import { ForecastTableDataSource, type ForecastTableRowData } from '../services/ForecastTableDataSource';
 
     export let forecast: RouteForecast | null = null;
-    export let routeColor: string = '#3498db';
     export let showTrueWind: boolean = true;
 
     // Derived state from forecast
@@ -34,7 +31,6 @@
     // Refresh method to recalculate data
     function refresh() {
         if (forecast) {
-            routeColor = forecast.route.color;
 
             // Check if this is a new route
             const isNewRoute = currentRouteId !== forecast.route.id;
@@ -73,9 +69,16 @@
     }
 
     // Efficient update when only wind mode changes (reuse existing data source)
-    $: if (dataSource && showTrueWind !== undefined) {
-        rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
-        console.log('ForecastTableDataSource generated', rowsData.length, 'rows');
+    $: if (showTrueWind !== undefined) {
+        updateRows();   // do not use other variables here because we want this to run only when showTrueWind changes, not on every forecast change
+    }
+
+    function updateRows() {
+        if ( dataSource && forecast) {
+            // Only regenerate rows data with new wind mode, keep the same data source instance
+            rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
+            console.log('ForecastTableDataSource generated', rowsData.length, 'rows');
+        }
     }
 
 
@@ -88,9 +91,10 @@
 
     function handleRowHover(event: CustomEvent) {
         const index = event.detail.index;
-        if (index !== null && rowsData[index]) {
+        const rowData = rowsData.find(row => row.index === index && row.type === 'row');
+        if (index !== null && rowData) {
             dispatch('timeHover', {
-                timestamp: rowsData[index].timestamp
+                timestamp: rowData.timestamp
             });
         }
     }
@@ -122,31 +126,31 @@
     }
 
 
-
-
-
-
-
-
-
-
-
     // Handle waypoint index changes from drag operations
     function handleWaypointIndexChanged(event: CustomEvent) {
-        const { fromIndex, toIndex } = event.detail;
+        const { fromIndex, toIndex, isDragging } = event.detail;
 
-        if (fromIndex !== null && toIndex !== fromIndex) {
-            const newStartTime = rowsData[toIndex]?.timestamp;
-            if (newStartTime && forecast?.route) {
-                console.log(`Moving route start from ${formatTime(rowsData[fromIndex].timestamp)} to ${formatTime(newStartTime)}`);
+        console.log(`Waypoint index change: from ${fromIndex} to ${toIndex}, isDragging: ${isDragging}`);
 
-                // Update the route departure time directly
-                forecast.route.setDepartureTime(newStartTime);
+        if ( isDragging  ) {
+            const dropIndex = toIndex == fromIndex ? null : toIndex;
+            rowsData = dataSource!.getRowsData(!showTrueWind, dropIndex); // showApparent = !showTrueWind
+        } else {
+            if (fromIndex !== null && toIndex !== fromIndex ) {
+                const rowData = rowsData.find(row => row.index === toIndex && row.type === 'row');
 
-                // Dispatch updated route to trigger forecast regeneration
-                dispatch('routeUpdated', {
-                    route: forecast.route
-                });
+                const newStartTime = rowData ? rowData.timestamp : null;
+                if (newStartTime && forecast?.route) {
+                    console.log(`Moving route start to ${formatTime(newStartTime)}`);
+
+                    // Update the route departure time directly
+                    forecast.route.setDepartureTime(newStartTime);
+
+                    // Dispatch updated route to trigger forecast regeneration
+                    dispatch('routeUpdated', {
+                        route: forecast.route
+                    });
+                }
             }
         }
     }
@@ -190,7 +194,7 @@
 
 </script>
 
-<div class="forecast-table-container" style="--route-color: {routeColor}; --route-color-rgb: {hexToRgb(routeColor)};" class:loading={isLoading}>
+<div class="forecast-table-container" class:loading={isLoading}>
 
     <div class="table-container">
         <!-- Table Content -->
@@ -218,108 +222,89 @@
             <div class="main-table">
                 <DraggableWaypointForecastTable
                      on:waypointIndexChanged={handleWaypointIndexChanged}
-                     let:isDragging
-                     let:dragStartIndex
-                     let:dragDropTargetIndex>
+                >
                     <ScrollableForecastTable
                          {scrollToIndex}
                          on:rowHover={handleRowHover}>
                     <div class="forecast-list">
-                {#each rowsData as rowData, index}
-                    <!-- Waypoint beanie rows -->
-                    {#if rowData.type === 'waypoint' && rowData.waypointData}
-                        {#if rowData.waypointData.isStart}
-                            <DraggableWaypoint {index}>
-                                <LegWaypoint
-                                    waypointNumber={rowData.waypointData.number}
-                                    isStart={rowData.waypointData.isStart}
-                                    isLast={rowData.waypointData.isLast}
-                                    leg={rowData.waypointData.leg}
-                                    legStats={rowData.waypointData.stats}
-                                    arrivalTime={rowData.waypointData.isLast ? rowData.waypointData.route.arrivalTime : null}
-                                    routeColor={rowData.waypointData.route.color}
-                                    on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
-                                />
-                            </DraggableWaypoint>
-                        {:else}
+                {#each rowsData as rowData}
+                    <div data-index={rowData.index}>
+
+                        <!-- Waypoint  rows -->
+                        {#if rowData.type === 'waypoint' && rowData.waypointData}
                             <LegWaypoint
                                 waypointNumber={rowData.waypointData.number}
                                 isStart={rowData.waypointData.isStart}
                                 isLast={rowData.waypointData.isLast}
                                 leg={rowData.waypointData.leg}
                                 legStats={rowData.waypointData.stats}
-                                arrivalTime={rowData.waypointData.route.arrivalTime}
-                                routeColor={rowData.waypointData.route.color}
+                                departureTime={rowData.waypointData.departureTime}
+                                arrivalTime={rowData.waypointData.arrivalTime}
+                                color={rowData.waypointData.color}
+                                dropGhost={rowData.waypointData.dropGhost}
                                 on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
+
+                                draggable={rowData.waypointData.isStart && !rowData.waypointData.dropGhost}
                             />
                         {/if}
-                    {/if}
 
-                    <!-- Insert drop target row if dragging (only if not dropping back to original position) -->
-                    {#if isDragging && dragDropTargetIndex === index && dragStartIndex !== index}
-                        <div class="start-beanie-row"
-                             style="opacity: 0.7;">
-                            <div class="start-beanie-content">
-                                <div class="waypoint-number">1</div>
-                                <div class="start-time-text">{formatTime(rowData.timestamp)}</div>
-                            </div>
+                        
+
+                        {#if rowData.type === 'row'}
+                        <div
+                            class="forecast-item"
+                            class:current-hour={rowData.isCurrentHour}
+                            data-index={rowData.index}
+                        >
+                            {#if rowData.cells}
+                                {#each rowData.cells as cellData}
+                                    {#if cellData.type === 'time'}
+                                        <div class="time-column">
+                                            <TimeCell
+                                                timestamp={cellData.timestamp}
+                                                forecastTimestamp={cellData.forecastTimestamp}
+                                            />
+                                        </div>
+                                    {:else if cellData.type === 'route-color'}
+                                        <RouteColorCell
+                                            color={cellData.color}
+                                            waypointNumber={cellData.waypointNumber}
+                                        />
+                                    {:else if cellData.type === 'weather'}
+                                        <div class="weather-column">
+                                            <WeatherCell
+                                                precipitations={cellData.precipitations}
+                                                weather={cellData.weather}
+                                                warnings={cellData.warnings}
+                                            />
+                                        </div>
+                                    {:else if cellData.type === 'wind'}
+                                        <div class="wind-column" style="background: {cellData.backgroundColor || ''}">
+                                            <WindCell
+                                                windSpeed={cellData.windSpeed}
+                                                relativeWindDirection={cellData.relativeWindDirection}
+                                                trueWindDirection={cellData.trueWindDirection}
+                                                course={cellData.course}
+                                                apparent={cellData.apparent}
+                                            />
+                                        </div>
+                                    {:else if cellData.type === 'wave'}
+                                        <div class="waves-column" style="background: {cellData.backgroundColor || ''}">
+                                            <WaveCell
+                                                wavesHeight={cellData.wavesHeight}
+                                                wavesPeriod={cellData.wavesPeriod}
+                                                wavesDirection={cellData.wavesDirection}
+                                                course={cellData.course}
+                                                apparent={cellData.apparent}
+                                            />
+                                        </div>
+                                    {/if}
+                                {/each}
+                            {/if}
+
                         </div>
-                    {/if}
-
-                    {#if rowData.type === 'row'}
-                    <div
-                        class="forecast-item"
-                        class:current-hour={rowData.isCurrentHour}
-                        data-index={index}
-                    >
-                        {#if rowData.cells}
-                            {#each rowData.cells as cellData}
-                                {#if cellData.type === 'time'}
-                                    <div class="time-column">
-                                        <TimeCell
-                                            timestamp={cellData.timestamp}
-                                            forecastTimestamp={cellData.forecastTimestamp}
-                                        />
-                                    </div>
-                                {:else if cellData.type === 'route-color'}
-                                    <RouteColorCell
-                                        color={cellData.color}
-                                        waypointNumber={cellData.waypointNumber}
-                                    />
-                                {:else if cellData.type === 'weather'}
-                                    <div class="weather-column">
-                                        <WeatherCell
-                                            precipitations={cellData.precipitations}
-                                            weather={cellData.weather}
-                                            warnings={cellData.warnings}
-                                        />
-                                    </div>
-                                {:else if cellData.type === 'wind'}
-                                    <div class="wind-column" style="background: {cellData.backgroundColor || ''}">
-                                        <WindCell
-                                            windSpeed={cellData.windSpeed}
-                                            relativeWindDirection={cellData.relativeWindDirection}
-                                            trueWindDirection={cellData.trueWindDirection}
-                                            course={cellData.course}
-                                            apparent={cellData.apparent}
-                                        />
-                                    </div>
-                                {:else if cellData.type === 'wave'}
-                                    <div class="waves-column" style="background: {cellData.backgroundColor || ''}">
-                                        <WaveCell
-                                            wavesHeight={cellData.wavesHeight}
-                                            wavesPeriod={cellData.wavesPeriod}
-                                            wavesDirection={cellData.wavesDirection}
-                                            course={cellData.course}
-                                            apparent={cellData.apparent}
-                                        />
-                                    </div>
-                                {/if}
-                            {/each}
                         {/if}
-
                     </div>
-                    {/if}
                     {/each}
                     </div>
                     </ScrollableForecastTable>

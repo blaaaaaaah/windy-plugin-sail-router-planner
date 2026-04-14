@@ -8,7 +8,10 @@ export interface LegWaypointData {
 	isLast: boolean;
 	number: number;
 	stats: WeatherStats | null;
-	route: RouteDefinition;
+	color: string;
+	departureTime: number;
+	arrivalTime: number;
+	dropGhost?: boolean;	// Indicates this is a "ghost" waypoint for drag-and-drop, not an actual route waypoint
 	onDepartureTimeChange?: (newTime: number) => void;
 }
 
@@ -46,6 +49,7 @@ export interface ForecastCellData {
 }
 
 export interface ForecastTableRowData {
+	index: number;	// position in the timeline
 	timestamp: number;
 	type: 'row' | 'waypoint';
 	isCurrentHour: boolean;
@@ -65,7 +69,7 @@ export class ForecastTableDataSource {
 	/**
 	 * Main method - converts RouteForecast to table rows
 	 */
-	getRowsData(showApparent: boolean = false): ForecastTableRowData[] {
+	getRowsData(showApparent: boolean = false, ghostAtIndex: number | null = null): ForecastTableRowData[] {
 		// Generate unified timeline
 		const timeline = this.generateTimeline();
 
@@ -80,7 +84,7 @@ export class ForecastTableDataSource {
 		}));
 
 		// Calculate waypoint positions only if forecasts
-		const waypointDataList = this.routeForecast.pointForecasts ? this.calculateWaypointPositions(timeline) : [];
+		const waypointDataList = this.routeForecast.pointForecasts ? this.calculateWaypointPositions(timeline, ghostAtIndex) : [];
 
 		// Generate rows - alternate between waypoint and data rows
 		const rows: ForecastTableRowData[] = [];
@@ -96,6 +100,7 @@ export class ForecastTableDataSource {
 			if (waypointData) {
 				// Add waypoint row
 				rows.push({
+					index: i,
 					timestamp,
 					type: 'waypoint',
 					isCurrentHour,
@@ -105,12 +110,15 @@ export class ForecastTableDataSource {
 
 			// Add data row
 			rows.push({
+				index: i,
 				timestamp,
 				type: 'row',
 				isCurrentHour,
 				cells: this.generateCellsForTimestamp(timestamp, forecastPoint, i, timelineData, showApparent, waypointData?.data)
 			});
 		}
+
+		console.log(`Generated ${rows.length} rows for forecast table (including ${waypointDataList.length} waypoints)`);
 
 		return rows;
 	}
@@ -150,7 +158,7 @@ export class ForecastTableDataSource {
 	/**
 	 * Calculate waypoint positions and return LegWaypointData objects directly
 	 */
-	private calculateWaypointPositions(timeline: number[]): Array<{
+	private calculateWaypointPositions(timeline: number[], ghostAtIndex: number | null = null): Array<{
 		position: number;
 		data: LegWaypointData;
 	}> {
@@ -199,12 +207,34 @@ export class ForecastTableDataSource {
 						stats: this.routeForecast.legStats && waypointIndex < this.routeForecast.legStats.length
 							? this.routeForecast.legStats[waypointIndex]
 							: null,
-						route: this.routeForecast.route,
+						departureTime: this.routeForecast.route.departureTime,
+						arrivalTime: this.routeForecast.route.arrivalTime,
+						color: this.routeForecast.route.color,
+						dropGhost: false
 						// Note: onDepartureTimeChange will be connected in ForecastTable
 					}
 				});
 			}
 		}
+
+		if (ghostAtIndex !== null) {
+			waypointDataList.push({
+				position: ghostAtIndex,
+				data: {
+					leg: this.routeForecast.route.legs[0], // Placeholder leg data for ghost waypoint
+					isStart: false,
+					isLast: false,
+					number: 1,
+					stats: null,
+					departureTime: timeline[ghostAtIndex],
+					arrivalTime: this.routeForecast.route.arrivalTime,
+					color: this.routeForecast.route.color,
+					dropGhost: true
+				}
+			});
+		}
+
+		waypointDataList.sort((a, b) => a.position - b.position); // Ensure waypoints are in timeline order
 
 		return waypointDataList;
 	}

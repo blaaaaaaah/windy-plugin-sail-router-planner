@@ -9,10 +9,15 @@
     export let waypointNumber: number;
     export let isStart: boolean = false; // Is this the departure waypoint?
     export let isLast: boolean = false; // Is this the arrival waypoint?
+    export let dropGhost: boolean = false; // Is this a drop ghost waypoint?
     export let leg: RouteLeg | null = null; // Null for destination waypoint
     export let legStats: any | null = null; // Weather statistics, null for destination
-    export let arrivalTime: number | null = null; // For destination waypoint only
-    export let routeColor: string = '#3498db';
+    export let departureTime: number; // For destination waypoint only
+    export let arrivalTime: number; // For destination waypoint only
+    export let color: string = '#3498db';
+
+    export let draggable:boolean = false;
+
     let isExpanded: boolean = false;
 
     const dispatch = createEventDispatcher();
@@ -31,28 +36,33 @@
     }
 
 
-    $: showExpandChevron = !isLast;
+    $: showExpandChevron = !isLast && !dropGhost;
 </script>
 
-<div class="waypoint-row-container">
+<div class="waypoint-row-container" draggable={draggable}>
     <div
         class="waypoint-row"
         class:expanded={isExpanded}
         class:destination-waypoint={isLast}
-        style="--route-color: {routeColor}; --route-color-rgb: {routeColor.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}"
+        class:drop-ghost={dropGhost}
+        style="--route-color: {color}; --route-color-rgb: {color.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}"
         on:click={showExpandChevron ? handleClick : undefined}
     >
         <div class="waypoint-content">
             <div class="waypoint-number">{waypointNumber}</div>
             <div class="waypoint-info">
-                {#if isLast && arrivalTime }
+                {#if isLast }
                     <div class="leg-datetime">
                         Arrival: {formatDateTime(arrivalTime)}
                     </div>
+                {:else if dropGhost}
+                    <div class="leg-datetime">
+                        Departure: {formatDateTime(departureTime)}
+                    </div>
                 {:else if leg}
                     <div class="leg-datetime">
-                        {#if isStart}
-                            Departure: {formatDateTime(leg.startTime)}
+                        {#if isStart }
+                            Departure: {formatDateTime(departureTime)}
                         {:else}
                             Leg {waypointNumber}: {formatDateTime(leg.startTime)}
                         {/if}
@@ -71,7 +81,7 @@
 
     <!-- Expanded content - only for non-destination waypoints -->
     {#if isExpanded && !isLast && leg}
-        <div class="leg-detail-wrapper" style="--route-color: {routeColor}; --route-color-rgb: {routeColor.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
+        <div class="leg-detail-wrapper" style="--route-color: {color}; --route-color-rgb: {color.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
             <!-- Coordinates and Course Row -->
             <div class="coordinate-row">
                 <div class="coord-item">
@@ -97,7 +107,7 @@
             <LegDetail
                 legStats={legStats}
                 {leg}
-                {routeColor}
+                {color}
                 on:speedUpdate={handleSpeedUpdate}
             />
         </div>
@@ -164,7 +174,9 @@
         border-top: 2px solid white;
         border-bottom: 2px solid white;
 
-    
+        &.drop-ghost {
+            opacity: 0.7;
+         }
 
         .waypoint-content {
             display: flex;

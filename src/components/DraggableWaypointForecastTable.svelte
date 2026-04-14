@@ -13,11 +13,17 @@
 	// Handle DOM drag events from DraggableWaypoint components
 	function handleDragStart(event: DragEvent) {
 		const target = event.target as HTMLElement;
-		const waypointElement = target.closest('[data-waypoint-index]');
+
+		// Set drag image to be invisible
+		const dragImage = new Image();
+		dragImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
+		event.dataTransfer?.setDragImage(dragImage, 0, 0);
+
+		const waypointElement = target.closest('[data-index]');
 
 		if (!waypointElement) return;
 
-		const index = parseInt(waypointElement.getAttribute('data-waypoint-index') || '', 10);
+		const index = parseInt(waypointElement.getAttribute('data-index') || '', 10);
 		if (isNaN(index)) return;
 
 		isDragging = true;
@@ -48,22 +54,19 @@
 		if (!isDragging || dragStartIndex === null) return;
 
 		const target = event.target as HTMLElement;
-		const forecastItem = target.closest('.forecast-item');
+		const targetIndex = getDataIndex(target);
 
-		if (!forecastItem) return;
+		if (targetIndex === dragDropTargetIndex || targetIndex === null) return; // No change in target
 
-		const targetIndex = parseInt(forecastItem.getAttribute('data-index') || '', 10);
-		if (isNaN(targetIndex)) return;
+		// Dispatch waypoint index changed event
+		dispatch('waypointIndexChanged', {
+			fromIndex: dragStartIndex,
+			toIndex: targetIndex,
+			isDragging: true
+		});
 
-		// Only show drop target if it's a different position
-		if (targetIndex !== dragStartIndex) {
-			dragDropTargetIndex = targetIndex;
+		dragDropTargetIndex = targetIndex;
 
-			// FUTURE: When datasource exists, dispatch continuous drag events
-			// dispatch('waypointDrag', { fromIndex: dragStartIndex, toIndex: targetIndex });
-		} else {
-			dragDropTargetIndex = null;
-		}
 
 		// Auto-scroll logic
 		const rect = target.getBoundingClientRect();
@@ -107,23 +110,29 @@
 		if (dragStartIndex === null) return;
 
 		const target = event.target as HTMLElement;
-		const forecastItem = target.closest('.forecast-item');
-
-		if (!forecastItem) return;
-
-		const targetIndex = parseInt(forecastItem.getAttribute('data-index') || '', 10);
-		if (isNaN(targetIndex) || targetIndex === dragStartIndex) return;
+		const targetIndex = getDataIndex(target);
+		
+		if (targetIndex === null) return;
 
 		// Dispatch waypoint index changed event
 		dispatch('waypointIndexChanged', {
 			fromIndex: dragStartIndex,
-			toIndex: targetIndex
+			toIndex: targetIndex,
+			isDragging: false
 		});
 
-		// FUTURE: When datasource exists, dispatch drag end for final data update
-		// dispatch('waypointDragEnd', { fromIndex: dragStartIndex, toIndex: targetIndex });
-
 		handleDragEnd(event);
+	}
+
+	function getDataIndex(target:HTMLElement) {
+		const forecastItem = target.closest('[data-index]');
+
+		if (!forecastItem) return null;
+
+		const targetIndex = parseInt(forecastItem.getAttribute('data-index') || '', 10);
+		if (isNaN(targetIndex)) return null;
+
+		return targetIndex
 	}
 </script>
 
@@ -157,7 +166,7 @@
 	on:dragleave={handleDragLeave}
 	on:drop={handleDrop}
 >
-	<slot {isDragging} {dragStartIndex} {dragDropTargetIndex} />
+	<slot />
 </div>
 
 <style>

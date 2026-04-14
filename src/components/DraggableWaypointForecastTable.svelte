@@ -123,7 +123,7 @@
 		// FUTURE: When datasource exists, dispatch drag end for final data update
 		// dispatch('waypointDragEnd', { fromIndex: dragStartIndex, toIndex: targetIndex });
 
-		handleDragEnd();
+		handleDragEnd(event);
 	}
 </script>
 

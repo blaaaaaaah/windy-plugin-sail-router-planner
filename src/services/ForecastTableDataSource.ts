@@ -24,8 +24,8 @@ export interface ForecastCellData {
 	forecastTimestamp?: number | null;
 
 	// Route color properties
-	color?: string;
-	waypointNumber?: number;
+	color?: string | null;
+	waypointNumber?: number | null;
 
 	// Wind cell properties
 	windSpeed?: number | null;
@@ -79,8 +79,8 @@ export class ForecastTableDataSource {
 			forecastPoint: this.findForecastPointForTimestamp(timestamp)
 		}));
 
-		// Calculate waypoint positions
-		const waypointDataList = this.calculateWaypointPositions(timeline);
+		// Calculate waypoint positions only if forecasts
+		const waypointDataList = this.routeForecast.pointForecasts ? this.calculateWaypointPositions(timeline) : [];
 
 		// Generate rows - alternate between waypoint and data rows
 		const rows: ForecastTableRowData[] = [];
@@ -251,10 +251,12 @@ export class ForecastTableDataSource {
 		});
 
 		// Route color cell (no gradient background)
+		const isInRoute = forecastPoint &&this.routeForecast.route.departureTime <= timestamp && timestamp < this.routeForecast.route.arrivalTime;
+
 		cells.push({
 			type: 'route-color',
-			color: this.routeForecast.route.color
-			// waypointNumber will be added when applicable
+			color: isInRoute ? this.routeForecast.route.color : null,
+			waypointNumber: null //waypointData?.number || null	// will come in multiple-route version
 		});
 
 		// Weather cell (no gradient background)

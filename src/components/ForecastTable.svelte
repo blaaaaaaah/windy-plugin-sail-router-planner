@@ -12,6 +12,7 @@
     import type { RouteForecast } from '../types/WeatherTypes';
     import { formatTime, formatTimeAgo } from '../utils/TimeUtils';
     import { ForecastTableDataSource, type ForecastTableRowData } from '../services/ForecastTableDataSource';
+    import RouteFavoriteButton from './RouteFavoriteButton.svelte';
 
     export let forecast: RouteForecast | null = null;
     export let showTrueWind: boolean = true;
@@ -97,6 +98,11 @@
                 timestamp: rowData.timestamp
             });
         }
+    }
+
+    function toggleFavorite(event:CustomEvent) {
+        const { route } = event.detail;
+        dispatch('toggleFavorite', { route });
     }
 
     function calculateScrollIndexForRows(rowsData: ForecastTableRowData[], departureTime: number): number | null {
@@ -340,7 +346,14 @@
             {:else}
                 <p>&nbsp;</p>
             {/if}
+
+            {#if forecast}
+            <div class="favorite-button">
+                    <RouteFavoriteButton route={forecast.route} on:toggleFavorite={toggleFavorite}/>
+            </div>
+             {/if}
         </div>
+        
     </div>
 </div>
 
@@ -489,72 +502,7 @@
         }
     }
 
-
-    .start-beanie-row {
-        height: 18px;
-        background: rgba(var(--route-color-rgb), 0.8);
-        display: flex;
-        align-items: center;
-        padding: 0 12px;
-        position: relative;
-        border-bottom: none;
-        cursor: grab;
-        z-index: 20;
-        border-left: 4px solid var(--route-color);
-        overflow: visible;
-        border-top: 2px solid white;
-        border-bottom: 2px solid white;
-
-        &:active {
-            cursor: grabbing;
-        }
-
-        .start-beanie-content {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            width: 100%;
-            position: relative;
-            height: 100%;
-        }
-
-        .waypoint-number {
-            position: absolute;
-            left: -25px;
-            background: var(--route-color);
-            color: white;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            font-size: 11px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 1px 3px rgba(var(--route-color-rgb), 0.4);
-            border: 2px solid white;
-            flex-shrink: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 10;
-
-            &:hover {
-                transform: translateY(-50%) scale(1.1);
-                box-shadow: 0 2px 6px rgba(var(--route-color-rgb), 0.6);
-            }
-        }
-
-        .start-time-text {
-            font-size: 10px;
-            color: #666;
-            font-weight: 500;
-            margin-left: 24px;
-        }
-    }
-
-
     
-
     // Forecast item columns
     .forecast-item {
         .time-column,
@@ -604,7 +552,13 @@
         p {
             margin: 0;
             font-size: 12px;
+            font-style: italic;
             color: #6c757d;
+        }
+
+        .favorite-button {
+            margin-left: 10px;
+            margin-right: -10px;
         }
     }
 

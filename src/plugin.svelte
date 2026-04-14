@@ -16,8 +16,7 @@
                 {highlightedRoute}
                 on:routeSelected={handleRouteSelected}
                 on:toggleVisibility={handleToggleVisibility}
-                on:saveRoute={handleSaveRoute}
-                on:deleteRoute={handleDeleteRoute}
+                on:toggleFavorite={handleToggleFavorite}
                 on:routeHighlighted={handleRouteHighlighted}
             />
         </div>
@@ -39,6 +38,7 @@
                     on:timeHover={handleTimeHover}
                     on:metricClick={handleMetricClick}
                     on:routeUpdated={handleRouteUpdated}
+                    on:toggleFavorite={handleToggleFavorite}
                 />
             </div>
         </div>
@@ -217,21 +217,6 @@
         allRoutes = routeEditor!.getAllRoutes();
     }
 
-    function handleSaveRoute(event: any) {
-        const { route } = event.detail;
-        routeStorage!.saveRoute(route);
-        allRoutes = routeEditor!.getAllRoutes();
-    }
-
-    function handleDeleteRoute(event: any) {
-        const { route } = event.detail;
-        // Only remove from storage, keep in memory/list so user can favorite again
-        routeStorage!.deleteRoute(route);
-        // Update route.isSaved to false so heart icon becomes empty
-        route.isSaved = false;
-        allRoutes = routeEditor!.getAllRoutes();
-    }
-
     function handleRouteHighlighted(event: any) {
         const { route } = event.detail;
         routeEditor!.highlightRoute(route);
@@ -361,6 +346,16 @@
         if (timestamp) {
             // Update Windy's store (this may be ignored for past dates without forecast data)
             store.set('timestamp', timestamp);
+        }
+    }
+
+    function handleToggleFavorite(event: CustomEvent) {
+        const { route } = event.detail;
+
+        if (route.isSaved) {
+            routeStorage!.saveRoute(route);
+        } else {
+            routeStorage?.deleteRoute(route);
         }
     }
 

@@ -7,6 +7,7 @@
 	export let trueWindDirection: number | null = null;
 	export let course: number = 0;
 	export let apparent: boolean = false;
+	export let gradient: string = '';
 
 	$: windDirection = apparent ? relativeWindDirection : trueWindDirection;
 	$: boatCourse = apparent ? 0 : course;
@@ -22,7 +23,7 @@
 	})();
 </script>
 
-<div title={tooltip}>
+<div title={tooltip} class="cell" style:--gradient-color={gradient}>
 	{#if windSpeed != null}
 		<div class="wind-speed">
 			{formatWindSpeed(windSpeed)}
@@ -40,6 +41,17 @@
 </div>
 
 <style lang="less">
+	.cell {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		height: 100%;
+		min-height: 50px;
+		background: var(--gradient-color);
+	}
+
 	.wind-speed {
 		font-weight: 500;
 		font-size: 12px;

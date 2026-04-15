@@ -7,6 +7,7 @@
 	export let wavesDirection: number | null = null;
 	export let course: number = 0;
 	export let apparent: boolean = false;
+	export let gradient: string = '';
 
 	$: boatCourse = apparent ? 0 : course;
 
@@ -24,7 +25,7 @@
 	})();
 </script>
 
-<div title={tooltip}>
+<div title={tooltip} class="cell" style:--gradient-color={gradient}>
 	{#if wavesHeight != null}
 		<div class="wave-text">
 			<span class="wave-height">{formatWaveHeight(wavesHeight)}</span>
@@ -41,6 +42,17 @@
 </div>
 
 <style lang="less">
+	.cell {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		height: 100%;
+		min-height: 50px;	// TODO : shouldn't be here, why height: 100$ doesn't work ?
+		background: var(--gradient-color);
+	}
+
 	.wave-text {
 		font-size: 12px;
 		color: #999;

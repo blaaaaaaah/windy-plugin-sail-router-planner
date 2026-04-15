@@ -283,23 +283,25 @@
                                             />
                                         </div>
                                     {:else if cellData.type === 'wind'}
-                                        <div class="wind-column" style="background: {cellData.backgroundColor || ''}">
+                                        <div class="wind-column">
                                             <WindCell
                                                 windSpeed={cellData.windSpeed}
                                                 relativeWindDirection={cellData.relativeWindDirection}
                                                 trueWindDirection={cellData.trueWindDirection}
                                                 course={cellData.course}
                                                 apparent={cellData.apparent}
+                                                gradient={cellData.gradient}
                                             />
                                         </div>
                                     {:else if cellData.type === 'wave'}
-                                        <div class="waves-column" style="background: {cellData.backgroundColor || ''}">
+                                        <div class="waves-column">
                                             <WaveCell
                                                 wavesHeight={cellData.wavesHeight}
                                                 wavesPeriod={cellData.wavesPeriod}
                                                 wavesDirection={cellData.wavesDirection}
                                                 course={cellData.course}
                                                 apparent={cellData.apparent}
+                                                gradient={cellData.gradient}
                                             />
                                         </div>
                                     {/if}
@@ -485,18 +487,9 @@
         &:hover {
             background: #f8f9fa;
         }
-
-        &.in-route {
-            background: rgba(var(--route-color-rgb), 0.05);
-            border-left: 4px solid var(--route-color);
-        }
-
+        
         &.current-hour {
             background: #e6e6e6;
-
-            &.in-route {
-                background: rgba(var(--route-color-rgb), 0.15);
-            }
         }
     }
 

@@ -3,7 +3,7 @@ import type { RouteLeg } from '../types/RouteTypes';
 import { createGradientBackground, getWindColor, getSeaIndexColor } from '../utils/ColorUtils';
 
 export interface LegWaypointData {
-	leg: RouteLeg;
+	leg: RouteLeg | null;
 	isStart: boolean;
 	isLast: boolean;
 	number: number;
@@ -49,7 +49,6 @@ export interface ForecastCellData {
 }
 
 export interface ForecastTableRowData {
-	index: number;	// position in the timeline
 	timestamp: number;
 	type: 'row' | 'waypoint';
 	isCurrentHour: boolean;
@@ -81,20 +80,14 @@ export class ForecastTableDataSource {
 			return [];
 		}
 
-		// Map timeline to forecast points for easier lookup
-		const timelineData = timeline.map(timestamp => ({
-			timestamp,
-			forecastPoint: this.findForecastPointForTimestamp(timestamp)
-		}));
-
 		// Calculate waypoint positions only if forecasts
 		const waypointDataList = this.routeForecast.pointForecasts ? this.calculateWaypointPositions(timeline, ghostTimestamp) : [];
 
 		// Generate rows - alternate between waypoint and data rows
 		const rows: ForecastTableRowData[] = [];
 
-		for (let i = 0; i < timelineData.length; i++) {
-			const { timestamp, forecastPoint } = timelineData[i];
+		for (let i = 0; i < timeline.length; i++) {
+			const timestamp = timeline[i];
 
 			// Check if there's a waypoint at this position
 			const waypointData = waypointDataList.find(wp => wp.timestamp === timestamp);
@@ -104,7 +97,6 @@ export class ForecastTableDataSource {
 			if (waypointData) {
 				// Add waypoint row
 				rows.push({
-					index: i,
 					timestamp,
 					type: 'waypoint',
 					isCurrentHour,
@@ -114,11 +106,10 @@ export class ForecastTableDataSource {
 
 			// Add data row
 			rows.push({
-				index: i,
 				timestamp,
 				type: 'row',
 				isCurrentHour,
-				cells: this.generateCellsForTimestamp(timestamp, forecastPoint, i, timelineData, showApparent, waypointData?.data)
+				cells: this.generateCellsForTimestamp(timeline, i, showApparent, waypointData?.data)
 			});
 		}
 
@@ -267,14 +258,18 @@ export class ForecastTableDataSource {
 	 * Cell order: time | route-color | wind | gust | waves | weather
 	 */
 	private generateCellsForTimestamp(
-		timestamp: number,
-		forecastPoint: PointForecast | null,
+		timeline: number[],
 		index: number,
-		timelineData: Array<{ timestamp: number; forecastPoint: PointForecast | null }>,
 		showApparent: boolean,
 		waypointData?: LegWaypointData
 	): ForecastCellData[] {
 		const cells: ForecastCellData[] = [];
+		const timestamp = timeline[index];
+		const forecastPoint = this.findForecastPointForTimestamp(timestamp);
+		const prevForecastPoint = index > 0 ? this.findForecastPointForTimestamp(timeline[index - 1]) : null;
+		const nextForecastPoint = index < timeline.length - 1 ? this.findForecastPointForTimestamp(timeline[index + 1]) : null;
+
+		
 
 		// Time cell (no gradient background)
 		cells.push({
@@ -286,7 +281,7 @@ export class ForecastTableDataSource {
 		// Route color cell (no gradient background)
 		const isInRoute = !!forecastPoint && 
 				this.routeForecast.route.departureTime <= timestamp && 
-				timestamp < Math.floor(this.routeForecast.route.arrivalTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
+				timestamp < this.findClosestTimestamp(timeline, this.routeForecast.route.arrivalTime);
 
 		cells.push({
 			type: 'route-color',
@@ -304,8 +299,8 @@ export class ForecastTableDataSource {
 
 		// Wind cell (with gradient background)
 		const currentWindSpeed = this.getWindSpeed(forecastPoint, showApparent);
-		const prevWindSpeed = index > 0 ? this.getWindSpeed(timelineData[index - 1].forecastPoint, showApparent) : null;
-		const nextWindSpeed = index < timelineData.length - 1 ? this.getWindSpeed(timelineData[index + 1].forecastPoint, showApparent) : null;
+		const prevWindSpeed = prevForecastPoint ? this.getWindSpeed(prevForecastPoint, showApparent) : null;
+		const nextWindSpeed = nextForecastPoint ? this.getWindSpeed(nextForecastPoint, showApparent) : null;
 		const windBackground = createGradientBackground(currentWindSpeed, prevWindSpeed, nextWindSpeed, getWindColor);
 
 		const weatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
@@ -321,8 +316,8 @@ export class ForecastTableDataSource {
 
 		// Gusts cell (with gradient background)
 		const currentGustSpeed = this.getGustSpeed(forecastPoint, showApparent);
-		const prevGustSpeed = index > 0 ? this.getGustSpeed(timelineData[index - 1].forecastPoint, showApparent) : null;
-		const nextGustSpeed = index < timelineData.length - 1 ? this.getGustSpeed(timelineData[index + 1].forecastPoint, showApparent) : null;
+		const prevGustSpeed = prevForecastPoint ? this.getGustSpeed(prevForecastPoint, showApparent) : null;
+		const nextGustSpeed = nextForecastPoint ? this.getGustSpeed(nextForecastPoint, showApparent) : null;
 		const gustsBackground = createGradientBackground(currentGustSpeed, prevGustSpeed, nextGustSpeed, getWindColor);
 
 		cells.push({
@@ -338,8 +333,8 @@ export class ForecastTableDataSource {
 
 		// Waves cell (with gradient background)
 		const currentSeaIndex = forecastPoint?.northUp?.wavesIndex || 0;
-		const prevSeaIndex = index > 0 ? (timelineData[index - 1].forecastPoint?.northUp?.wavesIndex || 0) : null;
-		const nextSeaIndex = index < timelineData.length - 1 ? (timelineData[index + 1].forecastPoint?.northUp?.wavesIndex || 0) : null;
+		const prevSeaIndex = prevForecastPoint ? (prevForecastPoint.northUp?.wavesIndex || 0) : null;
+		const nextSeaIndex = nextForecastPoint ? (nextForecastPoint.northUp?.wavesIndex || 0) : null;
 
 
 		const wavesBackground = createGradientBackground(currentSeaIndex, prevSeaIndex, nextSeaIndex, getSeaIndexColor);

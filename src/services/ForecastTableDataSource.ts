@@ -19,7 +19,6 @@ export interface ForecastCellData {
 	type: 'time' | 'wind' | 'wave' | 'weather' | 'route-color';
 
 	// Common properties
-	backgroundColor?: string;
 	apparent?: boolean;
 
 	// Time cell properties
@@ -36,11 +35,13 @@ export interface ForecastCellData {
 	trueWindDirection?: number | null;
 	course?: number;
 	isGusts?: boolean;
+	gradient?: string;
 
 	// Wave cell properties
 	wavesHeight?: number | null;
 	wavesPeriod?: number | null;
 	wavesDirection?: number | null;
+	gradient?: string;
 
 	// Weather cell properties
 	precipitations?: number | null;
@@ -62,7 +63,7 @@ export interface ForecastTableRowData {
 
 export class ForecastTableDataSource {
 
-	private startTime: number = Date.now();
+	private startTime: number = Date.now() - (6 * 60 * 60 * 1000);	// Default to 6h before now if no forecasts, will be adjusted based on route departure time and ghost timestamp
 	private endTime: number = Date.now() + (24 * 60 * 60 * 1000);	// Default to 24h from now if no forecasts
 
 	constructor(
@@ -271,7 +272,7 @@ export class ForecastTableDataSource {
 
 		
 
-		// Time cell (no gradient background)
+		// Time cell
 		cells.push({
 			type: 'time',
 			timestamp,
@@ -301,7 +302,7 @@ export class ForecastTableDataSource {
 		const currentWindSpeed = this.getWindSpeed(forecastPoint, showApparent);
 		const prevWindSpeed = prevForecastPoint ? this.getWindSpeed(prevForecastPoint, showApparent) : null;
 		const nextWindSpeed = nextForecastPoint ? this.getWindSpeed(nextForecastPoint, showApparent) : null;
-		const windBackground = createGradientBackground(currentWindSpeed, prevWindSpeed, nextWindSpeed, getWindColor);
+		const windGradient = createGradientBackground(currentWindSpeed, prevWindSpeed, nextWindSpeed, getWindColor);
 
 		const weatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
 		cells.push({
@@ -311,14 +312,14 @@ export class ForecastTableDataSource {
 			trueWindDirection: weatherData?.trueWindDirection || null,
 			course: forecastPoint?.leg?.course || 0,
 			apparent: showApparent,
-			backgroundColor: windBackground
+			gradient: windGradient
 		});
 
 		// Gusts cell (with gradient background)
 		const currentGustSpeed = this.getGustSpeed(forecastPoint, showApparent);
 		const prevGustSpeed = prevForecastPoint ? this.getGustSpeed(prevForecastPoint, showApparent) : null;
 		const nextGustSpeed = nextForecastPoint ? this.getGustSpeed(nextForecastPoint, showApparent) : null;
-		const gustsBackground = createGradientBackground(currentGustSpeed, prevGustSpeed, nextGustSpeed, getWindColor);
+		const gustsGradient = createGradientBackground(currentGustSpeed, prevGustSpeed, nextGustSpeed, getWindColor);
 
 		cells.push({
 			type: 'wind',
@@ -327,7 +328,7 @@ export class ForecastTableDataSource {
 			trueWindDirection: weatherData?.trueWindDirection || null,
 			course: forecastPoint?.leg?.course || 0,
 			apparent: showApparent,
-			backgroundColor: gustsBackground,
+			gradient: gustsGradient,
 			isGusts: true
 		});
 
@@ -337,7 +338,7 @@ export class ForecastTableDataSource {
 		const nextSeaIndex = nextForecastPoint ? (nextForecastPoint.northUp?.wavesIndex || 0) : null;
 
 
-		const wavesBackground = createGradientBackground(currentSeaIndex, prevSeaIndex, nextSeaIndex, getSeaIndexColor);
+		const wavesGradient = createGradientBackground(currentSeaIndex, prevSeaIndex, nextSeaIndex, getSeaIndexColor);
 
 		const waveWeatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
 		cells.push({
@@ -347,7 +348,7 @@ export class ForecastTableDataSource {
 			wavesDirection: waveWeatherData?.wavesDirection || null,
 			course: forecastPoint?.leg?.course || 0,
 			apparent: showApparent,
-			backgroundColor: wavesBackground
+			gradient: wavesGradient
 		});
 
 		return cells;

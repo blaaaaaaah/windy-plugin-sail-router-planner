@@ -1,19 +1,19 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 
-	export let scrollToIndex: number | null = null;
+	export let scrollToTimestamp: number | null = null;
 
 	const dispatch = createEventDispatcher();
 
 	let scrollContainer: HTMLElement | null = null;
-	let rowPositions: Array<{top: number, bottom: number, index: number}> = [];
-	let currentHoverIndex: number | null = null;
+	let rowPositions: Array<{top: number, bottom: number, timestamp: number}> = [];
+	let currentHoverTimestamp: number | null = null;
 
 	// Dispatch row hover only when index changes
-	function dispatchRowHover(index: number) {
-		if (currentHoverIndex !== index) {
-			currentHoverIndex = index;
-			dispatch('rowHover', { index });
+	function dispatchRowHover(timestamp: number) {
+		if (currentHoverTimestamp !== timestamp) {
+			currentHoverTimestamp = timestamp;
+			dispatch('rowHover', { timestamp });
 		}
 	}
 
@@ -27,10 +27,12 @@
 		forecastItems.forEach((item, index) => {
 			const rect = item.getBoundingClientRect();
 			const containerRect = scrollContainer!.getBoundingClientRect();
+			const timestamp = parseInt(item.getAttribute('data-timestamp') || '', 10);
+
 			rowPositions.push({
 				top: rect.top - containerRect.top + scrollContainer!.scrollTop,
 				bottom: rect.bottom - containerRect.top + scrollContainer!.scrollTop,
-				index: index
+				timestamp: timestamp
 			});
 		});
 	}
@@ -41,25 +43,27 @@
 	}
 
 	// Scroll to specific row index
-	function scrollToRowIndex(index: number) {
-		if (!scrollContainer || rowPositions.length === 0 || index < 0 || index >= rowPositions.length) return;
+	function scrollToRowTimestamp(timestamp: number) {
+		if (!scrollContainer || rowPositions.length === 0) return;
 
-		const targetRow = rowPositions[index];
+		const targetRow = rowPositions.find(row => row.timestamp === timestamp);
+		if ( ! targetRow ) return;
+
 		const offsetFromTop = 0; // Show target row at the very top
 		const targetScrollTop = Math.max(0, targetRow.top - offsetFromTop);
 
-		console.log(`Auto-scrolling to row index ${index}`);
+		console.log(`Auto-scrolling to timestamp ${new Date(timestamp)}`);
 		scrollContainer.scrollTo({
 			top: targetScrollTop,
 			behavior: 'smooth'
 		});
 	}
 
-	// When scrollToIndex changes: cache positions then scroll
-	$: if (scrollToIndex !== null) {
+	// When scrollToTimestamp changes: cache positions then scroll
+	$: if (scrollToTimestamp !== null) {
 		setTimeout(() => {
 			cacheRowPositions();
-			scrollToRowIndex(scrollToIndex);
+			scrollToRowTimestamp(scrollToTimestamp);
 		}, 0);
 	}
 
@@ -73,7 +77,7 @@
 		// Find the row that contains the center Y position
 		for (const row of rowPositions) {
 			if (centerY >= row.top && centerY <= row.bottom) {
-				dispatchRowHover(row.index);
+				dispatchRowHover(row.timestamp);
 				break;
 			}
 		}
@@ -82,12 +86,12 @@
 	// Handle mouse events via event delegation
 	function handleMouseOver(event: MouseEvent) {
 		const target = event.target as HTMLElement;
-		const forecastItem = target.closest('.forecast-item');
+		const targetItem = target.closest('[data-timestamp]');
 
-		if (forecastItem) {
-			const index = parseInt(forecastItem.getAttribute('data-index') || '', 10);
-			if (!isNaN(index)) {
-				dispatchRowHover(index);
+		if (targetItem) {
+			const timestamp = parseInt(targetItem.getAttribute('data-timestamp') || '', 10);
+			if (!isNaN(timestamp)) {
+				dispatchRowHover(timestamp);
 			}
 		}
 	}

@@ -5,8 +5,8 @@
 
 	// Drag state
 	let isDragging = false;
-	let dragStartIndex: number | null = null;
-	let dragDropTargetIndex: number | null = null;
+	let dragStartTimestamp: number | null = null;
+	let dragDropTargetTimestamp: number | null = null;
 	let autoScrollTimer: number | null = null;
 	let tableScrollContainer: HTMLElement | null = null;
 
@@ -19,16 +19,16 @@
 		dragImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
 		event.dataTransfer?.setDragImage(dragImage, 0, 0);
 
-		const waypointElement = target.closest('[data-index]');
+		const waypointElement = target.closest('[data-timestamp]');
 
 		if (!waypointElement) return;
 
-		const index = parseInt(waypointElement.getAttribute('data-index') || '', 10);
-		if (isNaN(index)) return;
+		const timestamp = parseInt(waypointElement.getAttribute('data-timestamp') || '', 10);
+		if (isNaN(timestamp)) return;
 
 		isDragging = true;
-		dragStartIndex = index;
-		dragDropTargetIndex = null;
+		dragStartTimestamp = timestamp;
+		dragDropTargetTimestamp = null;
 
 		// Find table scroll container
 		tableScrollContainer = document.querySelector('.data-table');
@@ -36,8 +36,8 @@
 
 	function handleDragEnd(event: DragEvent) {
 		isDragging = false;
-		dragStartIndex = null;
-		dragDropTargetIndex = null;
+		dragStartTimestamp = null;
+		dragDropTargetTimestamp = null;
 
 		// Clear auto-scroll timer
 		if (autoScrollTimer) {
@@ -51,21 +51,21 @@
 	function handleDragOver(event: DragEvent) {
 		event.preventDefault();
 
-		if (!isDragging || dragStartIndex === null) return;
+		if (!isDragging || dragStartTimestamp === null) return;
 
 		const target = event.target as HTMLElement;
-		const targetIndex = getDataIndex(target);
+		const targetTimestamp = getElementTimestamp(target);
 
-		if (targetIndex === dragDropTargetIndex || targetIndex === null) return; // No change in target
+		if (targetTimestamp === dragDropTargetTimestamp || targetTimestamp === null) return; // No change in target
 
 		// Dispatch waypoint index changed event
 		dispatch('waypointIndexChanged', {
-			fromIndex: dragStartIndex,
-			toIndex: targetIndex,
+			fromTimestamp: dragStartTimestamp,
+			toTimestamp: targetTimestamp,
 			isDragging: true
 		});
 
-		dragDropTargetIndex = targetIndex;
+		dragDropTargetTimestamp = targetTimestamp;
 
 
 		// Auto-scroll logic
@@ -107,32 +107,32 @@
 	function handleDrop(event: DragEvent) {
 		event.preventDefault();
 
-		if (dragStartIndex === null) return;
+		if (dragStartTimestamp === null) return;
 
 		const target = event.target as HTMLElement;
-		const targetIndex = getDataIndex(target);
-		
-		if (targetIndex === null) return;
+		const targetTimestamp = getElementTimestamp(target);
+
+		if (targetTimestamp === null) return;
 
 		// Dispatch waypoint index changed event
 		dispatch('waypointIndexChanged', {
-			fromIndex: dragStartIndex,
-			toIndex: targetIndex,
+			fromTimestamp: dragStartTimestamp,
+			toTimestamp: targetTimestamp,
 			isDragging: false
 		});
 
 		handleDragEnd(event);
 	}
 
-	function getDataIndex(target:HTMLElement) {
-		const forecastItem = target.closest('[data-index]');
+	function getElementTimestamp(target:HTMLElement) {
+		const forecastItem = target.closest('[data-timestamp]');
 
 		if (!forecastItem) return null;
 
-		const targetIndex = parseInt(forecastItem.getAttribute('data-index') || '', 10);
-		if (isNaN(targetIndex)) return null;
+		const targetTimestamp = parseInt(forecastItem.getAttribute('data-timestamp') || '', 10);
+		if (isNaN(targetTimestamp)) return null;
 
-		return targetIndex
+		return targetTimestamp
 	}
 </script>
 

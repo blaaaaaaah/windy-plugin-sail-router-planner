@@ -69,7 +69,7 @@ export class ForecastTableDataSource {
 	/**
 	 * Main method - converts RouteForecast to table rows
 	 */
-	getRowsData(showApparent: boolean = false, ghostAtIndex: number | null = null): ForecastTableRowData[] {
+	getRowsData(showApparent: boolean = false, ghostTimestamp: number | null = null): ForecastTableRowData[] {
 		// Generate unified timeline
 		const timeline = this.generateTimeline();
 
@@ -84,7 +84,7 @@ export class ForecastTableDataSource {
 		}));
 
 		// Calculate waypoint positions only if forecasts
-		const waypointDataList = this.routeForecast.pointForecasts ? this.calculateWaypointPositions(timeline, ghostAtIndex) : [];
+		const waypointDataList = this.routeForecast.pointForecasts ? this.calculateWaypointPositions(timeline, ghostTimestamp) : [];
 
 		// Generate rows - alternate between waypoint and data rows
 		const rows: ForecastTableRowData[] = [];
@@ -93,7 +93,7 @@ export class ForecastTableDataSource {
 			const { timestamp, forecastPoint } = timelineData[i];
 
 			// Check if there's a waypoint at this position
-			const waypointData = waypointDataList.find(wp => wp.position === i);
+			const waypointData = waypointDataList.find(wp => wp.timestamp === timestamp);
 
 			const isCurrentHour = this.isCurrentHour(timestamp);
 
@@ -158,21 +158,21 @@ export class ForecastTableDataSource {
 	/**
 	 * Calculate waypoint positions and return LegWaypointData objects directly
 	 */
-	private calculateWaypointPositions(timeline: number[], ghostAtIndex: number | null = null): Array<{
-		position: number;
+	private calculateWaypointPositions(timeline: number[], ghostTimestamp: number | null = null): Array<{
+		timestamp: number;
 		data: LegWaypointData;
 	}> {
 		if (!timeline.length) return [];
 
-		const waypointDataList: Array<{ position: number; data: LegWaypointData }> = [];
+		const waypointDataList: Array<{ timestamp: number; data: LegWaypointData }> = [];
 
 		for ( let i = 0; i < this.routeForecast.route.legs.length; i++ ) {
 			const currentLeg = this.routeForecast.route.legs[i];
-			const closestIndex = this.findClosestTimestampIndex(timeline, currentLeg.startTime);
+			const closestTimestamp = this.findClosestTimestamp(timeline, currentLeg.startTime);
 
-			if (closestIndex !== -1) {
+			if (closestTimestamp !== -1) {
 				waypointDataList.push({
-					position: closestIndex,
+					timestamp: closestTimestamp,
 					data: {
 						leg: currentLeg,
 						isStart: i == 0,
@@ -192,10 +192,10 @@ export class ForecastTableDataSource {
 		}
 
 		// Add last waypoints
-		const lastWaypointIndex = this.findClosestTimestampIndex(timeline, this.routeForecast.route.arrivalTime);
-		if ( lastWaypointIndex !== -1 ) {
+		const lastWaypointTimestamp = this.findClosestTimestamp(timeline, this.routeForecast.route.arrivalTime);
+		if ( lastWaypointTimestamp !== -1 ) {
 			waypointDataList.push({
-				position: lastWaypointIndex,
+				timestamp: lastWaypointTimestamp,
 				data: {
 					leg: null,
 					isStart: false,
@@ -211,16 +211,16 @@ export class ForecastTableDataSource {
 			});				
 		}
 
-		if (ghostAtIndex !== null) {
+		if (ghostTimestamp !== null) {
 			waypointDataList.push({
-				position: ghostAtIndex,
+				timestamp: ghostTimestamp,
 				data: {
 					leg: this.routeForecast.route.legs[0], // Placeholder leg data for ghost waypoint
 					isStart: false,
 					isLast: false,
 					number: 1,
 					stats: null,
-					departureTime: timeline[ghostAtIndex],
+					departureTime: ghostTimestamp,
 					arrivalTime: this.routeForecast.route.arrivalTime,
 					color: this.routeForecast.route.color,
 					dropGhost: true
@@ -228,7 +228,7 @@ export class ForecastTableDataSource {
 			});
 		}
 
-		waypointDataList.sort((a, b) => a.position - b.position); // Ensure waypoints are in timeline order
+		waypointDataList.sort((a, b) => a.timestamp - b.timestamp); // Ensure waypoints are in timeline order
 
 		return waypointDataList;
 	}
@@ -236,7 +236,7 @@ export class ForecastTableDataSource {
 	/**
 	 * Find the timeline index closest to a target timestamp
 	 */
-	private findClosestTimestampIndex(timeline: number[], targetTime: number): number {
+	private findClosestTimestamp(timeline: number[], targetTime: number): number {
 		if (timeline.length === 0) return -1;
 
 		let bestIndex = 0;
@@ -250,7 +250,7 @@ export class ForecastTableDataSource {
 			}
 		}
 
-		return bestIndex;
+		return timeline[bestIndex];
 	}
 
 	/**

@@ -26,7 +26,7 @@
 
     // Track current route ID to detect route changes
     let currentRouteId: string | null = null;
-    let scrollToIndex: number | null = null;
+    let scrollToTimestamp: number | null = null;
 
     // Data source and generated rows
     let dataSource: ForecastTableDataSource | null = null;
@@ -40,7 +40,7 @@
             const isNewRoute = currentRouteId !== forecast.route.id;
             if (isNewRoute) {
                 currentRouteId = forecast.route.id;
-                scrollToIndex = null; // Reset scroll index for new route
+                scrollToTimestamp = null; // Reset scroll index for new route
             }
 
 
@@ -52,16 +52,16 @@
 
 
             // Calculate scroll index when we don't have one yet and data is available
-            if (forecast.pointForecasts && scrollToIndex === null && rowsData.length > 0) {
-                scrollToIndex = calculateScrollIndexForRows(rowsData, forecast.route.departureTime);
-                console.log(`Setting scrollToIndex to ${scrollToIndex} for route ${forecast.route.id}`);
+            if (forecast.pointForecasts && scrollToTimestamp === null && rowsData.length > 0) {
+                scrollToTimestamp = calculateScrollTimestamp(rowsData, forecast.route.departureTime);
+                console.log(`Setting scrollToTimestamp to ${scrollToTimestamp} for route ${forecast.route.id}`);
             }
             
 
         } else {
             // No forecast available - clear data
             currentRouteId = null;
-            scrollToIndex = null;
+            scrollToTimestamp = null;
             dataSource = null;
             rowsData = [];
         }
@@ -94,13 +94,11 @@
     // functions to handle data generation and processing for the table
 
     function handleRowHover(event: CustomEvent) {
-        const index = event.detail.index;
-        const rowData = rowsData.find(row => row.index === index && row.type === 'row');
-        if (index !== null && rowData) {
-            dispatch('timeHover', {
-                timestamp: rowData.timestamp
-            });
-        }
+        const { timestamp }  = event.detail;
+        dispatch('timeHover', {
+            timestamp
+        });
+
     }
 
     function toggleFavorite(event:CustomEvent) {
@@ -108,7 +106,7 @@
         dispatch('toggleFavorite', { route });
     }
 
-    function calculateScrollIndexForRows(rowsData: ForecastTableRowData[], departureTime: number): number | null {
+    function calculateScrollTimestamp(rowsData: ForecastTableRowData[], departureTime: number): number | null {
         if (rowsData.length === 0) return null;
 
         const now = Date.now();
@@ -131,29 +129,26 @@
             }
         }
 
-        return bestDataRowIndex;
+        return rowsData[bestDataRowIndex].timestamp;
     }
 
 
     // Handle waypoint index changes from drag operations
     function handleWaypointIndexChanged(event: CustomEvent) {
-        const { fromIndex, toIndex, isDragging } = event.detail;
+        const { fromTimestamp, toTimestamp, isDragging } = event.detail;
 
-        console.log(`Waypoint index change: from ${fromIndex} to ${toIndex}, isDragging: ${isDragging}`);
+        console.log(`Waypoint timestamp change: from ${fromTimestamp} to ${toTimestamp}, isDragging: ${isDragging}`);
 
         if ( isDragging  ) {
-            const dropIndex = toIndex == fromIndex ? null : toIndex;
-            rowsData = dataSource!.getRowsData(!showTrueWind, dropIndex); // showApparent = !showTrueWind
+            const dropTimestamp = toTimestamp == fromTimestamp ? null : toTimestamp;
+            rowsData = dataSource!.getRowsData(!showTrueWind, dropTimestamp); // showApparent = !showTrueWind
         } else {
-            if (fromIndex !== null && toIndex !== fromIndex ) {
-                const rowData = rowsData.find(row => row.index === toIndex && row.type === 'row');
-
-                const newStartTime = rowData ? rowData.timestamp : null;
-                if (newStartTime && forecast?.route) {
-                    console.log(`Moving route start to ${formatTime(newStartTime)}`);
+            if (fromTimestamp !== null && toTimestamp !== fromTimestamp ) {
+                if (toTimestamp && forecast?.route) {
+                    console.log(`Moving route start to ${formatTime(toTimestamp)}`);
 
                     // Update the route departure time directly
-                    forecast.route.setDepartureTime(newStartTime);
+                    forecast.route.setDepartureTime(toTimestamp);
 
                     // Dispatch updated route to trigger forecast regeneration
                     dispatch('routeUpdated', {
@@ -233,11 +228,11 @@
                      on:waypointIndexChanged={handleWaypointIndexChanged}
                 >
                     <ScrollableForecastTable
-                         {scrollToIndex}
+                         {scrollToTimestamp}
                          on:rowHover={handleRowHover}>
                     <div class="forecast-list">
                 {#each rowsData as rowData}
-                    <div data-index={rowData.index}>
+                    <div data-timestamp={rowData.timestamp}>
 
                         <!-- Waypoint  rows -->
                         {#if rowData.type === 'waypoint' && rowData.waypointData}
@@ -263,7 +258,7 @@
                         <div
                             class="forecast-item"
                             class:current-hour={rowData.isCurrentHour}
-                            data-index={rowData.index}
+                            data-timestamp={rowData.timestamp}
                         >
                             {#if rowData.cells}
                                 {#each rowData.cells as cellData}

@@ -1,5 +1,5 @@
 import type { RouteForecast, PointForecast, WeatherStats } from '../types/WeatherTypes';
-import type { RouteLeg, RouteDefinition } from '../types/RouteTypes';
+import type { RouteLeg } from '../types/RouteTypes';
 import { createGradientBackground, getWindColor, getSeaIndexColor } from '../utils/ColorUtils';
 
 export interface LegWaypointData {
@@ -164,48 +164,22 @@ export class ForecastTableDataSource {
 	}> {
 		if (!timeline.length) return [];
 
-		const routeWaypoints = this.routeForecast.route.waypoints;
-		const totalWaypoints = routeWaypoints.length;
-		const routeLegs = this.routeForecast.route.legs;
-
-		if (totalWaypoints === 0) return [];
-
 		const waypointDataList: Array<{ position: number; data: LegWaypointData }> = [];
 
-		// Find the timeline position closest to each waypoint timestamp
-		for (let waypointIndex = 0; waypointIndex < totalWaypoints; waypointIndex++) {
-			let targetTime: number;
-			let currentLeg: RouteLeg;
+		for ( let i = 0; i < this.routeForecast.route.legs.length; i++ ) {
+			const currentLeg = this.routeForecast.route.legs[i];
+			const closestIndex = this.findClosestTimestampIndex(timeline, currentLeg.startTime);
 
-			if (waypointIndex === 0) {
-				// First waypoint: departure time
-				targetTime = this.routeForecast.route.departureTime;
-				if (routeLegs.length > 0) {
-					currentLeg = routeLegs[0]; // First leg for departure waypoint
-				} else {
-					continue; // No legs available
-				}
-			} else {
-				// Subsequent waypoints: leg end times
-				const legIndex = waypointIndex - 1;
-				if (legIndex >= routeLegs.length) continue;
-
-				currentLeg = routeLegs[legIndex];
-				targetTime = currentLeg.endTime;
-			}
-
-			// Find closest timeline position to target time
-			const closestIndex = this.findClosestTimestampIndex(timeline, targetTime);
 			if (closestIndex !== -1) {
 				waypointDataList.push({
 					position: closestIndex,
 					data: {
 						leg: currentLeg,
-						isStart: waypointIndex === 0,
-						isLast: waypointIndex === totalWaypoints - 1,
-						number: waypointIndex + 1,
-						stats: this.routeForecast.legStats && waypointIndex < this.routeForecast.legStats.length
-							? this.routeForecast.legStats[waypointIndex]
+						isStart: i == 0,
+						isLast: false,
+						number: i + 1,
+						stats: this.routeForecast.legStats && i < this.routeForecast.legStats.length
+							? this.routeForecast.legStats[i]
 							: null,
 						departureTime: this.routeForecast.route.departureTime,
 						arrivalTime: this.routeForecast.route.arrivalTime,
@@ -215,6 +189,26 @@ export class ForecastTableDataSource {
 					}
 				});
 			}
+		}
+
+		// Add last waypoints
+		const lastWaypointIndex = this.findClosestTimestampIndex(timeline, this.routeForecast.route.arrivalTime);
+		if ( lastWaypointIndex !== -1 ) {
+			waypointDataList.push({
+				position: lastWaypointIndex,
+				data: {
+					leg: null,
+					isStart: false,
+					isLast: true,
+					number: this.routeForecast.route.legs.length + 1,
+					stats: null,
+					departureTime: this.routeForecast.route.departureTime,
+					arrivalTime: this.routeForecast.route.arrivalTime,
+					color: this.routeForecast.route.color,
+					dropGhost: false
+					// Note: onDepartureTimeChange will be connected in ForecastTable
+				}
+			});				
 		}
 
 		if (ghostAtIndex !== null) {

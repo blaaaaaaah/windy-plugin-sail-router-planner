@@ -1,5 +1,5 @@
 import type { RouteForecast, PointForecast, WeatherStats } from '../types/WeatherTypes';
-import type { RouteLeg } from '../types/RouteTypes';
+import type { RouteDefinition, RouteLeg } from '../types/RouteTypes';
 import { createGradientBackground, getWindColor, getSeaIndexColor } from '../utils/ColorUtils';
 
 export interface LegWaypointData {
@@ -71,50 +71,71 @@ export class ForecastTableDataSource {
 	private endTime: number = Date.now() + (24 * 60 * 60 * 1000);	// Default to 24h from now if no forecasts
 
 	constructor(
-		private routeForecast: RouteForecast
+		private routeForecasts: RouteForecast[]
 	) {}
 
 	/**
 	 * Main method - converts RouteForecast to table rows
 	 */
 	getRowsData(showApparent: boolean = false, ghostTimestamp: number | null = null): ForecastTableRowData[] {
+		const isSingleRoute:boolean = this.routeForecasts.length === 1;
+
 		// Generate unified timeline
-		const timeline = this.generateTimeline(ghostTimestamp);
+		const timeline = this.generateTimeline(this.routeForecasts, ghostTimestamp);
 
 		if (!timeline.length) {
 			return [];
 		}
 
-		// Calculate waypoint positions only if forecasts
-		const waypointDataList = this.routeForecast.pointForecasts ? this.calculateWaypointPositions(timeline, ghostTimestamp) : [];
+		// Calculate waypoint positions for all routes
+		const waypointDataList = this.routeForecasts.flatMap(routeForecast => 
+			this.calculateWaypointPositions(timeline, routeForecast, ghostTimestamp)
+		);
 
 		// Generate rows - alternate between waypoint and data rows
 		const rows: ForecastTableRowData[] = [];
 
 		for (let i = 0; i < timeline.length; i++) {
 			const timestamp = timeline[i];
-
-			// Check if there's a waypoint at this position
-			const waypointData = waypointDataList.find(wp => wp.timestamp === timestamp);
-
 			const isCurrentHour = this.isCurrentHour(timestamp);
 
-			if (waypointData) {
-				// Add waypoint row
-				rows.push({
-					timestamp,
-					type: 'waypoint',
-					isCurrentHour,
-					waypointData: waypointData.data
-				});
+			// only show waypoint rows if we're in single-route mode, to avoid confusion in multi-route scenarios (where waypoints from different routes could be interleaved)
+			if ( isSingleRoute ) {
+				// Check if there's a waypoint at this position
+				const waypointData = waypointDataList.find(wp => wp.timestamp === timestamp);
+				if (waypointData ) {
+					// Add waypoint row
+					rows.push({
+						timestamp,
+						type: 'waypoint',
+						isCurrentHour,
+						waypointData: waypointData.data
+					});
+				}
 			}
 
-			// Add data row
+			const waypointMap = new Map(
+				waypointDataList.filter(wp => wp.timestamp === timestamp)
+								.map(wp => [wp.route.id, wp.data])
+			);
+
 			rows.push({
 				timestamp,
 				type: 'row',
 				isCurrentHour,
-				cells: this.generateCellsForTimestamp(timeline, i, showApparent, waypointData?.data)
+				cells: [
+					this.generateTimeCell(this.routeForecasts, timestamp),
+					...this.routeForecasts.flatMap(routeForecast => 
+						this.generateCellsForTimestamp(
+							timeline, 
+							routeForecast, 
+							i, 
+							showApparent, 
+							waypointMap.get(routeForecast.route.id),
+							isSingleRoute
+						)
+					)
+				]
 			});
 		}
 
@@ -126,28 +147,32 @@ export class ForecastTableDataSource {
 	/**
 	 * Generate unified timeline of hourly timestamps
 	 */
-	private generateTimeline(ghostTimestamp: number | null = null): number[] {
+	private generateTimeline(routeForecasts: RouteForecast[], ghostTimestamp: number | null = null): number[] {
 		const timeline: number[] = [];
 
-		if ( this.routeForecast.pointForecasts ) {
-			// we have forecasts
+		// calculate timeline start and end based on all routes' departure and arrival times, with a buffer of 6 hours before and after
+		routeForecasts.forEach(routeForecast => {
+			if ( routeForecast.pointForecasts ) {
+				// we have forecasts
 
-			// Full timeline: departure-6h to arrival+6h
-			const sixHours = 6 * 60 * 60 * 1000;
-			const twoHours = 2 * 60 * 60 * 1000;
+				// Full timeline: departure-6h to arrival+6h
+				const sixHours = 6 * 60 * 60 * 1000;
+				const twoHours = 2 * 60 * 60 * 1000;
 
-			// if we have a ghost timestamp (during drag) and going near the start of the route, add cells before the departure time to allow scrolling up
-			if ( ghostTimestamp !== null ) {
-				if ( ghostTimestamp < this.startTime + twoHours ) {
-					this.startTime = Math.min(this.startTime, ghostTimestamp - twoHours);	// Shift timeline earlier to create more rows to scroll
-				} else if ( ghostTimestamp > this.endTime - twoHours ) {
-					this.endTime = Math.max(this.endTime, ghostTimestamp + twoHours);	// Shift timeline later to create more rows to scroll
+				// if we have a ghost timestamp (during drag) and going near the start of the route, add cells before the departure time to allow scrolling up
+				if ( ghostTimestamp !== null ) {
+					if ( ghostTimestamp < this.startTime + twoHours ) {
+						this.startTime = Math.min(this.startTime, ghostTimestamp - twoHours);	// Shift timeline earlier to create more rows to scroll
+					} else if ( ghostTimestamp > this.endTime - twoHours ) {
+						this.endTime = Math.max(this.endTime, ghostTimestamp + twoHours);	// Shift timeline later to create more rows to scroll
+					}
+				} else {
+					this.startTime = Math.min(this.startTime, routeForecast.route.departureTime - sixHours);
+					this.endTime = Math.max(this.endTime, routeForecast.route.arrivalTime + sixHours);
 				}
-			} else {
-				this.startTime = Math.min(this.startTime, this.routeForecast.route.departureTime - sixHours);
-				this.endTime = Math.max(this.endTime, this.routeForecast.route.arrivalTime + sixHours);
 			}
-		}
+		});
+		
 
 		// Generate hourly timestamps
 		const startHour = Math.floor(this.startTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
@@ -163,32 +188,35 @@ export class ForecastTableDataSource {
 	/**
 	 * Calculate waypoint positions and return LegWaypointData objects directly
 	 */
-	private calculateWaypointPositions(timeline: number[], ghostTimestamp: number | null = null): Array<{
+	private calculateWaypointPositions(timeline: number[], routeForecast:RouteForecast, ghostTimestamp: number | null = null): Array<{
 		timestamp: number;
+		route: RouteDefinition;
 		data: LegWaypointData;
 	}> {
 		if (!timeline.length) return [];
+		if (!routeForecast.pointForecasts) return [];
 
-		const waypointDataList: Array<{ timestamp: number; data: LegWaypointData }> = [];
+		const waypointDataList: Array<{ timestamp: number; route: RouteDefinition; data: LegWaypointData }> = [];
 
-		for ( let i = 0; i < this.routeForecast.route.legs.length; i++ ) {
-			const currentLeg = this.routeForecast.route.legs[i];
+		for ( let i = 0; i < routeForecast.route.legs.length; i++ ) {
+			const currentLeg = routeForecast.route.legs[i];
 			const closestTimestamp = this.findClosestTimestamp(timeline, currentLeg.startTime);
 
 			if (closestTimestamp !== -1) {
 				waypointDataList.push({
 					timestamp: closestTimestamp,
+					route: routeForecast.route,
 					data: {
 						leg: currentLeg,
 						isStart: i == 0,
 						isLast: false,
 						number: i + 1,
-						stats: this.routeForecast.legStats && i < this.routeForecast.legStats.length
-							? this.routeForecast.legStats[i]
+						stats: routeForecast.legStats && i < routeForecast.legStats.length
+							? routeForecast.legStats[i]
 							: null,
-						departureTime: this.routeForecast.route.departureTime,
-						arrivalTime: this.routeForecast.route.arrivalTime,
-						color: this.routeForecast.route.color,
+						departureTime: routeForecast.route.departureTime,
+						arrivalTime: routeForecast.route.arrivalTime,
+						color: routeForecast.route.color,
 						dropGhost: false
 						// Note: onDepartureTimeChange will be connected in ForecastTable
 					}
@@ -197,19 +225,20 @@ export class ForecastTableDataSource {
 		}
 
 		// Add last waypoints
-		const lastWaypointTimestamp = this.findClosestTimestamp(timeline, this.routeForecast.route.arrivalTime);
+		const lastWaypointTimestamp = this.findClosestTimestamp(timeline, routeForecast.route.arrivalTime);
 		if ( lastWaypointTimestamp !== -1 ) {
 			waypointDataList.push({
 				timestamp: lastWaypointTimestamp,
+				route: routeForecast.route,
 				data: {
 					leg: null,
 					isStart: false,
 					isLast: true,
-					number: this.routeForecast.route.legs.length + 1,
+					number: routeForecast.route.legs.length + 1,
 					stats: null,
-					departureTime: this.routeForecast.route.departureTime,
-					arrivalTime: this.routeForecast.route.arrivalTime,
-					color: this.routeForecast.route.color,
+					departureTime: routeForecast.route.departureTime,
+					arrivalTime: routeForecast.route.arrivalTime,
+					color: routeForecast.route.color,
 					dropGhost: false
 					// Note: onDepartureTimeChange will be connected in ForecastTable
 				}
@@ -219,15 +248,16 @@ export class ForecastTableDataSource {
 		if (ghostTimestamp !== null) {
 			waypointDataList.push({
 				timestamp: ghostTimestamp,
+				route: routeForecast.route,
 				data: {
-					leg: this.routeForecast.route.legs[0], // Placeholder leg data for ghost waypoint
+					leg: routeForecast.route.legs[0], // Placeholder leg data for ghost waypoint
 					isStart: false,
 					isLast: false,
 					number: 1,
 					stats: null,
 					departureTime: ghostTimestamp,
-					arrivalTime: this.routeForecast.route.arrivalTime,
-					color: this.routeForecast.route.color,
+					arrivalTime: routeForecast.route.arrivalTime,
+					color: routeForecast.route.color,
 					dropGhost: true
 				}
 			});
@@ -258,133 +288,138 @@ export class ForecastTableDataSource {
 		return timeline[bestIndex];
 	}
 
+
+
+	private generateTimeCell(routeForecasts: RouteForecast[], timestamp: number): ForecastCellData {
+		// Time cell
+		const forecastTimestamps = routeForecasts
+								.map(routeForecast => this.findForecastPointForTimestamp(routeForecast, timestamp)?.forecastTimestamp)
+								.filter(forecastTimestamp => forecastTimestamp != null);
+
+		return {
+			type: 'time',
+			timestamp,
+			// Math.max retourne -Infinity si l'array est vide, d'où le check
+			forecastTimestamp: forecastTimestamps.length > 0 ? Math.max(...forecastTimestamps) : null
+		};
+	}
+
+
 	/**
 	 * Generate cells for a specific timestamp
 	 * Cell order: time | route-color | wind | gust | waves | weather
 	 */
 	private generateCellsForTimestamp(
 		timeline: number[],
+		routeForecast: RouteForecast,
 		index: number,
 		showApparent: boolean,
-		waypointData?: LegWaypointData
+		waypointData?: LegWaypointData,
+		isSingleRoute: boolean = true
 	): ForecastCellData[] {
 		const cells: ForecastCellData[] = [];
 		const timestamp = timeline[index];
-		const forecastPoint = this.findForecastPointForTimestamp(timestamp);
-		const prevForecastPoint = index > 0 ? this.findForecastPointForTimestamp(timeline[index - 1]) : null;
-		const nextForecastPoint = index < timeline.length - 1 ? this.findForecastPointForTimestamp(timeline[index + 1]) : null;
+		const forecastPoint = this.findForecastPointForTimestamp(routeForecast, timestamp);
+		const prevForecastPoint = index > 0 ? this.findForecastPointForTimestamp(routeForecast, timeline[index - 1]) : null;
+		const nextForecastPoint = index < timeline.length - 1 ? this.findForecastPointForTimestamp(routeForecast, timeline[index + 1]) : null;
 
-		
-
-		// Time cell
-		cells.push({
-			type: 'time',
-			timestamp,
-			forecastTimestamp: forecastPoint?.forecastTimestamp || null
-		});
 
 		// Route color cell (no gradient background)
 		const isInRoute = !!forecastPoint && 
-				this.routeForecast.route.departureTime <= timestamp && 
-				timestamp < this.findClosestTimestamp(timeline, this.routeForecast.route.arrivalTime);
+				routeForecast.route.departureTime <= timestamp && 
+				timestamp < this.findClosestTimestamp(timeline, routeForecast.route.arrivalTime);
 
 		cells.push({
 			type: 'route-color',
-			color: isInRoute ? this.routeForecast.route.color : null,
-			waypointNumber: null //waypointData?.number || null	// will come in multiple-route version
+			color: isInRoute ? routeForecast.route.color : null,
+			waypointNumber: isSingleRoute ? null : waypointData?.number || null
 		});
 
-		// Weather cell (no gradient background)
-		cells.push({
-			type: 'weather',
-			precipitations: forecastPoint?.precipitations,
-			weather: forecastPoint?.weather,
-			warnings: forecastPoint?.warnings
-		});
+		if ( isSingleRoute ) {
+			// Weather cell (no gradient background)
+			cells.push({
+				type: 'weather',
+				precipitations: forecastPoint?.precipitations,
+				weather: forecastPoint?.weather,
+				warnings: forecastPoint?.warnings
+			});
+		}
+
+
+
 
 		// Wind cell (with gradient background)
 		const currentWindSpeed = this.getWindSpeed(forecastPoint, showApparent);
 		const prevWindSpeed = prevForecastPoint ? this.getWindSpeed(prevForecastPoint, showApparent) : null;
 		const nextWindSpeed = nextForecastPoint ? this.getWindSpeed(nextForecastPoint, showApparent) : null;
 		const windGradient = createGradientBackground(currentWindSpeed, prevWindSpeed, nextWindSpeed, getWindColor);
-
-		const weatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
-		cells.push({
-			type: 'wind',
-			windSpeed: weatherData?.windSpeed || null,
-			relativeWindDirection: weatherData?.relativeWindDirection || null,
-			trueWindDirection: weatherData?.trueWindDirection || null,
-			course: forecastPoint?.leg?.course || 0,
-			apparent: showApparent,
-			gradient: windGradient
-		});
-
+		
 		// Gusts cell (with gradient background)
 		const currentGustSpeed = this.getGustSpeed(forecastPoint, showApparent);
 		const prevGustSpeed = prevForecastPoint ? this.getGustSpeed(prevForecastPoint, showApparent) : null;
 		const nextGustSpeed = nextForecastPoint ? this.getGustSpeed(nextForecastPoint, showApparent) : null;
 		const gustsGradient = createGradientBackground(currentGustSpeed, prevGustSpeed, nextGustSpeed, getWindColor);
 
-		cells.push({
-			type: 'wind',
-			windSpeed: weatherData?.gustsSpeed || null,
-			relativeWindDirection: weatherData?.relativeWindDirection || null,
-			trueWindDirection: weatherData?.trueWindDirection || null,
-			course: forecastPoint?.leg?.course || 0,
-			apparent: showApparent,
-			gradient: gustsGradient,
-			isGusts: true
-		});
+		const weatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
 
-		/*
-		cells.push({
-			type: 'combined-wind',
-			windSpeed: weatherData?.windSpeed || null,
-			gustsSpeed: weatherData?.gustsSpeed || null,
-			relativeWindDirection: weatherData?.relativeWindDirection || null,
-			trueWindDirection: weatherData?.trueWindDirection || null,
-			course: forecastPoint?.leg?.course || 0,
-			apparent: showApparent,
-			windGradient: windGradient,
-			gustGradient: gustsGradient,
-		});
+		if ( isSingleRoute) {
+			cells.push({
+				type: 'wind',
+				windSpeed: weatherData?.windSpeed || null,
+				relativeWindDirection: weatherData?.relativeWindDirection || null,
+				trueWindDirection: weatherData?.trueWindDirection || null,
+				course: forecastPoint?.leg?.course || 0,
+				apparent: showApparent,
+				gradient: windGradient
+			});
 
-		cells.push({
-			type: 'route-color',
-			color: isInRoute ? this.routeForecast.route.color : null,
-			waypointNumber: null //waypointData?.number || null	// will come in multiple-route version
-		});
-		cells.push({
-			type: 'combined-wind',
-			windSpeed: weatherData?.windSpeed || null,
-			gustsSpeed: weatherData?.gustsSpeed || null,
-			relativeWindDirection: weatherData?.relativeWindDirection || null,
-			trueWindDirection: weatherData?.trueWindDirection || null,
-			course: forecastPoint?.leg?.course || 0,
-			apparent: showApparent,
-			windGradient: windGradient,
-			gustGradient: gustsGradient,
-		});
-		*/
+			cells.push({
+				type: 'wind',
+				windSpeed: weatherData?.gustsSpeed || null,
+				relativeWindDirection: weatherData?.relativeWindDirection || null,
+				trueWindDirection: weatherData?.trueWindDirection || null,
+				course: forecastPoint?.leg?.course || 0,
+				apparent: showApparent,
+				gradient: gustsGradient,
+				isGusts: true
+			});
+		} else {
+			cells.push({
+				type: 'combined-wind',
+				windSpeed: weatherData?.windSpeed || null,
+				gustsSpeed: weatherData?.gustsSpeed || null,
+				relativeWindDirection: weatherData?.relativeWindDirection || null,
+				trueWindDirection: weatherData?.trueWindDirection || null,
+				course: forecastPoint?.leg?.course || 0,
+				apparent: showApparent,
+				windGradient: windGradient,
+				gustGradient: gustsGradient,
+			});
+		}
+
+
+
 
 		// Waves cell (with gradient background)
-		const currentSeaIndex = forecastPoint?.northUp?.wavesIndex || 0;
-		const prevSeaIndex = prevForecastPoint ? (prevForecastPoint.northUp?.wavesIndex || 0) : null;
-		const nextSeaIndex = nextForecastPoint ? (nextForecastPoint.northUp?.wavesIndex || 0) : null;
+		if ( isSingleRoute ) {
+			const currentSeaIndex = forecastPoint?.northUp?.wavesIndex || 0;
+			const prevSeaIndex = prevForecastPoint ? (prevForecastPoint.northUp?.wavesIndex || 0) : null;
+			const nextSeaIndex = nextForecastPoint ? (nextForecastPoint.northUp?.wavesIndex || 0) : null;
 
 
-		const wavesGradient = createGradientBackground(currentSeaIndex, prevSeaIndex, nextSeaIndex, getSeaIndexColor);
+			const wavesGradient = createGradientBackground(currentSeaIndex, prevSeaIndex, nextSeaIndex, getSeaIndexColor);
 
-		const waveWeatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
-		cells.push({
-			type: 'wave',
-			wavesHeight: waveWeatherData?.wavesHeight || null,
-			wavesPeriod: waveWeatherData?.wavesPeriod || null,
-			wavesDirection: waveWeatherData?.wavesDirection || null,
-			course: forecastPoint?.leg?.course || 0,
-			apparent: showApparent,
-			gradient: wavesGradient
-		});
+			const waveWeatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
+			cells.push({
+				type: 'wave',
+				wavesHeight: waveWeatherData?.wavesHeight || null,
+				wavesPeriod: waveWeatherData?.wavesPeriod || null,
+				wavesDirection: waveWeatherData?.wavesDirection || null,
+				course: forecastPoint?.leg?.course || 0,
+				apparent: showApparent,
+				gradient: wavesGradient
+			});
+		}
 
 		return cells;
 	}
@@ -418,8 +453,8 @@ export class ForecastTableDataSource {
 	/**
 	 * Find forecast point that matches (or is closest to) the given timestamp
 	 */
-	private findForecastPointForTimestamp(timestamp: number): PointForecast | null {
-		if (!this.routeForecast.pointForecasts || this.routeForecast.pointForecasts.length === 0) {
+	private findForecastPointForTimestamp(routeForecast:RouteForecast, timestamp: number): PointForecast | null {
+		if (!routeForecast.pointForecasts || routeForecast.pointForecasts.length === 0) {
 			return null;
 		}
 
@@ -428,7 +463,7 @@ export class ForecastTableDataSource {
 		let closestPoint: PointForecast | null = null;
 		let minDiff = Infinity;
 
-		for (const point of this.routeForecast.pointForecasts) {
+		for (const point of routeForecast.pointForecasts) {
 			const diff = Math.abs(point.timestamp - timestamp);
 			if (diff < minDiff) {
 				minDiff = diff;

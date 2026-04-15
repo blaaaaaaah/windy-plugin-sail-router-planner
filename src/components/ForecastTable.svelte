@@ -47,7 +47,7 @@
 
             if (isNewRoute || forecast.pointForecasts !== null) {
                 // Create or update data source (handles placeholders internally)
-                dataSource = new ForecastTableDataSource(forecast);
+                dataSource = new ForecastTableDataSource([forecast]);
                 rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
             }
 

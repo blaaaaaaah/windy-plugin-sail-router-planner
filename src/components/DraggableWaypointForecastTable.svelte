@@ -58,12 +58,15 @@
 
 		if (targetTimestamp === dragDropTargetTimestamp || targetTimestamp === null) return; // No change in target
 
-		// Dispatch waypoint index changed event
-		dispatch('waypointIndexChanged', {
-			fromTimestamp: dragStartTimestamp,
-			toTimestamp: targetTimestamp,
-			isDragging: true
-		});
+		setTimeout(() => {
+			// Dispatch waypoint index changed event
+			dispatch('waypointIndexChanged', {
+				fromTimestamp: dragStartTimestamp,
+				toTimestamp: targetTimestamp,
+				isDragging: true
+			});
+		}, 100); // Debounce the event dispatching to give time to UI to redraw when adding rows whe ghost near the top or end
+		
 
 		dragDropTargetTimestamp = targetTimestamp;
 

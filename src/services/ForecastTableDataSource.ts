@@ -64,6 +64,7 @@ export interface ForecastTableRowData {
 export class ForecastTableDataSource {
 
 	private startTime: number = Date.now();
+	private endTime: number = Date.now() + (24 * 60 * 60 * 1000);	// Default to 24h from now if no forecasts
 
 	constructor(
 		private routeForecast: RouteForecast
@@ -132,40 +133,32 @@ export class ForecastTableDataSource {
 	private generateTimeline(ghostTimestamp: number | null = null): number[] {
 		const timeline: number[] = [];
 
-		if ( ! this.routeForecast.pointForecasts ) {
-			// Placeholder timeline: just a few hours from now
-			// this.startTime is Date.now() by default
-			const nextHour = Math.ceil(this.startTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
-
-			for (let i = 0; i < 24; i++) {
-				timeline.push(nextHour + (i * 60 * 60 * 1000));
-			}
-		} else {
+		if ( this.routeForecast.pointForecasts ) {
 			// we have forecasts
 
 			// Full timeline: departure-6h to arrival+6h
 			const sixHours = 6 * 60 * 60 * 1000;
 			const twoHours = 2 * 60 * 60 * 1000;
 
-			// if we have a ghost timestamp (during drag) and going near the start of the route, shift the timeline to keep the ghost timestamp visible and centered
+			// if we have a ghost timestamp (during drag) and going near the start of the route, add cells before the departure time to allow scrolling up
 			if ( ghostTimestamp !== null ) {
 				if ( ghostTimestamp < this.startTime + twoHours ) {
-					console.warn('Shifting timeline earlier to keep ghost waypoint visible ', new Date(ghostTimestamp));
 					this.startTime = Math.min(this.startTime, ghostTimestamp - twoHours);	// Shift timeline earlier to create more rows to scroll
+				} else if ( ghostTimestamp > this.endTime - twoHours ) {
+					this.endTime = Math.max(this.endTime, ghostTimestamp + twoHours);	// Shift timeline later to create more rows to scroll
 				}
 			} else {
-				this.startTime = this.routeForecast.route.departureTime - sixHours;
+				this.startTime = Math.min(this.startTime, this.routeForecast.route.departureTime - sixHours);
+				this.endTime = Math.max(this.endTime, this.routeForecast.route.arrivalTime + sixHours);
 			}
+		}
 
-			const endTime = this.routeForecast.route.arrivalTime + sixHours;
+		// Generate hourly timestamps
+		const startHour = Math.floor(this.startTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
+		const endHour = Math.ceil(this.endTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
 
-			// Generate hourly timestamps
-			const startHour = Math.floor(this.startTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
-			const endHour = Math.ceil(endTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
-
-			for (let timestamp = startHour; timestamp <= endHour; timestamp += 60 * 60 * 1000) {
-				timeline.push(timestamp);
-			}
+		for (let timestamp = startHour; timestamp <= endHour; timestamp += 60 * 60 * 1000) {
+			timeline.push(timestamp);
 		}
 
 		return timeline;

@@ -275,7 +275,9 @@ export class ForecastTableDataSource {
 		});
 
 		// Route color cell (no gradient background)
-		const isInRoute = forecastPoint &&this.routeForecast.route.departureTime <= timestamp && timestamp < this.routeForecast.route.arrivalTime;
+		const isInRoute = !!forecastPoint && 
+				this.routeForecast.route.departureTime <= timestamp && 
+				timestamp < Math.floor(this.routeForecast.route.arrivalTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
 
 		cells.push({
 			type: 'route-color',

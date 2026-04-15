@@ -19,7 +19,10 @@
 
     // Derived state from forecast
     $: isLoading = forecast === null || forecast?.pointForecasts === null;
-    $: route = forecast?.route || null;
+
+
+
+
 
     // Track current route ID to detect route changes
     let currentRouteId: string | null = null;
@@ -206,9 +209,9 @@
         <!-- Table Content -->
         <section class="table-content">
             <!-- Route Summary -->
-            {#if route}
+            {#if forecast?.route}
                 <RouteDetail
-                    route={route}
+                    route={forecast.route}
                     routeStats={forecast?.routeStats || null}
                     on:routeUpdated={handleRouteUpdated}
                 />

@@ -1,11 +1,13 @@
 <script lang="ts">
 	export let color: string | null = null;
 	export let waypointNumber: number | null = null;
+
+	$: backgroundColor = color ? "border-left: 4px solid " + color + ";" : "";
 </script>
 
 <div
 	class="route-color-cell"
-	style="border-left: 4px solid {color};"
+	style={backgroundColor}
 >
 	{#if waypointNumber !== null}
 		<div class="waypoint-number" style="background-color: {color};">

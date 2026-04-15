@@ -4,6 +4,7 @@
     import RouteDetail from './RouteDetail.svelte';
     import WeatherCell from './forecast-cells/WeatherCell.svelte';
     import WindCell from './forecast-cells/WindCell.svelte';
+    import CombinedWindCell from './forecast-cells/CombinedWindCell.svelte';
     import WaveCell from './forecast-cells/WaveCell.svelte';
     import TimeCell from './forecast-cells/TimeCell.svelte';
     import RouteColorCell from './forecast-cells/RouteColorCell.svelte';
@@ -293,6 +294,19 @@
                                                 gradient={cellData.gradient}
                                             />
                                         </div>
+                                    {:else if cellData.type === 'combined-wind'}
+                                        <div class="wind-column">
+                                            <CombinedWindCell
+                                                windSpeed={cellData.windSpeed}
+                                                gustsSpeed={cellData.gustsSpeed}
+                                                relativeWindDirection={cellData.relativeWindDirection}
+                                                trueWindDirection={cellData.trueWindDirection}
+                                                course={cellData.course}
+                                                apparent={cellData.apparent}
+                                                windGradient={cellData.windGradient}
+                                                gustGradient={cellData.gustGradient}
+                                            />
+                                        </div>
                                     {:else if cellData.type === 'wave'}
                                         <div class="waves-column">
                                             <WaveCell
@@ -487,7 +501,7 @@
         &:hover {
             background: #f8f9fa;
         }
-        
+
         &.current-hour {
             background: #e6e6e6;
         }

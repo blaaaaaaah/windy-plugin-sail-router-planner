@@ -16,10 +16,11 @@ export interface LegWaypointData {
 }
 
 export interface ForecastCellData {
-	type: 'time' | 'wind' | 'wave' | 'weather' | 'route-color';
+	type: 'time' | 'wind' | 'wave' | 'weather' | 'route-color' | 'combined-wind';
 
 	// Common properties
 	apparent?: boolean;
+	gradient?: string;
 
 	// Time cell properties
 	timestamp?: number;
@@ -35,13 +36,16 @@ export interface ForecastCellData {
 	trueWindDirection?: number | null;
 	course?: number;
 	isGusts?: boolean;
-	gradient?: string;
+
+	// Combined wind cell properties
+	gustsSpeed?: number | null;
+	windGradient?: string;
+	gustGradient?: string;
 
 	// Wave cell properties
 	wavesHeight?: number | null;
 	wavesPeriod?: number | null;
 	wavesDirection?: number | null;
-	gradient?: string;
 
 	// Weather cell properties
 	precipitations?: number | null;
@@ -331,6 +335,37 @@ export class ForecastTableDataSource {
 			gradient: gustsGradient,
 			isGusts: true
 		});
+
+		/*
+		cells.push({
+			type: 'combined-wind',
+			windSpeed: weatherData?.windSpeed || null,
+			gustsSpeed: weatherData?.gustsSpeed || null,
+			relativeWindDirection: weatherData?.relativeWindDirection || null,
+			trueWindDirection: weatherData?.trueWindDirection || null,
+			course: forecastPoint?.leg?.course || 0,
+			apparent: showApparent,
+			windGradient: windGradient,
+			gustGradient: gustsGradient,
+		});
+
+		cells.push({
+			type: 'route-color',
+			color: isInRoute ? this.routeForecast.route.color : null,
+			waypointNumber: null //waypointData?.number || null	// will come in multiple-route version
+		});
+		cells.push({
+			type: 'combined-wind',
+			windSpeed: weatherData?.windSpeed || null,
+			gustsSpeed: weatherData?.gustsSpeed || null,
+			relativeWindDirection: weatherData?.relativeWindDirection || null,
+			trueWindDirection: weatherData?.trueWindDirection || null,
+			course: forecastPoint?.leg?.course || 0,
+			apparent: showApparent,
+			windGradient: windGradient,
+			gustGradient: gustsGradient,
+		});
+		*/
 
 		// Waves cell (with gradient background)
 		const currentSeaIndex = forecastPoint?.northUp?.wavesIndex || 0;

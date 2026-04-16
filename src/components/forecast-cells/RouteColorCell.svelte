@@ -1,16 +1,15 @@
 <script lang="ts">
+	export let inRoute: boolean = false;
 	export let color: string | null = null;
 	export let waypointNumber: number | null = null;
-
-	$: backgroundColor = color ? "border-left: 4px solid " + color + ";" : "";
 </script>
 
-<div
+<div style="--route-color: {color};"
 	class="route-color-cell"
-	style={backgroundColor}
+	class:in-route={inRoute}
 >
 	{#if waypointNumber !== null}
-		<div class="waypoint-number" style="background-color: {color};">
+		<div class="waypoint-number">
 			{waypointNumber}
 		</div>
 	{/if}
@@ -26,13 +25,19 @@
 		justify-content: center;
 		position: relative;
 		min-height: 50px;
+
+		border-left: 4px solid transparent;
+	}
+
+	.in-route {
+		border-left: 4px solid var(--route-color)
 	}
 
 	.waypoint-number {
 		position: absolute;
 		top: -20px;
 		left: -13px; /* Position to overlap the color border */
-		background-color: var(--route-color, #3498db);
+		background-color: var(--route-color);
 		color: white;
 		width: 22px;
 		height: 22px;

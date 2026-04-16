@@ -18,6 +18,7 @@
                 on:toggleVisibility={handleToggleVisibility}
                 on:toggleFavorite={handleToggleFavorite}
                 on:routeHighlighted={handleRouteHighlighted}
+                on:compareRoutes={handleCompareRoutes}
             />
         </div>
 
@@ -202,6 +203,11 @@
         routeEditor!.highlightRoute(route);
     }
 
+    function handleCompareRoutes(event: any) {
+        const { routes } = event.detail;
+        showForecastsForRoutes(routes);
+    }
+
     export const onopen = (params: any) => {
         console.log('=== PLUGIN ONOPEN ===', params);
 
@@ -260,9 +266,9 @@
             if ( route.isSaved ) {
                 routeStorage!.deleteRoute(route);
             }
+            route.setCachedGeoName(null);   // TODO XXX : still needed ?
             
             showForecastsForRoutes([]);
-            route.setCachedGeoName(null);
         }
 
         // Update route list to include new/modified routes

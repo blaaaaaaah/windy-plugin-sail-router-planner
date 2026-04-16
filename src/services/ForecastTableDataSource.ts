@@ -27,7 +27,8 @@ export interface ForecastCellData {
 	forecastTimestamp?: number | null;
 
 	// Route color properties
-	color?: string | null;
+	color?: string;
+	inRoute?: boolean;
 	waypointNumber?: number | null;
 
 	// Wind cell properties
@@ -331,7 +332,8 @@ export class ForecastTableDataSource {
 
 		cells.push({
 			type: 'route-color',
-			color: isInRoute ? routeForecast.route.color : null,
+			color: routeForecast.route.color,
+			inRoute: isInRoute,
 			waypointNumber: isSingleRoute ? null : waypointData?.number || null
 		});
 

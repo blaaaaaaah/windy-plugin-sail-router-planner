@@ -284,6 +284,7 @@
                                     {:else if cellData.type === 'route-color'}
                                         <RouteColorCell
                                             color={cellData.color}
+                                            inRoute={cellData.inRoute}
                                             waypointNumber={cellData.waypointNumber}
                                         />
                                     {:else if cellData.type === 'weather'}

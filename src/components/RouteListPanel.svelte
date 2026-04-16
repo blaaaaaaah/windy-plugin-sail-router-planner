@@ -1,14 +1,11 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import type { RouteDefinition } from '../types/RouteTypes';
-    import type { RouteForecast } from '../types/WeatherTypes';
     import { formatDistance } from '../utils/FormatUtils';
     import { formatDuration, formatDateTime } from '../utils/TimeUtils';
-    import { formatCoordinate } from '../utils/NavigationUtils';
     import RouteFavoriteButton from './RouteFavoriteButton.svelte';
 
     export let routes: RouteDefinition[] = [];
-    export let cachedForecasts: Map<string, RouteForecast> = new Map();
     export let highlightedRoute: RouteDefinition | null = null;
 
     const dispatch = createEventDispatcher();
@@ -26,6 +23,11 @@
         dispatch('toggleFavorite', { route });
     }
 
+    function handleCompare(event:CustomEvent) {
+        const visibleRoutes = routes.filter(route => route.isVisible);
+        dispatch('compareRoutes', { routes: visibleRoutes });
+    }
+    
     function onRouteHover(route: RouteDefinition) {
         dispatch('routeHighlighted', { route });
     }
@@ -58,17 +60,8 @@
     $: visibleRoutes = routes.filter(route => route.isVisible);
     $: selectAllState = visibleRoutes.length === 0 ? 'none' :
                        visibleRoutes.length === routes.length ? 'all' : 'partial';
+    $: isCompareDisabled = visibleRoutes.length == 0 || visibleRoutes.length > 3;
 
-    function getRouteName(route: RouteDefinition): string {
-        if (route.name) {
-            return route.name;
-        }
-
-        // Use coordinate formatting from NavigationUtils
-        const start = route.waypoints[0];
-        const end = route.waypoints[route.waypoints.length - 1];
-        return `${formatCoordinate(start.lat, true)} ${formatCoordinate(start.lng, false)} → ${formatCoordinate(end.lat, true)} ${formatCoordinate(end.lng, false)}`;
-    }
 </script>
 
 <div class="route-list-panel">
@@ -91,8 +84,8 @@
                         title={selectAllState === 'all' ? 'Hide all routes' : 'Show all routes'}
                     />
                 </div>
-                <button class="compare-button" disabled title="Compare routes (coming soon)">
-                    Compare
+                <button class="compare-button" disabled={isCompareDisabled} title="Compare routes" on:click={handleCompare}>
+                    Compare 
                 </button>
                 <div class="header-chevron">
                     <svg width="20" height="14" viewBox="0 0 20 14">
@@ -124,7 +117,7 @@
                         >
                             <div class="route-content">
                                 <div class="route-name">
-                                    {getRouteName(route)}
+                                    {route.name || ''}
                                 </div>
                                 <div class="route-metrics">
                                     <span class="metric">
@@ -240,15 +233,15 @@
         border: 1px solid #dee2e6;
         color: #6c757d;
         font-size: 12px;
-        cursor: not-allowed;
         padding: 6px;
         border-radius: 4px;
-        opacity: 0.6;
+        cursor: pointer;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 
         &:disabled {
             cursor: not-allowed;
             background: #f8f9fa;
+            opacity: 0.6;
         }
     }
 

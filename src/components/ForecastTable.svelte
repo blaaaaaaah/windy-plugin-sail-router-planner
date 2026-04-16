@@ -15,18 +15,16 @@
     import { ForecastTableDataSource, type ForecastTableRowData } from '../services/ForecastTableDataSource';
     import RouteFavoriteButton from './RouteFavoriteButton.svelte';
 
-    export let forecast: RouteForecast | null = null;
+    export let routeForecasts: RouteForecast[] = [];
     export let showTrueWind: boolean = true;
 
     // Derived state from forecast
-    $: isLoading = forecast === null || forecast?.pointForecasts === null;
-
-
+    $: isLoading = routeForecasts.length === 0 || routeForecasts.every(f => f.pointForecasts === null);
 
 
 
     // Track current route ID to detect route changes
-    let currentRouteId: string | null = null;
+    let currentRouteIds: string | null = null;
     let scrollToTimestamp: number | null = null;
 
     // Data source and generated rows
@@ -35,33 +33,35 @@
 
     // Refresh method to recalculate data
     function refresh() {
-        if (forecast) {
+        if (routeForecasts.length) {
 
             // Check if this is a new route
-            const isNewRoute = currentRouteId !== forecast.route.id;
+            const routeIds = routeForecasts.map(f => f.route.id).join(',');
+            const isNewRoute = currentRouteIds != routeIds;
             if (isNewRoute) {
-                currentRouteId = forecast.route.id;
+                currentRouteIds = routeIds;
                 scrollToTimestamp = null; // Reset scroll index for new route
             }
 
-
-            if (isNewRoute || forecast.pointForecasts !== null) {
+            // if new route or if we have data for at least one route, create/update data source (handles placeholders internally)
+            if (isNewRoute || routeForecasts.some(f => f.pointForecasts !== null)) {
                 // Create or update data source (handles placeholders internally)
-                dataSource = new ForecastTableDataSource([forecast]);
+                dataSource = new ForecastTableDataSource(routeForecasts);
                 rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
             }
 
 
-            // Calculate scroll index when we don't have one yet and data is available
-            if (forecast.pointForecasts && scrollToTimestamp === null && rowsData.length > 0) {
-                scrollToTimestamp = calculateScrollTimestamp(rowsData, forecast.route.departureTime);
-                console.log(`Setting scrollToTimestamp to ${scrollToTimestamp} for route ${forecast.route.id}`);
+            // Calculate scroll index when we don't have one yet and data is available for first route only
+            // we always have at least one item
+            if (routeForecasts[0].pointForecasts && scrollToTimestamp === null && rowsData.length > 0) {
+                scrollToTimestamp = calculateScrollTimestamp(rowsData, routeForecasts[0].route.departureTime);
+                console.log(`Setting scrollToTimestamp to ${scrollToTimestamp} for route ${routeForecasts[0].route.id}`);
             }
             
 
         } else {
             // No forecast available - clear data
-            currentRouteId = null;
+            currentRouteIds = null;
             scrollToTimestamp = null;
             dataSource = null;
             rowsData = [];
@@ -69,7 +69,7 @@
     }
 
     // Reactive updates when forecast changes
-    $: if (forecast) {
+    $: if (routeForecasts) {
         refresh();
     }
 
@@ -79,7 +79,7 @@
     }
 
     function updateRows() {
-        if ( dataSource && forecast) {
+        if ( dataSource && routeForecasts) {
             // Only regenerate rows data with new wind mode, keep the same data source instance
             rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
             console.log('ForecastTableDataSource generated', rowsData.length, 'rows');
@@ -134,9 +134,13 @@
     }
 
 
-    // Handle waypoint index changes from drag operations
+    // Handle waypoint index changes from drag operations, only works for first forecast
     function handleWaypointIndexChanged(event: CustomEvent) {
         const { fromTimestamp, toTimestamp, isDragging } = event.detail;
+
+        if ( routeForecasts.length != 1 ) {
+            return; // Only support drag-and-drop reordering for single route
+        }
 
         console.log(`Waypoint timestamp change: from ${fromTimestamp} to ${toTimestamp}, isDragging: ${isDragging}`);
 
@@ -145,15 +149,15 @@
             rowsData = dataSource!.getRowsData(!showTrueWind, dropTimestamp); // showApparent = !showTrueWind
         } else {
             if (fromTimestamp !== null && toTimestamp !== fromTimestamp ) {
-                if (toTimestamp && forecast?.route) {
+                if (toTimestamp && routeForecasts[0]?.route) {
                     console.log(`Moving route start to ${formatTime(toTimestamp)}`);
 
                     // Update the route departure time directly
-                    forecast.route.setDepartureTime(toTimestamp);
+                    routeForecasts[0].route.setDepartureTime(toTimestamp);
 
                     // Dispatch updated route to trigger forecast regeneration
                     dispatch('routeUpdated', {
-                        route: forecast.route
+                        route: routeForecasts[0].route
                     });
                 }
             }
@@ -173,19 +177,26 @@
         dispatch('windModeChanged', { showTrueWind: trueWind });
     }
 
+    // only works for first route
     function handleLegSpeedUpdate(event: any) {
+        if ( routeForecasts.length != 1 ) {
+            return; // Only support speed update for single route
+        }
+
         const { legIndex, newSpeed } = event.detail;
         console.log(`Updating leg ${legIndex} speed to ${newSpeed}`);
 
-        if (forecast?.route && legIndex >= 0 && legIndex < forecast.route.legs.length) {
+        const route = routeForecasts[0]?.route
+
+        if (route && legIndex >= 0 && legIndex < route.legs.length) {
             const speed = parseFloat(newSpeed);
             if (!isNaN(speed) && speed > 0) {
                 // Update the route leg speed using the proper method
-                forecast.route.setLegSpeed(legIndex, speed);
+                route.setLegSpeed(legIndex, speed);
 
                 // Dispatch with the updated route
                 dispatch('routeUpdated', {
-                    route: forecast.route
+                    route: route
                 });
             }
         }
@@ -205,10 +216,10 @@
         <!-- Table Content -->
         <section class="table-content">
             <!-- Route Summary -->
-            {#if forecast?.route}
+            {#if routeForecasts.length == 1 && routeForecasts[0]?.route}
                 <RouteDetail
-                    route={forecast.route}
-                    routeStats={forecast?.routeStats || null}
+                    route={routeForecasts[0].route}
+                    routeStats={routeForecasts[0]?.routeStats || null}
                     on:routeUpdated={handleRouteUpdated}
                 />
             {/if}
@@ -355,15 +366,15 @@
             </span>
         </div>
         <div class="footer-right">
-            {#if forecast?.forecastWindow?.updated}
-                <p>Updated {formatTimeAgo(forecast.forecastWindow.updated)}</p>
+            {#if routeForecasts[0]?.forecastWindow?.updated}
+                <p>Updated {formatTimeAgo(routeForecasts[0].forecastWindow.updated)}</p>
             {:else}
                 <p>&nbsp;</p>
             {/if}
 
-            {#if forecast}
+            {#if routeForecasts.length == 1 && routeForecasts[0]}
             <div class="favorite-button">
-                    <RouteFavoriteButton route={forecast.route} on:toggleFavorite={toggleFavorite}/>
+                    <RouteFavoriteButton route={routeForecasts[0].route} on:toggleFavorite={toggleFavorite}/>
             </div>
              {/if}
         </div>

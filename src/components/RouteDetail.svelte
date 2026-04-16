@@ -141,7 +141,11 @@
                             placeholder="Enter route name..."
                         />
                     {:else}
-                        <div class="route-name" on:click={startEditingName} title="Click to edit route name">{route.name || 'Unnamed Route'}</div>
+                        {#if route?.name}
+                            <div class="route-name" on:click={startEditingName} title="Click to edit route name">{route.name}</div>
+                        {:else}
+                            <div class="route-name"><i>Loading route name...</i></div>
+                        {/if}
                     {/if}
                 </div>
                 <div class="route-summary" on:click={showExpandChevron ? handleClick : undefined}>

@@ -2,7 +2,7 @@
     { title }
 </div>
 <section class="plugin__content">
-    <div class="panel-container" class:forecast-active={activeRoute !== null}>
+    <div class="panel-container" class:forecast-active={displayedRouteForecasts.length !== 0}>
         <!-- Route List Panel -->
         <div class="route-list-panel">
             <div
@@ -32,7 +32,7 @@
 
             <div class="forecast-container">
                 <ForecastTable
-                    forecast={currentForecast}
+                    routeForecasts={displayedRouteForecasts}
                     showTrueWind={showTrueWind}
                     on:windModeChanged={handleWindModeChanged}
                     on:timeHover={handleTimeHover}
@@ -68,7 +68,7 @@
     let routeEditor: RouteEditorController | null = null;
 
     // Forecast data
-    let currentForecast: RouteForecast|null = null;
+    let displayedRouteForecasts: RouteForecast[] = [];
 
     // Weather service instances
     let windyAPI: WindyAPI | null = null;
@@ -83,7 +83,6 @@
     let showTrueWind: boolean = true;
 
     // Track the current route
-    let activeRoute: RouteDefinition | null = null;
     let highlightedRoute: RouteDefinition | null = null;
 
     // All routes for multi-route functionality
@@ -98,8 +97,8 @@
         showTrueWind = newShowTrueWind;
 
         // Update URL to persist wind mode
-        if (activeRoute) {
-            const serializedState = serializeState(activeRoute, newShowTrueWind);
+        if (displayedRouteForecasts[0]?.route) {  // TODO: handle compare mode in URL
+            const serializedState = serializeState(displayedRouteForecasts[0]?.route, newShowTrueWind);
             setUrl(config.name, { route: serializedState });
         }
     }
@@ -109,69 +108,66 @@
         if (route.name === null && route.waypoints.length >= 2) {
             weatherService!.getRouteName(route).then(geoName => {
                 route.setCachedGeoName(geoName);
-                // Force reactivity for both activeRoute and allRoutes
-                activeRoute = activeRoute;
+                // Force reactivity
                 allRoutes = routeEditor!.getAllRoutes();
+                displayedRouteForecasts = displayedRouteForecasts;
             }).catch(error => {
                 console.error('Failed to fetch geo name:', error);
             });
         }
     }
 
-    // Generate forecast from route using WeatherForecastService
-    async function generateForecastFromRoute(route: RouteDefinition) {
-        if (!weatherService || !route.waypoints.length || route.waypoints.length < 2) {
+
+    async function showForecastsForRoutes(routes:RouteDefinition[]) {
+        if (!weatherService) {
             return;
         }
 
-        try {
-            // Create loading RouteForecast object with null forecast data
-            currentForecast = {
-                route: route,
-                pointForecasts: null, // null indicates loading
-                legStats: [],
-                routeStats: null,
-                forecastWindow: null
-            };
+        let routesToLoad = routes.filter(route => !cachedForecasts.has(route.id));
+        
+        // force reactivity. If we have all cached, good, else show loading state in the meantime
+        // If no routes, displayedRouteForecasts will be empty
+        displayedRouteForecasts = routes.map(route => {
+            if (cachedForecasts.has(route.id)) {
+                return cachedForecasts.get(route.id)!;
+            } else {
+                return {
+                    route: route,
+                    pointForecasts: null, // null indicates loading
+                    legStats: [],
+                    routeStats: null,
+                    forecastWindow: null
+                };
+            }
+        });
+        
+        if (routesToLoad.length > 0) {
+            routesToLoad = routesToLoad.filter(route => route.waypoints.length >= 2); // Only load forecasts for routes with 2+ waypoints
+            
+            console.log('Generating forecasts for routes:', routesToLoad.map(r => r.id));
 
-            console.log('Generating forecast for route with', route.waypoints.length, 'waypoints');
-
-            const forecast = await weatherService.getRouteForecast(route);
-            // Cache the forecast for future route switches
-            cachedForecasts.set(route.id, forecast);
-            // Set the populated forecast
-            currentForecast = forecast;
-
-            console.log('Forecast generated:', forecast.pointForecasts.length, 'points');
-        } catch (error) {
-            console.error('Failed to generate forecast:', error);
-            // On error, clear the forecast
-            currentForecast = null;
-        }
+            const routeForecasts = await Promise.all(routesToLoad.map(route => weatherService!.getRouteForecast(route)));
+            displayedRouteForecasts = routeForecasts.map(routeForecast => {
+                cachedForecasts.set(routeForecast.route.id, routeForecast);
+                fetchGeoNameIfNeeded(routeForecast.route);
+                return routeForecast;
+            });
+        }  
     }
 
     // Callback from RouteEditorController when active route changes
-    function onActiveRouteChanged(route: RouteDefinition | null) {
-        activeRoute = route;
+    function onActiveRouteChanged(route: RouteDefinition | null) {  // TODO : handle multi-route
         allRoutes = routeEditor!.getAllRoutes();
 
         if (route) {
-
             const serializedState = serializeState(route, showTrueWind);
             setUrl(config.name, { route: serializedState });
 
-            // Check cache first, then generate forecast
-            if (cachedForecasts.has(route.id)) {
-                currentForecast = cachedForecasts.get(route.id)!;
-            } else {
-                generateForecastFromRoute(route);
-            }
-
-            // Fetch geo name if needed
-            fetchGeoNameIfNeeded(route);
+            showForecastsForRoutes([route]);
         } else {
             setUrl(config.name, { route: null });
-            currentForecast = null;
+
+            showForecastsForRoutes([]);
         }
     }
 
@@ -188,23 +184,7 @@
         // Set active route immediately (triggers panel slide)
         routeEditor!.setActiveRoute(route);
 
-        // Set loading state with empty RouteForecast object
-        currentForecast = {
-            route: route,
-            pointForecasts: null, // null indicates loading
-            legStats: [],
-            routeStats: null,
-            forecastWindow: null
-        };
-
-        // Check cache first, then generate forecast
-        if (cachedForecasts.has(route.id)) {
-            setTimeout(() => {
-                currentForecast = cachedForecasts.get(route.id)!;
-            }, 0);
-        } else {
-            generateForecastFromRoute(route);
-        }
+        showForecastsForRoutes([route]);
     }
 
     function handleBackToRoutes() {
@@ -231,7 +211,7 @@
         // Handle URL route if present
         if (params?.route) {
             const result = deserializeState(params.route);
-            if (result?.route) {
+            if (result?.route) {    // TODO : handle multi-route deserialization
                 // Set wind mode from deserialization
                 showTrueWind = result.windMode;
                 console.log('Loaded wind mode from route:', showTrueWind ? 'True Wind' : 'Apparent Wind');
@@ -271,27 +251,18 @@
                 routeStorage!.saveRoute(route);
             }
 
-            activeRoute = routeEditor!.getActiveRoute();
-
             // Clear cached forecast since route properties changed
             cachedForecasts.delete(route.id);
-            generateForecastFromRoute(route);
 
-            // Fetch and set geo name only if no name is set yet
-            if (route.name === null) {
-                weatherService!.getRouteName(route).then(geoName => {
-                    route.setCachedGeoName(geoName);
-                    activeRoute = activeRoute; // Force reactivity
-                    allRoutes = routeEditor!.getAllRoutes(); // Update route list
-                });
-            }
+            showForecastsForRoutes([route]);
+
         } else {
             if ( route.isSaved ) {
                 routeStorage!.deleteRoute(route);
             }
-            currentForecast = null;
+            
+            showForecastsForRoutes([]);
             route.setCachedGeoName(null);
-            activeRoute = activeRoute; // Force reactivity
         }
 
         // Update route list to include new/modified routes
@@ -314,7 +285,7 @@
                     cachedForecasts.delete(routeId);
 
                     // Check if this is the current active forecast
-                    if (activeRoute && activeRoute.id === routeId) {
+                    if ( displayedRouteForecasts.some(f => f.route.id === routeId) ) {
                         currentForecastUpdated = true;
                     }
                 }
@@ -326,9 +297,9 @@
         // If current forecast is outdated, reload it
         if (currentForecastUpdated) {
             console.log('Current forecast is outdated, reloading...');
-            generateForecastFromRoute(activeRoute!);
+            showForecastsForRoutes(displayedRouteForecasts.map(f => f.route));
         } else {
-            currentForecast = currentForecast; // Force reactivity to update "Updated X minutes ago" timestamp
+            displayedRouteForecasts = displayedRouteForecasts; // Force reactivity to update "Updated X minutes ago" timestamp
         }
     }
 
@@ -357,6 +328,9 @@
         } else {
             routeStorage?.deleteRoute(route);
         }
+
+        // force reactivity
+        allRoutes = routeEditor!.getAllRoutes();
     }
 
     function handleMetricClick(event: any) {
@@ -405,7 +379,7 @@
         timestampHandler = (timestamp: number) => {
             if (routeEditor) {
                 // Windy will emit the value we just gave but will emit right after the clamped value
-                if ( currentForecast && timestamp == currentForecast.forecastWindow?.start ) {
+                if ( displayedRouteForecasts.length && timestamp == displayedRouteForecasts[0].forecastWindow?.start ) {
                     // If the timestamp is exactly at the start of the forecast window, it's a clamp from Windy. Ignore it to prevent jumping back to the start of the route.
                     return;
                 }
@@ -441,7 +415,7 @@
         }
 
         // Clear forecast data
-        currentForecast = null;
+        displayedRouteForecasts = [];
 
         console.log('Plugin destroyed and cleaned up');
     });

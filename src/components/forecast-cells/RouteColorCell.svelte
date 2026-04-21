@@ -27,6 +27,7 @@
 		min-height: 50px;
 
 		border-left: 4px solid transparent;
+		margin-left: 13px;
 	}
 
 	.in-route {

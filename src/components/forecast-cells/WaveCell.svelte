@@ -12,14 +12,14 @@
 	$: boatCourse = apparent ? 0 : course;
 
 	$: tooltip = (() => {
-		const periodText = wavesPeriod !== null ? `Period: ${Math.round(wavesPeriod)}s\n` : '';
+		const periodText = typeof wavesPeriod == "number" ? `Period: ${Math.round(wavesPeriod)}s\n` : '';
 		if (apparent) {
 			// In apparent mode, use relative wave direction
-			const dirText = wavesDirection !== null ? `Relative: ${wavesDirection.toFixed(0)}°` : 'Direction: N/A';
+			const dirText = typeof wavesDirection == "number" ? `Relative: ${wavesDirection.toFixed(0)}°` : 'Direction: N/A';
 			return periodText + dirText;
 		} else {
 			// In true wind mode, use true wave direction
-			const dirText = wavesDirection !== null ? `Direction: ${wavesDirection.toFixed(0)}°` : 'Direction: N/A';
+			const dirText = typeof wavesDirection == "number"? `Direction: ${wavesDirection.toFixed(0)}°` : 'Direction: N/A';
 			return periodText + dirText;
 		}
 	})();
@@ -51,6 +51,7 @@
 		height: 100%;
 		min-height: 50px;	// TODO : shouldn't be here, why height: 100$ doesn't work ?
 		background: var(--gradient-color);
+		container-type: inline-size;
 	}
 
 	.wave-text {
@@ -61,5 +62,12 @@
 	.wave-height {
 		color: #333;
 		font-weight: 500;
+	}
+
+	/* Responsive font size for narrow columns */
+	@container (max-width: 40px) {
+		.wave-text {
+			font-size: 9px;
+		}
 	}
 </style>

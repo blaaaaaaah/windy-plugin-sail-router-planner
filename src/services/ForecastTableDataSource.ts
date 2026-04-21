@@ -41,7 +41,8 @@ export interface ForecastCellData {
 	// Combined wind cell properties
 	gustsSpeed?: number | null;
 	windGradient?: string;
-	gustGradient?: string;
+	gustsGradient?: string;
+	wavesGradient?: string;
 
 	// Wave cell properties
 	wavesHeight?: number | null;
@@ -326,7 +327,7 @@ export class ForecastTableDataSource {
 
 
 		// Route color cell (no gradient background)
-		const isInRoute = !!forecastPoint && 
+		const isInRoute = 
 				routeForecast.route.departureTime <= timestamp && 
 				timestamp < this.findClosestTimestamp(timeline, routeForecast.route.arrivalTime);
 
@@ -362,66 +363,72 @@ export class ForecastTableDataSource {
 		const nextGustSpeed = nextForecastPoint ? this.getGustSpeed(nextForecastPoint, showApparent) : null;
 		const gustsGradient = createGradientBackground(currentGustSpeed, prevGustSpeed, nextGustSpeed, getWindColor);
 
+		const currentSeaIndex = forecastPoint?.northUp?.wavesIndex || 0;
+		const prevSeaIndex = prevForecastPoint ? (prevForecastPoint.northUp?.wavesIndex || 0) : null;
+		const nextSeaIndex = nextForecastPoint ? (nextForecastPoint.northUp?.wavesIndex || 0) : null;
+
+
+		const wavesGradient = createGradientBackground(currentSeaIndex, prevSeaIndex, nextSeaIndex, getSeaIndexColor);
+
 		const weatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
 
-		if ( isSingleRoute) {
+		//if ( isSingleRoute) {
 			cells.push({
 				type: 'wind',
-				windSpeed: weatherData?.windSpeed || null,
-				relativeWindDirection: weatherData?.relativeWindDirection || null,
-				trueWindDirection: weatherData?.trueWindDirection || null,
-				course: forecastPoint?.leg?.course || 0,
+				windSpeed: weatherData?.windSpeed,
+				relativeWindDirection: weatherData?.relativeWindDirection,
+				trueWindDirection: weatherData?.trueWindDirection,
+				course: forecastPoint?.leg?.course,
 				apparent: showApparent,
 				gradient: windGradient
 			});
 
 			cells.push({
 				type: 'wind',
-				windSpeed: weatherData?.gustsSpeed || null,
-				relativeWindDirection: weatherData?.relativeWindDirection || null,
-				trueWindDirection: weatherData?.trueWindDirection || null,
-				course: forecastPoint?.leg?.course || 0,
+				windSpeed: weatherData?.gustsSpeed,
+				relativeWindDirection: weatherData?.relativeWindDirection,
+				trueWindDirection: weatherData?.trueWindDirection,
+				course: forecastPoint?.leg?.course,
 				apparent: showApparent,
 				gradient: gustsGradient,
 				isGusts: true
 			});
-		} else {
+		/*} else {
 			cells.push({
 				type: 'combined-wind',
 				windSpeed: weatherData?.windSpeed || null,
 				gustsSpeed: weatherData?.gustsSpeed || null,
 				relativeWindDirection: weatherData?.relativeWindDirection || null,
 				trueWindDirection: weatherData?.trueWindDirection || null,
+				wavesHeight: weatherData?.wavesHeight || null,
+				wavesPeriod: weatherData?.wavesPeriod || null,
+				wavesDirection: weatherData?.wavesDirection || null,
+				precipitations: forecastPoint?.precipitations || null,
+				weather: forecastPoint?.weather || null,
 				course: forecastPoint?.leg?.course || 0,
 				apparent: showApparent,
 				windGradient: windGradient,
-				gustGradient: gustsGradient,
+				gustsGradient: gustsGradient,
+				wavesGradient: wavesGradient
 			});
-		}
+		}*/
 
 
 
 
 		// Waves cell (with gradient background)
-		if ( isSingleRoute ) {
-			const currentSeaIndex = forecastPoint?.northUp?.wavesIndex || 0;
-			const prevSeaIndex = prevForecastPoint ? (prevForecastPoint.northUp?.wavesIndex || 0) : null;
-			const nextSeaIndex = nextForecastPoint ? (nextForecastPoint.northUp?.wavesIndex || 0) : null;
-
-
-			const wavesGradient = createGradientBackground(currentSeaIndex, prevSeaIndex, nextSeaIndex, getSeaIndexColor);
-
-			const waveWeatherData = showApparent ? forecastPoint?.apparent : forecastPoint?.northUp;
+		//if ( isSingleRoute ) {
+			
 			cells.push({
 				type: 'wave',
-				wavesHeight: waveWeatherData?.wavesHeight || null,
-				wavesPeriod: waveWeatherData?.wavesPeriod || null,
-				wavesDirection: waveWeatherData?.wavesDirection || null,
-				course: forecastPoint?.leg?.course || 0,
+				wavesHeight: weatherData?.wavesHeight,
+				wavesPeriod: weatherData?.wavesPeriod,
+				wavesDirection: weatherData?.wavesDirection,
+				course: forecastPoint?.leg?.course,
 				apparent: showApparent,
 				gradient: wavesGradient
 			});
-		}
+		//}
 
 		return cells;
 	}

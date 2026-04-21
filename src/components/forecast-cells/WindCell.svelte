@@ -14,10 +14,10 @@
 
 	$: tooltip = (() => {
 		if (apparent) {
-			if (relativeWindDirection === null || trueWindDirection === null) return 'N/A';
+			if (typeof relativeWindDirection != "number" || typeof trueWindDirection != "number" ) return 'N/A';
 			return `AWA: ${formatRelativeDirection(relativeWindDirection)}\nTWD: ${trueWindDirection.toFixed(0)}°`;
 		} else {
-			if (relativeWindDirection === null || trueWindDirection === null) return 'N/A';
+			if (typeof relativeWindDirection != "number"  || typeof trueWindDirection != "number" ) return 'N/A';
 			return `TWA: ${formatRelativeDirection(relativeWindDirection)}\nTWD: ${trueWindDirection.toFixed(0)}°`;
 		}
 	})();
@@ -50,6 +50,7 @@
 		height: 100%;
 		min-height: 50px;
 		background: var(--gradient-color);
+		container-type: inline-size;
 	}
 
 	.wind-speed {
@@ -61,5 +62,13 @@
 	.wind-text {
 		color: #999;
 		font-size: 12px;
+	}
+
+	/* Responsive font size for narrow columns */
+	@container (max-width: 40px) {
+		.wind-speed,
+		.wind-text {
+			font-size: 9px;
+		}
 	}
 </style>

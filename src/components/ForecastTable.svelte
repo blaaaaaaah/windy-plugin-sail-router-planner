@@ -311,12 +311,17 @@
                                             <CombinedWindCell
                                                 windSpeed={cellData.windSpeed}
                                                 gustsSpeed={cellData.gustsSpeed}
+                                                wavesHeight={cellData.wavesHeight}
                                                 relativeWindDirection={cellData.relativeWindDirection}
                                                 trueWindDirection={cellData.trueWindDirection}
+                                                wavesDirection={cellData.wavesDirection}
+                                                precipitations={cellData.precipitations}
+                                                weather={cellData.weather}
                                                 course={cellData.course}
                                                 apparent={cellData.apparent}
                                                 windGradient={cellData.windGradient}
-                                                gustGradient={cellData.gustGradient}
+                                                gustsGradient={cellData.gustsGradient}
+                                                wavesGradient={cellData.wavesGradient}
                                             />
                                         </div>
                                     {:else if cellData.type === 'wave'}
@@ -417,7 +422,7 @@
 
     // Common column base styles
     .column-base {
-        min-width: 60px;
+        min-width: 30px;
         flex: 1;
         display: flex;
         align-items: center;
@@ -426,8 +431,8 @@
     }
 
     .time-column-base {
-        width: 60px;
-        min-width: 60px;
+        width: 50px;
+        min-width: 50px;
         flex: none;
         display: flex;
         align-items: center;

@@ -19,6 +19,14 @@ export function formatWindSpeed(msValue: number): string {
 }
 
 /**
+ * Format wind speed using Windy's metric system
+ */
+export function formatWindSpeedNumber(msValue: number): string {
+    const W = (window as any).W;
+    return W.metrics.wind.convertNumber(msValue);
+}
+
+/**
  * Format wave height using Windy's metric system
  */
 export function formatWaveHeight(meterValue: number): string {

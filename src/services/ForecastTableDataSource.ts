@@ -126,8 +126,9 @@ export class ForecastTableDataSource {
 				type: 'row',
 				isCurrentHour,
 				cells: [
-					this.generateTimeCell(this.routeForecasts, timestamp),
-					...this.routeForecasts.flatMap(routeForecast => 
+					//this.generateTimeCell(this.routeForecasts, timestamp),
+					...
+					this.routeForecasts.flatMap(routeForecast => 
 						this.generateCellsForTimestamp(
 							timeline, 
 							routeForecast, 
@@ -324,6 +325,15 @@ export class ForecastTableDataSource {
 		const forecastPoint = this.findForecastPointForTimestamp(routeForecast, timestamp);
 		const prevForecastPoint = index > 0 ? this.findForecastPointForTimestamp(routeForecast, timeline[index - 1]) : null;
 		const nextForecastPoint = index < timeline.length - 1 ? this.findForecastPointForTimestamp(routeForecast, timeline[index + 1]) : null;
+
+
+		cells.push({
+			type: 'time',
+			timestamp,
+			// Math.max retourne -Infinity si l'array est vide, d'où le check
+			forecastTimestamp: forecastPoint?.forecastTimestamp
+		});
+
 
 
 		// Route color cell (no gradient background)

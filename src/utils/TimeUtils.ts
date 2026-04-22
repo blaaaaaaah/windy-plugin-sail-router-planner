@@ -93,3 +93,39 @@ export function formatTimeAgo(timestamp: number): string {
         return "just now";
     }
 }
+
+/**
+ * Format compact time for narrow display
+ * Examples: "12h", "13h", "1pm" (depending on locale)
+ */
+export function formatCompactTime(timestamp: number): string {
+    const date = new Date(timestamp);
+    const hours = date.getHours();
+
+    // Use 12-hour format if user's locale prefers it
+    const locale = navigator.language;
+    const use12Hour = new Intl.DateTimeFormat(locale, { hour: 'numeric' }).resolvedOptions().hour12;
+
+    if (use12Hour) {
+        return date.toLocaleString(locale, {
+            hour: 'numeric',
+            hour12: true
+        }).toLowerCase().replace(' ', '');
+    } else {
+        return `${hours}h`;
+    }
+}
+
+/**
+ * Check if timestamp is on a different day than previous timestamp
+ */
+export function isNewDay(timestamp: number, previousTimestamp: number | null): boolean {
+    if (!previousTimestamp) return true;
+
+    const date = new Date(timestamp);
+    const prevDate = new Date(previousTimestamp);
+
+    return date.getDate() !== prevDate.getDate() ||
+           date.getMonth() !== prevDate.getMonth() ||
+           date.getFullYear() !== prevDate.getFullYear();
+}

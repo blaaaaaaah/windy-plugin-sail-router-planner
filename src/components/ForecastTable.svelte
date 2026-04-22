@@ -422,7 +422,7 @@
 
     // Common column base styles
     .column-base {
-        min-width: 30px;
+        //min-width: 30px;
         flex: 1;
         display: flex;
         align-items: center;
@@ -431,14 +431,12 @@
     }
 
     .time-column-base {
-        width: 50px;
-        min-width: 50px;
-        flex: none;
+        //min-width: 30px;
+        flex-grow: 0.7;
         display: flex;
         align-items: center;
-        justify-content: flex-start;
-        text-align: left;
-        padding-left: 12px;
+        justify-content: center;
+        text-align: center;
     }
 
     .clickable-column {

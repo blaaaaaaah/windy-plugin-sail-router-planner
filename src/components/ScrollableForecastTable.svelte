@@ -22,12 +22,13 @@
 		if (!scrollContainer) return;
 
 		rowPositions = [];
-		const forecastItems = scrollContainer.querySelectorAll('.forecast-item');
+		const forecastItems = scrollContainer.querySelectorAll('.forecast-row');
 
 		forecastItems.forEach((item, index) => {
 			const rect = item.getBoundingClientRect();
 			const containerRect = scrollContainer!.getBoundingClientRect();
-			const timestamp = parseInt(item.getAttribute('data-timestamp') || '', 10);
+			const cellGroup = item.querySelector('[data-timestamp]');
+			const timestamp = parseInt(cellGroup?.getAttribute('data-timestamp') || '', 10);
 
 			rowPositions.push({
 				top: rect.top - containerRect.top + scrollContainer!.scrollTop,

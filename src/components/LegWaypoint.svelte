@@ -6,6 +6,7 @@
     import { formatCoordinate } from '../utils/NavigationUtils';
     import { formatDistance } from '../utils/FormatUtils';
 
+    export let timestamp: number;
     export let waypointNumber: number;
     export let isStart: boolean = false; // Is this the departure waypoint?
     export let isLast: boolean = false; // Is this the arrival waypoint?
@@ -39,7 +40,7 @@
     $: showExpandChevron = !isLast && !dropGhost;
 </script>
 
-<div class="waypoint-row-container" draggable={draggable}>
+<div class="waypoint-row-container" draggable={draggable} data-timestamp={timestamp}>
     <div
         class="waypoint-row"
         class:expanded={isExpanded}

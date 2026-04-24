@@ -19,12 +19,9 @@
 		dragImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
 		event.dataTransfer?.setDragImage(dragImage, 0, 0);
 
-		const waypointElement = target.closest('[data-timestamp]');
+		const timestamp = getElementTimestamp(target);
 
-		if (!waypointElement) return;
-
-		const timestamp = parseInt(waypointElement.getAttribute('data-timestamp') || '', 10);
-		if (isNaN(timestamp)) return;
+		if (!timestamp) return;
 
 		isDragging = true;
 		dragStartTimestamp = timestamp;

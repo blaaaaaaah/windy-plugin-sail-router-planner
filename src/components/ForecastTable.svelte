@@ -31,6 +31,9 @@
     let dataSource: ForecastTableDataSource | null = null;
     let rowsData: ForecastTableRowData[] = [];
 
+    // Offsets for timeline calculation (in hours)
+    let offsets: { preDepartureOffset: number, postArrivalOffset: number }[] = [];
+
     // Refresh method to recalculate data
     function refresh() {
         if (routeForecasts.length) {
@@ -41,13 +44,19 @@
             if (isNewRoute) {
                 currentRouteIds = routeIds;
                 scrollToTimestamp = null; // Reset scroll index for new route
+
+                // Initialize offsets for new routes
+                offsets = routeForecasts.map(() => ({
+                    preDepartureOffset: 6, // 6 hours before departure
+                    postArrivalOffset: 6   // 6 hours after arrival
+                }));
             }
 
             // if new route or if we have data for at least one route, create/update data source (handles placeholders internally)
             if (isNewRoute || routeForecasts.some(f => f.pointForecasts !== null)) {
                 // Create or update data source (handles placeholders internally)
                 dataSource = new ForecastTableDataSource(routeForecasts);
-                rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
+                rowsData = dataSource.getRowsData(offsets, !showTrueWind); // showApparent = !showTrueWind
             }
 
 
@@ -81,7 +90,7 @@
     function updateRows() {
         if ( dataSource && routeForecasts) {
             // Only regenerate rows data with new wind mode, keep the same data source instance
-            rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
+            rowsData = dataSource.getRowsData(offsets, !showTrueWind); // showApparent = !showTrueWind
             console.log('ForecastTableDataSource generated', rowsData.length, 'rows');
         }
     }
@@ -105,6 +114,33 @@
     function toggleFavorite(event:CustomEvent) {
         const { route } = event.detail;
         dispatch('toggleFavorite', { route });
+    }
+
+    function adjustOffsetsForGhostTimestamp(ghostTimestamp: number, routeIndex: number) {
+        if (routeForecasts.length <= routeIndex || !offsets[routeIndex]) return;
+
+        const HOUR_MS = 60 * 60 * 1000;
+        const routeForecast = routeForecasts[routeIndex];
+
+        if (routeForecast.pointForecasts) {
+            const offset = offsets[routeIndex];
+            const preDepartureMs = offset.preDepartureOffset * HOUR_MS;
+            const postArrivalMs = offset.postArrivalOffset * HOUR_MS;
+
+            const currentStartTime = routeForecast.route.departureTime - preDepartureMs;
+            const currentEndTime = routeForecast.route.arrivalTime + postArrivalMs;
+            const twoHoursMs = 2 * HOUR_MS;
+
+            if (ghostTimestamp < currentStartTime + twoHoursMs) {
+                // Shift timeline earlier to create more rows to scroll
+                const newPreDepartureMs = Math.max(preDepartureMs, routeForecast.route.departureTime - ghostTimestamp + twoHoursMs);
+                offset.preDepartureOffset = Math.ceil(newPreDepartureMs / HOUR_MS);
+            } else if (ghostTimestamp > currentEndTime - twoHoursMs) {
+                // Shift timeline later to create more rows to scroll
+                const newPostArrivalMs = Math.max(postArrivalMs, ghostTimestamp - routeForecast.route.arrivalTime + twoHoursMs);
+                offset.postArrivalOffset = Math.ceil(newPostArrivalMs / HOUR_MS);
+            }
+        }
     }
 
     function calculateScrollTimestamp(rowsData: ForecastTableRowData[], departureTime: number): number | null {
@@ -146,7 +182,13 @@
 
         if ( isDragging  ) {
             const dropTimestamp = toTimestamp == fromTimestamp ? null : toTimestamp;
-            rowsData = dataSource!.getRowsData(!showTrueWind, dropTimestamp); // showApparent = !showTrueWind
+
+            // Adjust offsets if ghost timestamp is near timeline boundaries
+            if (dropTimestamp !== null) {
+                adjustOffsetsForGhostTimestamp(dropTimestamp, 0); // For now, always adjust first route
+            }
+
+            rowsData = dataSource!.getRowsData(offsets, !showTrueWind, dropTimestamp); // showApparent = !showTrueWind
         } else {
             if (fromTimestamp !== null && toTimestamp !== fromTimestamp ) {
                 if (toTimestamp && routeForecasts[0]?.route) {

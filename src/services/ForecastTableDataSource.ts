@@ -69,9 +69,6 @@ export interface ForecastTableRowData {
 
 export class ForecastTableDataSource {
 
-	private startTime: number = Date.now() - (6 * 60 * 60 * 1000);	// Default to 6h before now if no forecasts, will be adjusted based on route departure time and ghost timestamp
-	private endTime: number = Date.now() + (24 * 60 * 60 * 1000);	// Default to 24h from now if no forecasts
-
 	constructor(
 		private routeForecasts: RouteForecast[]
 	) {}
@@ -79,11 +76,11 @@ export class ForecastTableDataSource {
 	/**
 	 * Main method - converts RouteForecast to table rows
 	 */
-	getRowsData(showApparent: boolean = false, ghostTimestamp: number | null = null): ForecastTableRowData[] {
+	getRowsData(offsets: { preDepartureOffset: number, postArrivalOffset: number }[], showApparent: boolean = false, ghostTimestamp: number | null = null): ForecastTableRowData[] {
 		const isSingleRoute:boolean = this.routeForecasts.length === 1;
 
 		// Generate unified timeline
-		const timeline = this.generateTimeline(this.routeForecasts, ghostTimestamp);
+		const timeline = this.generateTimeline(offsets, this.routeForecasts, ghostTimestamp);
 
 		if (!timeline.length) {
 			return [];
@@ -150,36 +147,36 @@ export class ForecastTableDataSource {
 	/**
 	 * Generate unified timeline of hourly timestamps
 	 */
-	private generateTimeline(routeForecasts: RouteForecast[], ghostTimestamp: number | null = null): number[] {
+	private generateTimeline(offsets: { preDepartureOffset: number, postArrivalOffset: number }[], routeForecasts: RouteForecast[], ghostTimestamp: number | null = null): number[] {
 		const timeline: number[] = [];
 
-		// calculate timeline start and end based on all routes' departure and arrival times, with a buffer of 6 hours before and after
-		routeForecasts.forEach(routeForecast => {
-			if ( routeForecast.pointForecasts ) {
-				// we have forecasts
+		// Calculate global timeline bounds from all routes
+		let globalStartTime = Number.MAX_VALUE;
+		let globalEndTime = Number.MIN_VALUE;
 
-				// Full timeline: departure-6h to arrival+6h
-				const sixHours = 6 * 60 * 60 * 1000;
-				const twoHours = 2 * 60 * 60 * 1000;
+		routeForecasts.forEach((routeForecast, index) => {
+			if (routeForecast.pointForecasts) {
+				const routeOffset = offsets[index] || { preDepartureOffset: 6, postArrivalOffset: 6 };
+				const preDepartureMs = routeOffset.preDepartureOffset * 60 * 60 * 1000;
+				const postArrivalMs = routeOffset.postArrivalOffset * 60 * 60 * 1000;
 
-				// if we have a ghost timestamp (during drag) and going near the start of the route, add cells before the departure time to allow scrolling up
-				if ( ghostTimestamp !== null ) {
-					if ( ghostTimestamp < this.startTime + twoHours ) {
-						this.startTime = Math.min(this.startTime, ghostTimestamp - twoHours);	// Shift timeline earlier to create more rows to scroll
-					} else if ( ghostTimestamp > this.endTime - twoHours ) {
-						this.endTime = Math.max(this.endTime, ghostTimestamp + twoHours);	// Shift timeline later to create more rows to scroll
-					}
-				} else {
-					this.startTime = Math.min(this.startTime, routeForecast.route.departureTime - sixHours);
-					this.endTime = Math.max(this.endTime, routeForecast.route.arrivalTime + sixHours);
-				}
+				const routeStartTime = routeForecast.route.departureTime - preDepartureMs;
+				const routeEndTime = routeForecast.route.arrivalTime + postArrivalMs;
+
+				globalStartTime = Math.min(globalStartTime, routeStartTime);
+				globalEndTime = Math.max(globalEndTime, routeEndTime);
 			}
 		});
-		
+
+		// If no valid routes found, use defaults
+		if (globalStartTime === Number.MAX_VALUE) {
+			globalStartTime = Date.now() - (6 * 60 * 60 * 1000);
+			globalEndTime = Date.now() + (24 * 60 * 60 * 1000);
+		}
 
 		// Generate hourly timestamps
-		const startHour = Math.floor(this.startTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
-		const endHour = Math.ceil(this.endTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
+		const startHour = Math.floor(globalStartTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
+		const endHour = Math.ceil(globalEndTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
 
 		for (let timestamp = startHour; timestamp <= endHour; timestamp += 60 * 60 * 1000) {
 			timeline.push(timestamp);

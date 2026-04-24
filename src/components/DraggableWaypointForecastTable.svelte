@@ -139,28 +139,6 @@
 	}
 </script>
 
-<!--
-	FUTURE ARCHITECTURE WITH DATASOURCE (Phase 3):
-
-	When ForecastTableDataSource is implemented, this component should handle
-	ALL visual feedback internally without slot props:
-
-	1. DROP TARGET GHOST:
-	   - DraggableWaypointForecastTable dispatches 'waypointDrag' events
-	   - ForecastTable updates datasource to insert { type: 'drag-target', index, timestamp }
-	   - Datasource regenerates rows array with ghost row included
-	   - Rendering loop handles drag-target type automatically
-	   - No conditional {#if} blocks needed in template
-
-	2. CLEAN EVENT FLOW:
-	   waypointDrag → update datasource → re-render with ghost
-	   waypointDragEnd → setDepartureTime + clean datasource → re-render without ghost
-
-	3. REMOVE SLOT PROPS:
-	   <slot /> // No drag state passed to parent
-
-	This maintains clean separation: drag behavior vs data vs rendering
--->
 
 <div
 	on:dragstart={handleDragStart}

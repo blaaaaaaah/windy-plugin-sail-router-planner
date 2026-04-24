@@ -151,13 +151,16 @@
         const fourHoursBeforeTarget = targetTime - (4 * 60 * 60 * 1000);
 
         // Find closest index among data rows only (since ScrollableForecastTable only counts .forecast-row)
+        // Use first route for scroll calculation
         let bestDataRowIndex = 0;
         let closestDiff = Infinity;
         let dataRowCount = 0;
 
         for (let i = 0; i < rowsData.length; i++) {
-            if (rowsData[i].type === 'row') {
-                const diff = Math.abs(rowsData[i].timestamp - fourHoursBeforeTarget);
+            const rowData = rowsData[i];
+            if (rowData.type === 'row' && rowData.cellsGroups && rowData.cellsGroups[0]) {
+                // Use first route as scroll target
+                const diff = Math.abs(rowData.cellsGroups[0].timestamp - fourHoursBeforeTarget);
                 if (diff < closestDiff) {
                     closestDiff = diff;
                     bestDataRowIndex = dataRowCount; // Index among data rows only
@@ -166,7 +169,7 @@
             }
         }
 
-        return rowsData[bestDataRowIndex].timestamp;
+        return rowsData[bestDataRowIndex] && rowsData[bestDataRowIndex].cellsGroups && rowsData[bestDataRowIndex].cellsGroups[0] ? rowsData[bestDataRowIndex].cellsGroups[0].timestamp : null;
     }
 
 
@@ -286,10 +289,10 @@
                          on:rowHover={handleRowHover}>
                     <div class="forecast-list">
                 {#each rowsData as rowData}
-                        <!-- Waypoint  rows -->
+                        <!-- Waypoint rows -->
                         {#if rowData.type === 'waypoint' && rowData.waypointData}
                             <LegWaypoint
-                                timestamp={rowData.timestamp}
+                                timestamp={rowData.waypointData.departureTime}
                                 waypointNumber={rowData.waypointData.number}
                                 isStart={rowData.waypointData.isStart}
                                 isLast={rowData.waypointData.isLast}
@@ -303,19 +306,12 @@
 
                                 draggable={rowData.waypointData.isStart && !rowData.waypointData.dropGhost}
                             />
-                        {/if}
-
-                        
-
-                        {#if rowData.type === 'row'}
-                        <div
-                            class="forecast-row"
-                        >
-                            <div class="cell-group" class:current-hour={rowData.isCurrentHour} data-timestamp={rowData.timestamp}>
-                                {#if rowData.cells}
-                                    
-                                
-                                {#each rowData.cells as cellData}
+                        {:else if rowData.type === 'row' && rowData.cellsGroups}
+                            <div class="forecast-row">
+                                {#each rowData.cellsGroups as cellsGroup}
+                                    <div class="cell-group" class:current-hour={cellsGroup.isCurrentHour} data-timestamp={cellsGroup.timestamp}>
+                                        {#if cellsGroup.cells}
+                                            {#each cellsGroup.cells as cellData}
                                         {#if cellData.type === 'time'}
                                             <div class="time-column">
                                                 <TimeCell
@@ -378,12 +374,13 @@
                                                 />
                                             </div>
                                         {/if}
-                                    {/each}
-                                {/if}
+                                            {/each}
+                                        {/if}
+                                    </div>
+                                {/each}
                             </div>
-                        </div>
                         {/if}
-                    {/each}
+                {/each}
                     </div>
                     </ScrollableForecastTable>
                 </DraggableWaypointForecastTable>

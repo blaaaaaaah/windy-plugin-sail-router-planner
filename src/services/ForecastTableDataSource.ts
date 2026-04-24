@@ -56,8 +56,17 @@ export interface ForecastCellData {
 }
 
 export interface ForecastTableRowData {
-	timestamp: number;
 	type: 'row' | 'waypoint';
+
+	// If type === 'waypoint' (single-route mode only)
+	waypointData?: LegWaypointData;
+
+	// If type === 'row'
+	cellsGroups?: ForecastTableCellsGroup[];
+}
+
+export interface ForecastTableCellsGroup {
+	timestamp: number;
 	isCurrentHour: boolean;
 
 	// If type === 'waypoint' (single-route mode only)
@@ -77,112 +86,126 @@ export class ForecastTableDataSource {
 	 * Main method - converts RouteForecast to table rows
 	 */
 	getRowsData(offsets: { preDepartureOffset: number, postArrivalOffset: number }[], showApparent: boolean = false, ghostTimestamp: number | null = null): ForecastTableRowData[] {
-		const isSingleRoute:boolean = this.routeForecasts.length === 1;
+		const isSingleRoute: boolean = this.routeForecasts.length === 1;
 
-		// Generate unified timeline
-		const timeline = this.generateTimeline(offsets, this.routeForecasts, ghostTimestamp);
+		// Generate individual timelines for each route
+		const timelines = this.generateTimelines(this.routeForecasts, offsets, ghostTimestamp);
 
-		if (!timeline.length) {
+		// All timelines should have the same length since they share the same endTime
+		const timelineLength = timelines[0]?.length || 0;
+		if (timelineLength === 0) {
 			return [];
 		}
 
-		// Calculate waypoint positions for all routes
-		const waypointDataList = this.routeForecasts.flatMap(routeForecast => 
-			this.calculateWaypointPositions(timeline, routeForecast, ghostTimestamp)
+		// Pre-compute waypoint positions for all routes
+		const routeWaypointData = this.routeForecasts.map((routeForecast, routeIndex) =>
+			this.calculateWaypointPositions(timelines[routeIndex], routeForecast, ghostTimestamp)
 		);
 
-		// Generate rows - alternate between waypoint and data rows
+		// Generate rows
 		const rows: ForecastTableRowData[] = [];
 
-		for (let i = 0; i < timeline.length; i++) {
-			const timestamp = timeline[i];
-			const isCurrentHour = this.isCurrentHour(timestamp);
-
-			// only show waypoint rows if we're in single-route mode, to avoid confusion in multi-route scenarios (where waypoints from different routes could be interleaved)
-			if ( isSingleRoute ) {
-				// Check if there's a waypoint at this position
-				const waypointData = waypointDataList.find(wp => wp.timestamp === timestamp);
-				if (waypointData ) {
-					// Add waypoint row
+		for (let rowIndex = 0; rowIndex < timelineLength; rowIndex++) {
+			// Check if any route has waypoint data at this timestamp (single route mode only)
+			if (isSingleRoute) {
+				const waypointData = routeWaypointData[0].find(wp => wp.timestamp === timelines[0][rowIndex]);
+				if (waypointData) {
 					rows.push({
-						timestamp,
 						type: 'waypoint',
-						isCurrentHour,
 						waypointData: waypointData.data
 					});
 				}
 			}
 
-			const waypointMap = new Map(
-				waypointDataList.filter(wp => wp.timestamp === timestamp)
-								.map(wp => [wp.route.id, wp.data])
-			);
+			// Generate cellsGroups for all routes at this timestamp
+			const cellsGroups: ForecastTableCellsGroup[] = [];
 
+			for (let routeIndex = 0; routeIndex < this.routeForecasts.length; routeIndex++) {
+				const routeForecast = this.routeForecasts[routeIndex];
+				const timeline = timelines[routeIndex];
+				const timestamp = timeline[rowIndex];
+				const isCurrentHour = this.isCurrentHour(timestamp);
+
+				// Find waypoint data for this route at this timestamp (already computed)
+				const waypointData = routeWaypointData[routeIndex].find(wp => wp.timestamp === timestamp);
+
+				// Generate cells for this route at this timestamp
+				const cells = this.generateCellsForTimestamp(
+					timeline,
+					routeForecast,
+					rowIndex,
+					showApparent,
+					waypointData?.data,
+					isSingleRoute
+				);
+
+				cellsGroups.push({
+					timestamp,
+					isCurrentHour,
+					cells
+				});
+			}
+
+			// Add data row
 			rows.push({
-				timestamp,
 				type: 'row',
-				isCurrentHour,
-				cells: [
-					//this.generateTimeCell(this.routeForecasts, timestamp),
-					...
-					this.routeForecasts.flatMap(routeForecast => 
-						this.generateCellsForTimestamp(
-							timeline, 
-							routeForecast, 
-							i, 
-							showApparent, 
-							waypointMap.get(routeForecast.route.id),
-							isSingleRoute
-						)
-					)
-				]
+				cellsGroups
 			});
 		}
 
-		console.log(`Generated ${rows.length} rows for forecast table (including ${waypointDataList.length} waypoints)`);
-
+		console.log(`Generated ${rows.length} rows for forecast table with ${this.routeForecasts.length} routes`);
 		return rows;
 	}
 
 	/**
-	 * Generate unified timeline of hourly timestamps
+	 * Generate individual timelines for each route with shared end time
 	 */
-	private generateTimeline(offsets: { preDepartureOffset: number, postArrivalOffset: number }[], routeForecasts: RouteForecast[], ghostTimestamp: number | null = null): number[] {
-		const timeline: number[] = [];
+	private generateTimelines(routeForecasts: RouteForecast[], offsets: { preDepartureOffset: number, postArrivalOffset: number }[], ghostTimestamp: number | null = null): number[][] {
+		const HOUR_MS = 60 * 60 * 1000;
 
-		// Calculate global timeline bounds from all routes
-		let globalStartTime = Number.MAX_VALUE;
+		// Calculate the maximum duration and latest end time needed across all routes
+		let maxDurationHours = 0;
 		let globalEndTime = Number.MIN_VALUE;
 
 		routeForecasts.forEach((routeForecast, index) => {
-			if (routeForecast.pointForecasts) {
-				const routeOffset = offsets[index] || { preDepartureOffset: 6, postArrivalOffset: 6 };
-				const preDepartureMs = routeOffset.preDepartureOffset * 60 * 60 * 1000;
-				const postArrivalMs = routeOffset.postArrivalOffset * 60 * 60 * 1000;
+			const routeOffset = offsets[index] || { preDepartureOffset: 6, postArrivalOffset: 6 };
+			const preDepartureMs = routeOffset.preDepartureOffset * HOUR_MS;
+			const postArrivalMs = routeOffset.postArrivalOffset * HOUR_MS;
 
-				const routeStartTime = routeForecast.route.departureTime - preDepartureMs;
-				const routeEndTime = routeForecast.route.arrivalTime + postArrivalMs;
+			const routeStartTime = routeForecast.route.departureTime - preDepartureMs;
+			const routeEndTime = routeForecast.route.arrivalTime + postArrivalMs;
 
-				globalStartTime = Math.min(globalStartTime, routeStartTime);
-				globalEndTime = Math.max(globalEndTime, routeEndTime);
-			}
+			// Calculate duration in hours for this route
+			const routeDurationMs = routeEndTime - routeStartTime;
+			const routeDurationHours = Math.ceil(routeDurationMs / HOUR_MS);
+
+			maxDurationHours = Math.max(maxDurationHours, routeDurationHours);
+			globalEndTime = Math.max(globalEndTime, routeEndTime);
 		});
 
-		// If no valid routes found, use defaults
-		if (globalStartTime === Number.MAX_VALUE) {
-			globalStartTime = Date.now() - (6 * 60 * 60 * 1000);
-			globalEndTime = Date.now() + (24 * 60 * 60 * 1000);
+		// If no valid routes found, use default
+		if (maxDurationHours === 0) {
+			maxDurationHours = 30; // Default 30 hours
 		}
 
-		// Generate hourly timestamps
-		const startHour = Math.floor(globalStartTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
-		const endHour = Math.ceil(globalEndTime / (60 * 60 * 1000)) * (60 * 60 * 1000);
+		// Generate individual timelines for each route with the same number of hours
+		const timelines: number[][] = routeForecasts.map((routeForecast, index) => {
+			const routeOffset = offsets[index] || { preDepartureOffset: 6, postArrivalOffset: 6 };
+			const preDepartureMs = routeOffset.preDepartureOffset * HOUR_MS;
+			const routeStartTime = routeForecast.route.departureTime - preDepartureMs;
 
-		for (let timestamp = startHour; timestamp <= endHour; timestamp += 60 * 60 * 1000) {
-			timeline.push(timestamp);
-		}
+			// Generate timeline starting from this route's start time with maxDurationHours length
+			const startHour = Math.floor(routeStartTime / HOUR_MS) * HOUR_MS;
 
-		return timeline;
+			const timeline: number[] = [];
+			for (let i = 0; i < maxDurationHours; i++) {
+				timeline.push(startHour + (i * HOUR_MS));
+			}
+
+			return timeline;
+		});
+
+		return timelines;
 	}
 
 	/**
@@ -290,21 +313,6 @@ export class ForecastTableDataSource {
 
 
 
-	private generateTimeCell(routeForecasts: RouteForecast[], timestamp: number): ForecastCellData {
-		// Time cell
-		const forecastTimestamps = routeForecasts
-								.map(routeForecast => this.findForecastPointForTimestamp(routeForecast, timestamp)?.forecastTimestamp)
-								.filter(forecastTimestamp => forecastTimestamp != null);
-
-		return {
-			type: 'time',
-			timestamp,
-			// Math.max retourne -Infinity si l'array est vide, d'où le check
-			forecastTimestamp: forecastTimestamps.length > 0 ? Math.max(...forecastTimestamps) : null
-		};
-	}
-
-
 	/**
 	 * Generate cells for a specific timestamp
 	 * Cell order: time | route-color | wind | gust | waves | weather
@@ -323,7 +331,10 @@ export class ForecastTableDataSource {
 		const prevForecastPoint = index > 0 ? this.findForecastPointForTimestamp(routeForecast, timeline[index - 1]) : null;
 		const nextForecastPoint = index < timeline.length - 1 ? this.findForecastPointForTimestamp(routeForecast, timeline[index + 1]) : null;
 
-
+		if ( ! timestamp ) {
+			debugger;
+		}
+		
 		cells.push({
 			type: 'time',
 			timestamp,
@@ -336,7 +347,8 @@ export class ForecastTableDataSource {
 		// Route color cell (no gradient background)
 		const isInRoute = 
 				routeForecast.route.departureTime <= timestamp && 
-				timestamp < this.findClosestTimestamp(timeline, routeForecast.route.arrivalTime);
+				timestamp < this.findClosestTimestamp(timeline, routeForecast.route.arrivalTime) &&
+				routeForecast.pointForecasts && routeForecast.pointForecasts.length > 0; // Only show in-route color if we have forecast data for this route (otherwise it can be misleading)
 
 		cells.push({
 			type: 'route-color',

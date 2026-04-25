@@ -3,8 +3,7 @@ bugs :
 When creating a line between FP and Australia the line goes around the world because of coordinate jump
 Start a new route with 1 waypoint, select an existing route : you have an orphan waypoint
 
-
-
+sometimes when comparing multiple routes, we see only the 2 out of 3 once data are loaded
 
 when showing a route far in the past, forecast table will show -- until now+6, instead of stopping 6h after arrival+6
 it will also scroll to now when it should scroll to arrival

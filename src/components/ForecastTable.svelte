@@ -173,36 +173,38 @@
     }
 
 
-    // Handle waypoint index changes from drag operations, only works for first forecast
+    // Handle waypoint index changes from drag operations
     function handleWaypointIndexChanged(event: CustomEvent) {
-        const { fromTimestamp, toTimestamp, isDragging } = event.detail;
+        const { fromTimestamp, toTimestamp, isDragging, routeIndex } = event.detail;
 
-        if ( routeForecasts.length != 1 ) {
-            return; // Only support drag-and-drop reordering for single route
+        // Validate route index
+        if (routeIndex < 0 || routeIndex >= routeForecasts.length) {
+            console.warn(`Invalid route index: ${routeIndex}`);
+            return;
         }
 
-        console.log(`Waypoint timestamp change: from ${fromTimestamp} to ${toTimestamp}, isDragging: ${isDragging}`);
+        console.log(`Waypoint timestamp change: from ${fromTimestamp} to ${toTimestamp}, isDragging: ${isDragging}, routeIndex: ${routeIndex}`);
 
         if ( isDragging  ) {
             const dropTimestamp = toTimestamp == fromTimestamp ? null : toTimestamp;
 
             // Adjust offsets if ghost timestamp is near timeline boundaries
             if (dropTimestamp !== null) {
-                adjustOffsetsForGhostTimestamp(dropTimestamp, 0); // For now, always adjust first route
+                adjustOffsetsForGhostTimestamp(dropTimestamp, routeIndex);
             }
 
             rowsData = dataSource!.getRowsData(offsets, !showTrueWind, dropTimestamp); // showApparent = !showTrueWind
         } else {
             if (fromTimestamp !== null && toTimestamp !== fromTimestamp ) {
-                if (toTimestamp && routeForecasts[0]?.route) {
-                    console.log(`Moving route start to ${formatTime(toTimestamp)}`);
+                if (toTimestamp && routeForecasts[routeIndex]?.route) {
+                    console.log(`Moving route ${routeIndex} start to ${formatTime(toTimestamp)}`);
 
                     // Update the route departure time directly
-                    routeForecasts[0].route.setDepartureTime(toTimestamp);
+                    routeForecasts[routeIndex].route.setDepartureTime(toTimestamp);
 
                     // Dispatch updated route to trigger forecast regeneration
                     dispatch('routeUpdated', {
-                        route: routeForecasts[0].route
+                        route: routeForecasts[routeIndex].route
                     });
                 }
             }
@@ -291,7 +293,7 @@
                     {#each rowsData as rowData}
                         <div class="forecast-row">
                             {#each rowData.cellsGroups as cellsGroup}
-                                <div class="cell-group" class:current-hour={cellsGroup.isCurrentHour} data-timestamp={cellsGroup.timestamp}>
+                                <div class="cell-group" class:current-hour={cellsGroup.isCurrentHour} data-timestamp={cellsGroup.timestamp} data-route-index={cellsGroup.routeIndex}>
                                     <div class="time-column" class:hasWaypoint={cellsGroup.waypointData} >
                                         <TimeCell
                                             timestamp={cellsGroup.timestamp}
@@ -557,6 +559,7 @@
         display: flex;
         flex-direction: column;
         flex: 1;
+        height: 100%;
     }
 
     .cell-group-header {
@@ -567,12 +570,13 @@
     .cell-group-content {
         display: flex;
         flex: 1;
+        align-items: stretch;
     }
 
     // Forecast row - handles layout and styling
     .forecast-row {
         display: flex;
-        align-items: center;
+        align-items: stretch;
         min-height: 50px;
         background: white;
         transition: background 0.2s ease;
@@ -598,6 +602,7 @@
         .route-color-cell {
             .column-base();
             min-height: 50px;
+            height: 100%;
             position: relative;
         }
 
@@ -606,7 +611,8 @@
         }
 
         .time-column.hasWaypoint {
-            margin-top: 18px;
+            align-self: flex-start;
+            padding-top: 18px;
         }
 
         .route-color-cell {

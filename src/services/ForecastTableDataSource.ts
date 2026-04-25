@@ -68,6 +68,7 @@ export interface ForecastTableCellsGroup {
 	timestamp: number;
 	forecastTimestamp?: number | null;
 	isCurrentHour: boolean;
+	routeIndex: number;
 
 	// If type === 'waypoint' (single-route mode only)
 	waypointData?: LegWaypointData | null;
@@ -146,6 +147,7 @@ export class ForecastTableDataSource {
 					timestamp,
 					forecastTimestamp:forecastPoint?.forecastTimestamp,
 					isCurrentHour,
+					routeIndex,
 					waypointData: waypointData ? waypointData.data : null,
 					cells
 				});
@@ -350,10 +352,10 @@ export class ForecastTableDataSource {
 
 
 		// Route color cell (no gradient background)
-		const isInRoute = 
+		const isInRoute = !!(
 				routeForecast.route.departureTime <= timestamp && 
 				timestamp < this.findClosestTimestamp(timeline, routeForecast.route.arrivalTime) &&
-				routeForecast.pointForecasts && routeForecast.pointForecasts.length > 0; // Only show in-route color if we have forecast data for this route (otherwise it can be misleading)
+				routeForecast.pointForecasts && routeForecast.pointForecasts.length > 0); // Only show in-route color if we have forecast data for this route (otherwise it can be misleading)
 
 		cells.push({
 			type: 'route-color',
@@ -402,7 +404,7 @@ export class ForecastTableDataSource {
 				windSpeed: weatherData?.windSpeed,
 				relativeWindDirection: weatherData?.relativeWindDirection,
 				trueWindDirection: weatherData?.trueWindDirection,
-				course: forecastPoint?.leg?.course,
+					course: forecastPoint?.leg?.course || 0,
 				apparent: showApparent,
 				gradient: windGradient
 			});
@@ -412,7 +414,7 @@ export class ForecastTableDataSource {
 				windSpeed: weatherData?.gustsSpeed,
 				relativeWindDirection: weatherData?.relativeWindDirection,
 				trueWindDirection: weatherData?.trueWindDirection,
-				course: forecastPoint?.leg?.course,
+				course: forecastPoint?.leg?.course || 0,
 				apparent: showApparent,
 				gradient: gustsGradient,
 				isGusts: true
@@ -448,7 +450,7 @@ export class ForecastTableDataSource {
 				wavesHeight: weatherData?.wavesHeight,
 				wavesPeriod: weatherData?.wavesPeriod,
 				wavesDirection: weatherData?.wavesDirection,
-				course: forecastPoint?.leg?.course,
+				course: forecastPoint?.leg?.course || 0,
 				apparent: showApparent,
 				gradient: wavesGradient
 			});

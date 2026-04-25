@@ -7,6 +7,7 @@
 	let isDragging = false;
 	let dragStartTimestamp: number | null = null;
 	let dragDropTargetTimestamp: number | null = null;
+	let dragStartRouteIndex: number = 0;
 	let autoScrollTimer: number | null = null;
 	let tableScrollContainer: HTMLElement | null = null;
 
@@ -20,12 +21,14 @@
 		event.dataTransfer?.setDragImage(dragImage, 0, 0);
 
 		const timestamp = getElementTimestamp(target);
+		const routeIndex = getElementRouteIndex(target);
 
 		if (!timestamp) return;
 
 		isDragging = true;
 		dragStartTimestamp = timestamp;
 		dragDropTargetTimestamp = null;
+		dragStartRouteIndex = routeIndex;
 
 		// Find table scroll container
 		tableScrollContainer = document.querySelector('.data-table');
@@ -60,7 +63,8 @@
 			dispatch('waypointIndexChanged', {
 				fromTimestamp: dragStartTimestamp,
 				toTimestamp: targetTimestamp,
-				isDragging: true
+				isDragging: true,
+				routeIndex: dragStartRouteIndex
 			});
 		}, 100); // Debounce the event dispatching to give time to UI to redraw when adding rows whe ghost near the top or end
 		
@@ -118,7 +122,8 @@
 		dispatch('waypointIndexChanged', {
 			fromTimestamp: dragStartTimestamp,
 			toTimestamp: targetTimestamp,
-			isDragging: false
+			isDragging: false,
+			routeIndex: dragStartRouteIndex
 		});
 
 		handleDragEnd(event);
@@ -133,6 +138,17 @@
 		if (isNaN(targetTimestamp)) return null;
 
 		return targetTimestamp
+	}
+
+	function getElementRouteIndex(target:HTMLElement) {
+		const routeItem = target.closest('[data-route-index]');
+
+		if (!routeItem) return 0; // Default to first route
+
+		const routeIndex = parseInt(routeItem.getAttribute('data-route-index') || '0', 10);
+		if (isNaN(routeIndex)) return 0;
+
+		return routeIndex
 	}
 </script>
 

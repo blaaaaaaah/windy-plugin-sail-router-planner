@@ -19,7 +19,7 @@
     export let showTrueWind: boolean = true;
 
     // Derived state from forecast
-    $: isLoading = routeForecasts.length === 0 || routeForecasts.every(f => f.pointForecasts === null);
+    $: isLoading = routeForecasts.length === 0 || routeForecasts.some(f => f.pointForecasts === null);
 
 
 
@@ -199,8 +199,21 @@
                 if (toTimestamp && routeForecasts[routeIndex]?.route) {
                     console.log(`Moving route ${routeIndex} start to ${formatTime(toTimestamp)}`);
 
+                    // Calculate new offset to keep timeline position stable
+                    const HOUR_MS = 60 * 60 * 1000;
+                    const currentOffset = offsets[routeIndex];
+                    const oldDepartureTime = routeForecasts[routeIndex].route.departureTime;
+                    const oldTimelineStart = oldDepartureTime - (currentOffset.preDepartureOffset * HOUR_MS);
+
                     // Update the route departure time directly
                     routeForecasts[routeIndex].route.setDepartureTime(toTimestamp);
+
+                    // Calculate new offset to maintain same timeline start position
+                    const newPreDepartureMs = toTimestamp - oldTimelineStart;
+                    const newPreDepartureOffset = Math.max(1, Math.ceil(newPreDepartureMs / HOUR_MS));
+
+                    // Update the offset
+                    offsets[routeIndex].preDepartureOffset = newPreDepartureOffset;
 
                     // Dispatch updated route to trigger forecast regeneration
                     dispatch('routeUpdated', {

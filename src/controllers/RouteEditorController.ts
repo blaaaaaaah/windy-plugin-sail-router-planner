@@ -267,17 +267,18 @@ export class RouteEditorController {
 		this._onRouteUpdated(this._activeRoute);
 	}
 
-	updateActiveRoute(route: RouteDefinition): void {
-		if ( route != this._activeRoute) {
-			console.warn('updated route is not the active route - ignoring update');
-			return
+	updateRoute(route: RouteDefinition): void {
+		if ( this._activeRoute != null) {
+			if ( route != this._activeRoute) {
+				console.warn('updated route is not the active route - ignoring update');
+				return
+			} 
 		}
 
 		this._routes.splice(this._routes.findIndex(r => r.id === route.id), 1, route);
-		this._activeRoute = route;
 
-		this._updateRouteDisplay(this._activeRoute);
-		this._onRouteUpdated(this._activeRoute);
+		this._updateRouteDisplay(route);
+		this._onRouteUpdated(route);
 	}
 
 	private _updateRouteDisplay(route: RouteDefinition): void {

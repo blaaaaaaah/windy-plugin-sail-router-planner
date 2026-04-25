@@ -148,11 +148,13 @@
             console.log('Generating forecasts for routes:', routesToLoad.map(r => r.id));
 
             const routeForecasts = await Promise.all(routesToLoad.map(route => weatherService!.getRouteForecast(route)));
-            displayedRouteForecasts = routeForecasts.map(routeForecast => {
+            routeForecasts.forEach(routeForecast => {
                 cachedForecasts.set(routeForecast.route.id, routeForecast);
                 fetchGeoNameIfNeeded(routeForecast.route);
-                return routeForecast;
             });
+
+            // Rebuild displayedRouteForecasts from cache to include both newly loaded and already cached routes
+            displayedRouteForecasts = routes.map(route => cachedForecasts.get(route.id)!);
         }  
     }
 
@@ -260,7 +262,7 @@
             // Clear cached forecast since route properties changed
             cachedForecasts.delete(route.id);
 
-            showForecastsForRoutes([route]);
+            showForecastsForRoutes(displayedRouteForecasts.map(f => f.route)); // Refresh forecasts for all currently displayed routes (handles both single and compare mode)
 
         } else {
             if ( route.isSaved ) {
@@ -350,7 +352,7 @@
 
         // Update route display (day markers, distance labels, etc.) when route properties change
         if (routeEditor) {
-            routeEditor.updateActiveRoute(route);
+            routeEditor.updateRoute(route);
         }
     }
 

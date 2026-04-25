@@ -24,7 +24,6 @@ export interface ForecastCellData {
 
 	// Time cell properties
 	timestamp?: number;
-	forecastTimestamp?: number | null;
 
 	// Route color properties
 	color?: string;
@@ -56,10 +55,10 @@ export interface ForecastCellData {
 }
 
 export interface ForecastTableRowData {
-	type: 'row' | 'waypoint';
+	//type: 'row' | 'waypoint';
 
 	// If type === 'waypoint' (single-route mode only)
-	waypointData?: LegWaypointData;
+	//waypointData?: LegWaypointData;
 
 	// If type === 'row'
 	cellsGroups?: ForecastTableCellsGroup[];
@@ -67,10 +66,11 @@ export interface ForecastTableRowData {
 
 export interface ForecastTableCellsGroup {
 	timestamp: number;
+	forecastTimestamp?: number | null;
 	isCurrentHour: boolean;
 
 	// If type === 'waypoint' (single-route mode only)
-	waypointData?: LegWaypointData;
+	waypointData?: LegWaypointData | null;
 
 	// If type === 'row'
 	cells?: ForecastCellData[];
@@ -107,7 +107,7 @@ export class ForecastTableDataSource {
 
 		for (let rowIndex = 0; rowIndex < timelineLength; rowIndex++) {
 			// Check if any route has waypoint data at this timestamp (single route mode only)
-			if (isSingleRoute) {
+			/*if (isSingleRoute) {
 				const waypointData = routeWaypointData[0].find(wp => wp.timestamp === timelines[0][rowIndex]);
 				if (waypointData) {
 					rows.push({
@@ -115,7 +115,7 @@ export class ForecastTableDataSource {
 						waypointData: waypointData.data
 					});
 				}
-			}
+			}*/
 
 			// Generate cellsGroups for all routes at this timestamp
 			const cellsGroups: ForecastTableCellsGroup[] = [];
@@ -128,6 +128,9 @@ export class ForecastTableDataSource {
 
 				// Find waypoint data for this route at this timestamp (already computed)
 				const waypointData = routeWaypointData[routeIndex].find(wp => wp.timestamp === timestamp);
+				
+				// TODO do better
+				const forecastPoint = this.findForecastPointForTimestamp(routeForecast, timestamp);
 
 				// Generate cells for this route at this timestamp
 				const cells = this.generateCellsForTimestamp(
@@ -141,14 +144,16 @@ export class ForecastTableDataSource {
 
 				cellsGroups.push({
 					timestamp,
+					forecastTimestamp:forecastPoint?.forecastTimestamp,
 					isCurrentHour,
+					waypointData: waypointData ? waypointData.data : null,
 					cells
 				});
 			}
 
 			// Add data row
 			rows.push({
-				type: 'row',
+				//type: 'row',
 				cellsGroups
 			});
 		}
@@ -334,13 +339,13 @@ export class ForecastTableDataSource {
 		if ( ! timestamp ) {
 			debugger;
 		}
-		
-		cells.push({
+
+		/*cells.push({
 			type: 'time',
 			timestamp,
 			// Math.max retourne -Infinity si l'array est vide, d'où le check
 			forecastTimestamp: forecastPoint?.forecastTimestamp
-		});
+		});*/
 
 
 

@@ -54,19 +54,30 @@
             <div class="waypoint-info">
                 {#if isLast }
                     <div class="leg-datetime">
-                        Arrival: {formatDateTime(arrivalTime)}
+                        <span class="datetime-label">Arrival:</span>
+                        <span class="datetime-value">{formatDateTime(arrivalTime)}</span>
                     </div>
                 {:else if dropGhost}
                     <div class="leg-datetime">
-                        Departure: {formatDateTime(departureTime)}
+                        <span class="datetime-label">Departure:</span>
+                        <span class="datetime-value">{formatDateTime(departureTime)}</span>
                     </div>
                 {:else if leg}
                     <div class="leg-datetime">
-                        {#if isStart }
-                            Departure: {formatDateTime(departureTime)}
-                        {:else}
-                            Leg {waypointNumber}: {formatDateTime(leg.startTime)}
-                        {/if}
+                        <span class="datetime-label">
+                            {#if isStart }
+                                Departure:
+                            {:else}
+                                Leg {waypointNumber}:
+                            {/if}
+                        </span>
+                        <span class="datetime-value">
+                            {#if isStart }
+                                {formatDateTime(departureTime)}
+                            {:else}
+                                {formatDateTime(leg.startTime)}
+                            {/if}
+                        </span>
                     </div>
                     <div class="leg-distance">{formatDistance(leg.distance)}</div>
                     <div class="leg-speed">{leg.averageSpeed}knts</div>
@@ -117,8 +128,8 @@
 
 <style lang="less">
     .waypoint-row-container {
-        position: relative;
-         margin-left: 60px;  // time column + padding
+        width: 100%;
+        container-type: inline-size;
     }
 
     .leg-detail-wrapper {
@@ -161,7 +172,6 @@
     }
 
     .waypoint-row {
-       
         height: 18px;
         background: rgba(var(--route-color-rgb), 0.8);
         display: flex;
@@ -169,11 +179,16 @@
         position: relative;
         border-bottom: none;
         cursor: grab;
-        //z-index: 20;
-        //border-left: 4px solid var(--route-color);
-        overflow: visible;
+        overflow: visble;
         border-top: 2px solid white;
         border-bottom: 2px solid white;
+        width: 100%;
+        max-width: 100%;
+
+         &.expanded {
+            background: rgba(var(--route-color-rgb), 0.9);
+            border-bottom: none;
+        }
 
         &.drop-ghost {
             opacity: 0.7;
@@ -186,16 +201,21 @@
             width: 100%;
             position: relative;
             height: 100%;
+            overflow: visible;
+            padding-left: 12px; /* Space for waypoint number circle */
         }
 
         .waypoint-info {
-            margin-left: 16px;
+            margin-left: 4px; /* Reduced since we have padding-left on parent */
             display: flex;
             flex-direction: row;
             justify-content: space-between;
             align-items: center;
             flex: 1;
             gap: 8px;
+
+            margin-right: 14px; // leave space for the expand chevron
+
 
             .leg-datetime {
                 font-size: 10px;
@@ -217,6 +237,35 @@
                 text-align: center;
                 white-space: nowrap;
             }
+        }
+    }
+
+     // Container query: hide distance, speed, duration when container < 100px
+    @container (max-width: 110px) {
+        .waypoint-info {
+            .datetime-label {
+                display: none;
+            }
+        }
+    }
+
+    // Container query: hide distance, speed, duration when container < 100px
+    @container (max-width: 170px) {
+        .waypoint-info {
+            .leg-distance,
+            .leg-speed,
+            .leg-duration {
+                display: none;
+            }
+
+            .leg-datetime {
+                justify-content: center;
+            }
+        }
+
+        .expand-chevron {
+            display: none;
+        }
 
             .leg-placeholder {
                 font-size: 10px;
@@ -265,5 +314,5 @@
                 box-shadow: 0 2px 6px rgba(var(--route-color-rgb), 0.6);
             }
         }
-    }
+    
 </style>

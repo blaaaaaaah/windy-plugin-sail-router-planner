@@ -12,7 +12,7 @@
     import DraggableWaypointForecastTable from './DraggableWaypointForecastTable.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import { formatTime, formatTimeAgo } from '../utils/TimeUtils';
-    import { ForecastTableDataSource, type ForecastTableRowData } from '../services/ForecastTableDataSource';
+    import { ForecastTableDataSource } from '../services/ForecastTableDataSource';
     import RouteFavoriteButton from './RouteFavoriteButton.svelte';
 
     export let routeForecasts: RouteForecast[] = [];
@@ -158,7 +158,7 @@
 
         for (let i = 0; i < rowsData.length; i++) {
             const rowData = rowsData[i];
-            if (rowData.type === 'row' && rowData.cellsGroups && rowData.cellsGroups[0]) {
+            if ( rowData.cellsGroups && rowData.cellsGroups[0]) {
                 // Use first route as scroll target
                 const diff = Math.abs(rowData.cellsGroups[0].timestamp - fourHoursBeforeTarget);
                 if (diff < closestDiff) {
@@ -288,99 +288,103 @@
                          {scrollToTimestamp}
                          on:rowHover={handleRowHover}>
                     <div class="forecast-list">
-                {#each rowsData as rowData}
-                        <!-- Waypoint rows -->
-                        {#if rowData.type === 'waypoint' && rowData.waypointData}
-                            <LegWaypoint
-                                timestamp={rowData.waypointData.departureTime}
-                                waypointNumber={rowData.waypointData.number}
-                                isStart={rowData.waypointData.isStart}
-                                isLast={rowData.waypointData.isLast}
-                                leg={rowData.waypointData.leg}
-                                legStats={rowData.waypointData.stats}
-                                departureTime={rowData.waypointData.departureTime}
-                                arrivalTime={rowData.waypointData.arrivalTime}
-                                color={rowData.waypointData.color}
-                                dropGhost={rowData.waypointData.dropGhost}
-                                on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
-
-                                draggable={rowData.waypointData.isStart && !rowData.waypointData.dropGhost}
-                            />
-                        {:else if rowData.type === 'row' && rowData.cellsGroups}
-                            <div class="forecast-row">
-                                {#each rowData.cellsGroups as cellsGroup}
-                                    <div class="cell-group" class:current-hour={cellsGroup.isCurrentHour} data-timestamp={cellsGroup.timestamp}>
-                                        {#if cellsGroup.cells}
-                                            {#each cellsGroup.cells as cellData}
-                                        {#if cellData.type === 'time'}
-                                            <div class="time-column">
-                                                <TimeCell
-                                                    timestamp={cellData.timestamp}
-                                                    forecastTimestamp={cellData.forecastTimestamp}
-                                                />
-                                            </div>
-                                        {:else if cellData.type === 'route-color'}
-                                            <RouteColorCell
-                                                color={cellData.color}
-                                                inRoute={cellData.inRoute}
-                                                waypointNumber={cellData.waypointNumber}
-                                            />
-                                        {:else if cellData.type === 'weather'}
-                                            <div class="weather-column">
-                                                <WeatherCell
-                                                    precipitations={cellData.precipitations}
-                                                    weather={cellData.weather}
-                                                    warnings={cellData.warnings}
-                                                />
-                                            </div>
-                                        {:else if cellData.type === 'wind'}
-                                            <div class="wind-column">
-                                                <WindCell
-                                                    windSpeed={cellData.windSpeed}
-                                                    relativeWindDirection={cellData.relativeWindDirection}
-                                                    trueWindDirection={cellData.trueWindDirection}
-                                                    course={cellData.course}
-                                                    apparent={cellData.apparent}
-                                                    gradient={cellData.gradient}
-                                                />
-                                            </div>
-                                        {:else if cellData.type === 'combined-wind'}
-                                            <div class="wind-column">
-                                                <CombinedWindCell
-                                                    windSpeed={cellData.windSpeed}
-                                                    gustsSpeed={cellData.gustsSpeed}
-                                                    wavesHeight={cellData.wavesHeight}
-                                                    relativeWindDirection={cellData.relativeWindDirection}
-                                                    trueWindDirection={cellData.trueWindDirection}
-                                                    wavesDirection={cellData.wavesDirection}
-                                                    precipitations={cellData.precipitations}
-                                                    weather={cellData.weather}
-                                                    course={cellData.course}
-                                                    apparent={cellData.apparent}
-                                                    windGradient={cellData.windGradient}
-                                                    gustsGradient={cellData.gustsGradient}
-                                                    wavesGradient={cellData.wavesGradient}
-                                                />
-                                            </div>
-                                        {:else if cellData.type === 'wave'}
-                                            <div class="waves-column">
-                                                <WaveCell
-                                                    wavesHeight={cellData.wavesHeight}
-                                                    wavesPeriod={cellData.wavesPeriod}
-                                                    wavesDirection={cellData.wavesDirection}
-                                                    course={cellData.course}
-                                                    apparent={cellData.apparent}
-                                                    gradient={cellData.gradient}
-                                                />
-                                            </div>
-                                        {/if}
-                                            {/each}
-                                        {/if}
+                    {#each rowsData as rowData}
+                        <div class="forecast-row">
+                            {#each rowData.cellsGroups as cellsGroup}
+                                <div class="cell-group" class:current-hour={cellsGroup.isCurrentHour} data-timestamp={cellsGroup.timestamp}>
+                                    <div class="time-column" class:hasWaypoint={cellsGroup.waypointData} >
+                                        <TimeCell
+                                            timestamp={cellsGroup.timestamp}
+                                            forecastTimestamp={cellsGroup.forecastTimestamp}
+                                        />
                                     </div>
-                                {/each}
-                            </div>
-                        {/if}
-                {/each}
+                                    <div class="cell-group-right">
+                                            <div class="cell-group-header">
+                                            {#if cellsGroup.waypointData}
+                                                <LegWaypoint
+                                                    timestamp={cellsGroup.waypointData.departureTime}
+                                                    waypointNumber={cellsGroup.waypointData.number}
+                                                    isStart={cellsGroup.waypointData.isStart}
+                                                    isLast={cellsGroup.waypointData.isLast}
+                                                    leg={cellsGroup.waypointData.leg}
+                                                    legStats={cellsGroup.waypointData.stats}
+                                                    departureTime={cellsGroup.waypointData.departureTime}
+                                                    arrivalTime={cellsGroup.waypointData.arrivalTime}
+                                                    color={cellsGroup.waypointData.color}
+                                                    dropGhost={cellsGroup.waypointData.dropGhost}
+                                                    on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
+
+                                                    draggable={cellsGroup.waypointData.isStart && !cellsGroup.waypointData.dropGhost}
+                                                />
+                                                {/if}
+                                            </div>
+                                        
+                                        {#if cellsGroup.cells}
+                                            <div class="cell-group-content">
+                                                {#each cellsGroup.cells as cellData}
+                                    {#if cellData.type === 'route-color'}
+                                        <RouteColorCell
+                                            color={cellData.color}
+                                            inRoute={cellData.inRoute}
+                                            waypointNumber={cellData.waypointNumber}
+                                        />
+                                    {:else if cellData.type === 'weather'}
+                                        <div class="weather-column">
+                                            <WeatherCell
+                                                precipitations={cellData.precipitations}
+                                                weather={cellData.weather}
+                                                warnings={cellData.warnings}
+                                            />
+                                        </div>
+                                    {:else if cellData.type === 'wind'}
+                                        <div class="wind-column">
+                                            <WindCell
+                                                windSpeed={cellData.windSpeed}
+                                                relativeWindDirection={cellData.relativeWindDirection}
+                                                trueWindDirection={cellData.trueWindDirection}
+                                                course={cellData.course}
+                                                apparent={cellData.apparent}
+                                                gradient={cellData.gradient}
+                                            />
+                                        </div>
+                                    {:else if cellData.type === 'combined-wind'}
+                                        <div class="wind-column">
+                                            <CombinedWindCell
+                                                windSpeed={cellData.windSpeed}
+                                                gustsSpeed={cellData.gustsSpeed}
+                                                wavesHeight={cellData.wavesHeight}
+                                                relativeWindDirection={cellData.relativeWindDirection}
+                                                trueWindDirection={cellData.trueWindDirection}
+                                                wavesDirection={cellData.wavesDirection}
+                                                precipitations={cellData.precipitations}
+                                                weather={cellData.weather}
+                                                course={cellData.course}
+                                                apparent={cellData.apparent}
+                                                windGradient={cellData.windGradient}
+                                                gustsGradient={cellData.gustsGradient}
+                                                wavesGradient={cellData.wavesGradient}
+                                            />
+                                        </div>
+                                    {:else if cellData.type === 'wave'}
+                                        <div class="waves-column">
+                                            <WaveCell
+                                                wavesHeight={cellData.wavesHeight}
+                                                wavesPeriod={cellData.wavesPeriod}
+                                                wavesDirection={cellData.wavesDirection}
+                                                course={cellData.course}
+                                                apparent={cellData.apparent}
+                                                gradient={cellData.gradient}
+                                            />
+                                        </div>
+                                    {/if}
+                                            {/each}
+                                        </div>
+                                    {/if}
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    {/each}
                     </div>
                     </ScrollableForecastTable>
                 </DraggableWaypointForecastTable>
@@ -470,7 +474,7 @@
 
     .time-column-base {
         //min-width: 30px;
-        flex-grow: 0.7;
+        flex-grow: 0.2;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -542,10 +546,27 @@
         overflow: visible;
     }
 
-    // Cell group - transparent logical container
+    // Cell group - time column on left, grouped content on right
     .cell-group {
-        // Completely transparent for layout - just a logical wrapper
-        display: contents;
+        display: flex;
+        flex-direction: row;
+        flex: 1;
+    }
+
+    .cell-group-right {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .cell-group-header {
+        display: flex;
+        width: 100%;
+    }
+
+    .cell-group-content {
+        display: flex;
+        flex: 1;
     }
 
     // Forecast row - handles layout and styling
@@ -582,6 +603,10 @@
 
         .time-column {
             .time-column-base();
+        }
+
+        .time-column.hasWaypoint {
+            margin-top: 18px;
         }
 
         .route-color-cell {

@@ -8,6 +8,7 @@
 	let dragStartTimestamp: number | null = null;
 	let dragDropTargetTimestamp: number | null = null;
 	let dragStartRouteIndex: number = 0;
+	let dragElementType: string | null = null;
 	let autoScrollTimer: number | null = null;
 	let tableScrollContainer: HTMLElement | null = null;
 
@@ -21,14 +22,14 @@
 		event.dataTransfer?.setDragImage(dragImage, 0, 0);
 
 		const timestamp = getElementTimestamp(target);
-		const routeIndex = getElementRouteIndex(target);
 
 		if (!timestamp) return;
 
 		isDragging = true;
 		dragStartTimestamp = timestamp;
 		dragDropTargetTimestamp = null;
-		dragStartRouteIndex = routeIndex;
+		dragStartRouteIndex = getElementRouteIndex(target);
+		dragElementType = getElementDragType(target);
 
 		// Find table scroll container
 		tableScrollContainer = document.querySelector('.data-table');
@@ -38,6 +39,7 @@
 		isDragging = false;
 		dragStartTimestamp = null;
 		dragDropTargetTimestamp = null;
+		dragElementType = null;
 
 		// Clear auto-scroll timer
 		if (autoScrollTimer) {
@@ -58,15 +60,21 @@
 
 		if (targetTimestamp === dragDropTargetTimestamp || targetTimestamp === null) return; // No change in target
 
+
+		const theDragStartTimestamp = dragStartTimestamp;
+		const theDragStartRouteIndex = dragStartRouteIndex;
+		const theDragElementType = dragElementType;
+
 		setTimeout(() => {
 			// Dispatch waypoint index changed event
-			dispatch('waypointIndexChanged', {
-				fromTimestamp: dragStartTimestamp,
+			dispatch('elementIndexChanged', {
+				fromTimestamp: theDragStartTimestamp,
 				toTimestamp: targetTimestamp,
 				isDragging: true,
-				routeIndex: dragStartRouteIndex
+				routeIndex: theDragStartRouteIndex,
+				elementType: theDragElementType
 			});
-		}, 100); // Debounce the event dispatching to give time to UI to redraw when adding rows whe ghost near the top or end
+		}, 0); // Debounce the event dispatching to give time to UI to redraw when adding rows whe ghost near the top or end
 		
 
 		dragDropTargetTimestamp = targetTimestamp;
@@ -119,11 +127,12 @@
 		if (targetTimestamp === null) return;
 
 		// Dispatch waypoint index changed event
-		dispatch('waypointIndexChanged', {
+		dispatch('elementIndexChanged', {
 			fromTimestamp: dragStartTimestamp,
 			toTimestamp: targetTimestamp,
 			isDragging: false,
-			routeIndex: dragStartRouteIndex
+			routeIndex: dragStartRouteIndex,
+			elementType: dragElementType
 		});
 
 		handleDragEnd(event);
@@ -150,6 +159,17 @@
 
 		return routeIndex
 	}
+
+	function getElementDragType(target:HTMLElement) {
+		const routeItem = target.closest('[data-drag-type]');
+		if (!routeItem) return '';
+
+		const dragType = routeItem.getAttribute('data-drag-type');
+		if (!dragType) return '';
+
+		return dragType
+	}
+
 </script>
 
 

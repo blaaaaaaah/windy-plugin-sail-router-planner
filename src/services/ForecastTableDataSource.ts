@@ -55,13 +55,8 @@ export interface ForecastCellData {
 }
 
 export interface ForecastTableRowData {
-	//type: 'row' | 'waypoint';
-
-	// If type === 'waypoint' (single-route mode only)
-	//waypointData?: LegWaypointData;
-
-	// If type === 'row'
-	cellsGroups?: ForecastTableCellsGroup[];
+	// TODO : is this really useful ?
+	cellsGroups: ForecastTableCellsGroup[];
 }
 
 export interface ForecastTableCellsGroup {
@@ -69,12 +64,13 @@ export interface ForecastTableCellsGroup {
 	forecastTimestamp?: number | null;
 	isCurrentHour: boolean;
 	routeIndex: number;
+	draggable: boolean;
 
 	// If type === 'waypoint' (single-route mode only)
 	waypointData?: LegWaypointData | null;
 
 	// If type === 'row'
-	cells?: ForecastCellData[];
+	cells: ForecastCellData[];
 }
 
 export class ForecastTableDataSource {
@@ -149,13 +145,13 @@ export class ForecastTableDataSource {
 					isCurrentHour,
 					routeIndex,
 					waypointData: waypointData ? waypointData.data : null,
+					draggable: !isSingleRoute,
 					cells
 				});
 			}
 
 			// Add data row
 			rows.push({
-				//type: 'row',
 				cellsGroups
 			});
 		}

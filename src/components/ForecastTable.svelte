@@ -12,7 +12,7 @@
     import DraggableWaypointForecastTable from './DraggableWaypointForecastTable.svelte';
     import type { RouteForecast } from '../types/WeatherTypes';
     import { formatTime, formatTimeAgo } from '../utils/TimeUtils';
-    import { ForecastTableDataSource } from '../services/ForecastTableDataSource';
+    import { ForecastTableDataSource, ForecastTableRowData, ForecastTableCellsGroup } from '../services/ForecastTableDataSource';
     import RouteFavoriteButton from './RouteFavoriteButton.svelte';
 
     export let routeForecasts: RouteForecast[] = [];
@@ -169,13 +169,13 @@
             }
         }
 
-        return rowsData[bestDataRowIndex] && rowsData[bestDataRowIndex].cellsGroups && rowsData[bestDataRowIndex].cellsGroups[0] ? rowsData[bestDataRowIndex].cellsGroups[0].timestamp : null;
+        return rowsData[bestDataRowIndex] && rowsData[bestDataRowIndex].cellsGroups && rowsData[bestDataRowIndex].cellsGroups![0] ? rowsData[bestDataRowIndex].cellsGroups![0].timestamp : null;
     }
 
 
     // Handle waypoint index changes from drag operations
-    function handleWaypointIndexChanged(event: CustomEvent) {
-        const { fromTimestamp, toTimestamp, isDragging, routeIndex } = event.detail;
+    function handleElementIndexChanged(event: CustomEvent) {
+        const { fromTimestamp, toTimestamp, isDragging, routeIndex, elementType } = event.detail;
 
         // Validate route index
         if (routeIndex < 0 || routeIndex >= routeForecasts.length) {
@@ -183,47 +183,95 @@
             return;
         }
 
-        console.log(`Waypoint timestamp change: from ${fromTimestamp} to ${toTimestamp}, isDragging: ${isDragging}, routeIndex: ${routeIndex}`);
+        // if not waypoint, we don't need to compute from departure time but from current timeline start (which may be different from departure time if we have already shifted the timeline by dragging the waypoint near the start or end)
 
-        if ( isDragging  ) {
-            const dropTimestamp = toTimestamp == fromTimestamp ? null : toTimestamp;
+        // Calculate new offset to keep timeline position stable
+        const HOUR_MS = 60 * 60 * 1000;
+        const currentOffset = offsets[routeIndex];
+        const oldDepartureTime = fromTimestamp;//routeForecasts[routeIndex].route.departureTime;
+        const oldTimelineStart = oldDepartureTime - (currentOffset.preDepartureOffset * HOUR_MS);
 
-            // Adjust offsets if ghost timestamp is near timeline boundaries
-            if (dropTimestamp !== null) {
-                adjustOffsetsForGhostTimestamp(dropTimestamp, routeIndex);
-            }
+        // Calculate new offset to maintain same timeline start position
+        const newPreDepartureMs = toTimestamp - oldTimelineStart;
+        let newPreDepartureOffset = Math.ceil(newPreDepartureMs / HOUR_MS);
 
-            rowsData = dataSource!.getRowsData(offsets, !showTrueWind, dropTimestamp); // showApparent = !showTrueWind
-        } else {
-            if (fromTimestamp !== null && toTimestamp !== fromTimestamp ) {
-                if (toTimestamp && routeForecasts[routeIndex]?.route) {
-                    console.log(`Moving route ${routeIndex} start to ${formatTime(toTimestamp)}`);
 
-                    // Calculate new offset to keep timeline position stable
-                    const HOUR_MS = 60 * 60 * 1000;
-                    const currentOffset = offsets[routeIndex];
-                    const oldDepartureTime = routeForecasts[routeIndex].route.departureTime;
-                    const oldTimelineStart = oldDepartureTime - (currentOffset.preDepartureOffset * HOUR_MS);
+        if (elementType === 'waypoint') {
+            console.log(`Waypoint timestamp change: from ${fromTimestamp} to ${toTimestamp}, isDragging: ${isDragging}, routeIndex: ${routeIndex}`);
 
-                    // Update the route departure time directly
-                    routeForecasts[routeIndex].route.setDepartureTime(toTimestamp);
+            if ( isDragging  ) {
+                const dropTimestamp = toTimestamp == fromTimestamp ? null : toTimestamp;
 
-                    // Calculate new offset to maintain same timeline start position
-                    const newPreDepartureMs = toTimestamp - oldTimelineStart;
-                    const newPreDepartureOffset = Math.max(1, Math.ceil(newPreDepartureMs / HOUR_MS));
+                // Adjust offsets if ghost timestamp is near timeline boundaries
+                if (dropTimestamp !== null) {
+                    adjustOffsetsForGhostTimestamp(dropTimestamp, routeIndex);
+                }
 
-                    // Update the offset
-                    offsets[routeIndex].preDepartureOffset = newPreDepartureOffset;
+                rowsData = dataSource!.getRowsData(offsets, !showTrueWind, dropTimestamp); // showApparent = !showTrueWind
+            } else {
+                if (fromTimestamp !== null && toTimestamp !== fromTimestamp ) {
+                    if (toTimestamp && routeForecasts[routeIndex]?.route) {
+                        console.log(`Moving route ${routeIndex} start to ${formatTime(toTimestamp)}`);
 
-                    // Dispatch updated route to trigger forecast regeneration
-                    dispatch('routeUpdated', {
-                        route: routeForecasts[routeIndex].route
-                    });
+                        // Update the offset
+                        offsets[routeIndex].preDepartureOffset = Math.max(newPreDepartureOffset, 1);
+
+                        // Update the route departure time directly
+                        routeForecasts[routeIndex].route.setDepartureTime(toTimestamp);
+                        // Dispatch updated route to trigger forecast regeneration
+                        dispatch('routeUpdated', {
+                            route: routeForecasts[routeIndex].route
+                        });
+                    }
                 }
             }
+        } else {
+
+
+            if (newPreDepartureOffset < 0) {
+                offsets.forEach((offset, idx) => {
+                    if (idx !== routeIndex) {
+                        offset.preDepartureOffset -= newPreDepartureOffset;
+                    }
+                });
+                newPreDepartureOffset = 0;
+            }
+
+            // TODO: make sure that end of dragged route is not before-6 of earlierst offseted departure
+            // TODO: make sure that start of dragged route is not after+6 of latest offsteted end
+
+
+            console.log(`row element timestamp change: from ${new Date(fromTimestamp)} (${offsets[routeIndex].preDepartureOffset}) to ${newPreDepartureOffset}, isDragging: ${isDragging}, routeIndex: ${routeIndex}`);
+
+            // Update the offset
+            offsets[routeIndex].preDepartureOffset = newPreDepartureOffset;
+
+            normalizeOffsets();
+
+            // if new departure time is after last arrival time, stop
+            if (newPreDepartureOffset > 300 ) {
+                debugger;
+                return;
+            }
+
+
+
+            // refresh the table with new offsets (handles placeholder generation internally)
+            rowsData = dataSource!.getRowsData(offsets, !showTrueWind); //
         }
     }
 
+
+    function normalizeOffsets() {
+        // make sure that we don't have unecessary offset, we need min 6h
+        const min = Math.min(...offsets.map(i => i.preDepartureOffset));
+        if (min < 6) return;
+        
+        offsets = offsets.map(offset => ({
+            ...offset,
+            preDepartureOffset: offset.preDepartureOffset - 6,
+        }));
+    }
 
 
     // functions that will dispatch events
@@ -297,7 +345,7 @@
             <!-- Vertical Data List -->
             <div class="main-table">
                 <DraggableWaypointForecastTable
-                     on:waypointIndexChanged={handleWaypointIndexChanged}
+                     on:elementIndexChanged={handleElementIndexChanged}
                 >
                     <ScrollableForecastTable
                          {scrollToTimestamp}
@@ -306,7 +354,7 @@
                     {#each rowsData as rowData}
                         <div class="forecast-row">
                             {#each rowData.cellsGroups as cellsGroup}
-                                <div class="cell-group" class:current-hour={cellsGroup.isCurrentHour} data-timestamp={cellsGroup.timestamp} data-route-index={cellsGroup.routeIndex}>
+                                <div class="cell-group" class:current-hour={cellsGroup.isCurrentHour} data-timestamp={cellsGroup.timestamp} data-route-index={cellsGroup.routeIndex} draggable={cellsGroup.draggable} data-drag-type='row'>
                                     <div class="time-column" class:hasWaypoint={cellsGroup.waypointData} >
                                         <TimeCell
                                             timestamp={cellsGroup.timestamp}

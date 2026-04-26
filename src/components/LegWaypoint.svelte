@@ -40,7 +40,7 @@
     $: showExpandChevron = !isLast && !dropGhost;
 </script>
 
-<div class="waypoint-row-container" draggable={draggable} data-timestamp={timestamp}>
+<div class="waypoint-row-container" draggable={draggable} data-timestamp={timestamp} data-drag-type="waypoint">
     <div
         class="waypoint-row"
         class:expanded={isExpanded}

@@ -65,7 +65,7 @@
 		const theDragStartRouteIndex = dragStartRouteIndex;
 		const theDragElementType = dragElementType;
 
-		setTimeout(() => {
+		requestAnimationFrame(() => {
 			// Dispatch waypoint index changed event
 			dispatch('elementIndexChanged', {
 				fromTimestamp: theDragStartTimestamp,
@@ -74,7 +74,7 @@
 				routeIndex: theDragStartRouteIndex,
 				elementType: theDragElementType
 			});
-		}, 0); // Debounce the event dispatching to give time to UI to redraw when adding rows whe ghost near the top or end
+		}); // Use requestAnimationFrame to sync with browser repaint cycle
 		
 
 		dragDropTargetTimestamp = targetTimestamp;
@@ -86,7 +86,8 @@
 
 		if (container) {
 			const containerRect = container.getBoundingClientRect();
-			const scrollThreshold = 50;
+			const scrollThreshold = 75;
+			const scrollOffset = 25;
 
 			// Clear existing timer
 			if (autoScrollTimer) {
@@ -96,13 +97,13 @@
 			// Check if we need to scroll up
 			if (rect.top - containerRect.top < scrollThreshold) {
 				autoScrollTimer = setInterval(() => {
-					container.scrollTop -= 25;
+					container.scrollTop -= scrollOffset;
 				}, 16) as any;
 			}
 			// Check if we need to scroll down
 			else if (containerRect.bottom - rect.bottom < scrollThreshold) {
 				autoScrollTimer = setInterval(() => {
-					container.scrollTop += 25;
+					container.scrollTop += scrollOffset;
 				}, 16) as any;
 			}
 		}

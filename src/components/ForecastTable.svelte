@@ -227,7 +227,7 @@
             }
         } else {
 
-
+            
             if (newPreDepartureOffset < 0) {
                 offsets.forEach((offset, idx) => {
                     if (idx !== routeIndex) {
@@ -246,7 +246,7 @@
             // Update the offset
             offsets[routeIndex].preDepartureOffset = newPreDepartureOffset;
 
-            normalizeOffsets();
+            //normalizeOffsets();
 
             // if new departure time is after last arrival time, stop
             if (newPreDepartureOffset > 300 ) {

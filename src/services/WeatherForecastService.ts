@@ -24,19 +24,14 @@ export class WeatherForecastService {
 
 		const allPointForecasts: PointForecast[] = [];
 
-		const PRE_DEPARTURE_POINTS = 6;
-		const POST_ARRIVAL_POINTS = 12;
-
-
-		
 		// 1. PRE-DEPARTURE: Get forecast before route start
 		const hourMs = 60 * 60 * 1000;
-		const isCurrentDeparture = Math.abs(route.departureTime - now) < hourMs * PRE_DEPARTURE_POINTS; // If departure is within 6 hour of now
+		const isCurrentDeparture = Math.abs(route.departureTime - now) < hourMs * route.preDepartureOffset;
 
 		let preDepartureStartTime: number;
 		if (isCurrentDeparture) {
-			// Departure is now (default) - get 6 hours of historical data
-			preDepartureStartTime = route.departureTime - (PRE_DEPARTURE_POINTS * hourMs);
+			// Departure is now (default) - get historical data
+			preDepartureStartTime = route.departureTime - (route.preDepartureOffset * hourMs);
 		} else {
 			// Future departure - get forecast from next full hour until route start
 			preDepartureStartTime = Math.ceil(now / hourMs) * hourMs;
@@ -68,8 +63,8 @@ export class WeatherForecastService {
 			allPointForecasts.push(...legForecast);
 		}
 
-		// 3. POST-ARRIVAL: Get forecast after route end (limited to 6 hours)
-		const postArrivalEndTime = Math.min(route.arrivalTime + (POST_ARRIVAL_POINTS * hourMs), forecastWindow.end);
+		// 3. POST-ARRIVAL: Get forecast after route end
+		const postArrivalEndTime = Math.min(route.arrivalTime + (route.postArrivalOffset * hourMs), forecastWindow.end);
 		if (route.arrivalTime < postArrivalEndTime) {
 			console.log(`\n🏁 Getting post-arrival forecast: ${new Date(route.arrivalTime).toISOString()} to ${new Date(postArrivalEndTime).toISOString()}`);
 			const postArrivalForecast = await this.getPointForecast(endPoint, route.arrivalTime, postArrivalEndTime);
@@ -78,13 +73,13 @@ export class WeatherForecastService {
 
 		// 4. ARTIFICIAL POST-ARRIVAL: If we don't have enough post-arrival data, create artificial points
 		const postArrivalDataCount = allPointForecasts.filter(f => f.timestamp > route.arrivalTime).length;
-		if (postArrivalDataCount < POST_ARRIVAL_POINTS) {
-			console.log(`\n🔧 Creating ${POST_ARRIVAL_POINTS - postArrivalDataCount} artificial post-arrival points`);
+		if (postArrivalDataCount < route.postArrivalOffset) {
+			console.log(`\n🔧 Creating ${route.postArrivalOffset - postArrivalDataCount} artificial post-arrival points`);
 			const artificialPoints = this.createArtificialPostArrivalPoints(
 				allPointForecasts,
 				endPoint,
 				route.arrivalTime,
-				POST_ARRIVAL_POINTS - postArrivalDataCount
+				route.postArrivalOffset - postArrivalDataCount
 			);
 			allPointForecasts.push(...artificialPoints);
 		}

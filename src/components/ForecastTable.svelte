@@ -31,8 +31,6 @@
     let dataSource: ForecastTableDataSource | null = null;
     let rowsData: ForecastTableRowData[] = [];
 
-    // Offsets for timeline calculation (in hours)
-    let offsets: { preDepartureOffset: number, postArrivalOffset: number }[] = [];
 
     // Refresh method to recalculate data
     function refresh() {
@@ -45,18 +43,13 @@
                 currentRouteIds = routeIds;
                 scrollToTimestamp = null; // Reset scroll index for new route
 
-                // Initialize offsets for new routes
-                offsets = routeForecasts.map(() => ({
-                    preDepartureOffset: 6, // 6 hours before departure
-                    postArrivalOffset: 6   // 6 hours after arrival
-                }));
             }
 
             // if new route or if we have data for at least one route, create/update data source (handles placeholders internally)
             if (isNewRoute || routeForecasts.some(f => f.pointForecasts !== null)) {
                 // Create or update data source (handles placeholders internally)
                 dataSource = new ForecastTableDataSource(routeForecasts);
-                rowsData = dataSource.getRowsData(offsets, !showTrueWind); // showApparent = !showTrueWind
+                rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
             }
 
 
@@ -90,7 +83,7 @@
     function updateRows() {
         if ( dataSource && routeForecasts) {
             // Only regenerate rows data with new wind mode, keep the same data source instance
-            rowsData = dataSource.getRowsData(offsets, !showTrueWind); // showApparent = !showTrueWind
+            rowsData = dataSource.getRowsData(!showTrueWind); // showApparent = !showTrueWind
             console.log('ForecastTableDataSource generated', rowsData.length, 'rows');
         }
     }
@@ -117,28 +110,28 @@
     }
 
     function adjustOffsetsForGhostTimestamp(ghostTimestamp: number, routeIndex: number) {
-        if (routeForecasts.length <= routeIndex || !offsets[routeIndex]) return;
+        if (routeForecasts.length <= routeIndex) return;
 
         const HOUR_MS = 60 * 60 * 1000;
         const routeForecast = routeForecasts[routeIndex];
 
         if (routeForecast.pointForecasts) {
-            const offset = offsets[routeIndex];
-            const preDepartureMs = offset.preDepartureOffset * HOUR_MS;
-            const postArrivalMs = offset.postArrivalOffset * HOUR_MS;
+            const route = routeForecast.route;
+            const preDepartureMs = route.preDepartureOffset * HOUR_MS;
+            const postArrivalMs = route.postArrivalOffset * HOUR_MS;
 
-            const currentStartTime = routeForecast.route.departureTime - preDepartureMs;
-            const currentEndTime = routeForecast.route.arrivalTime + postArrivalMs;
+            const currentStartTime = route.departureTime - preDepartureMs;
+            const currentEndTime = route.arrivalTime + postArrivalMs;
             const twoHoursMs = 2 * HOUR_MS;
 
             if (ghostTimestamp < currentStartTime + twoHoursMs) {
                 // Shift timeline earlier to create more rows to scroll
-                const newPreDepartureMs = Math.max(preDepartureMs, routeForecast.route.departureTime - ghostTimestamp + twoHoursMs);
-                offset.preDepartureOffset = Math.ceil(newPreDepartureMs / HOUR_MS);
+                const newPreDepartureMs = Math.max(preDepartureMs, route.departureTime - ghostTimestamp + twoHoursMs);
+                route.preDepartureOffset = Math.ceil(newPreDepartureMs / HOUR_MS);
             } else if (ghostTimestamp > currentEndTime - twoHoursMs) {
                 // Shift timeline later to create more rows to scroll
-                const newPostArrivalMs = Math.max(postArrivalMs, ghostTimestamp - routeForecast.route.arrivalTime + twoHoursMs);
-                offset.postArrivalOffset = Math.ceil(newPostArrivalMs / HOUR_MS);
+                const newPostArrivalMs = Math.max(postArrivalMs, ghostTimestamp - route.arrivalTime + twoHoursMs);
+                route.postArrivalOffset = Math.ceil(newPostArrivalMs / HOUR_MS);
             }
         }
     }
@@ -187,9 +180,9 @@
 
         // Calculate new offset to keep timeline position stable
         const HOUR_MS = 60 * 60 * 1000;
-        const currentOffset = offsets[routeIndex];
+        const route = routeForecasts[routeIndex].route;
         const oldDepartureTime = fromTimestamp;//routeForecasts[routeIndex].route.departureTime;
-        const oldTimelineStart = oldDepartureTime - (currentOffset.preDepartureOffset * HOUR_MS);
+        const oldTimelineStart = oldDepartureTime - (route.preDepartureOffset * HOUR_MS);
 
         // Calculate new offset to maintain same timeline start position
         const newPreDepartureMs = toTimestamp - oldTimelineStart;
@@ -207,14 +200,14 @@
                     adjustOffsetsForGhostTimestamp(dropTimestamp, routeIndex);
                 }
 
-                rowsData = dataSource!.getRowsData(offsets, !showTrueWind, dropTimestamp); // showApparent = !showTrueWind
+                rowsData = dataSource!.getRowsData(!showTrueWind, dropTimestamp); // showApparent = !showTrueWind
             } else {
                 if (fromTimestamp !== null && toTimestamp !== fromTimestamp ) {
                     if (toTimestamp && routeForecasts[routeIndex]?.route) {
                         console.log(`Moving route ${routeIndex} start to ${formatTime(toTimestamp)}`);
 
                         // Update the offset
-                        offsets[routeIndex].preDepartureOffset = Math.max(newPreDepartureOffset, 1);
+                        route.preDepartureOffset = Math.max(newPreDepartureOffset, 1);
 
                         // Update the route departure time directly
                         routeForecasts[routeIndex].route.setDepartureTime(toTimestamp);
@@ -229,9 +222,9 @@
 
             
             if (newPreDepartureOffset < 0) {
-                offsets.forEach((offset, idx) => {
+                routeForecasts.forEach((rf, idx) => {
                     if (idx !== routeIndex) {
-                        offset.preDepartureOffset -= newPreDepartureOffset;
+                        rf.route.preDepartureOffset -= newPreDepartureOffset;
                     }
                 });
                 newPreDepartureOffset = 0;
@@ -241,10 +234,10 @@
             // TODO: make sure that start of dragged route is not after+6 of latest offsteted end
 
 
-            console.log(`row element timestamp change: from ${new Date(fromTimestamp)} (${offsets[routeIndex].preDepartureOffset}) to ${newPreDepartureOffset}, isDragging: ${isDragging}, routeIndex: ${routeIndex}`);
+            console.log(`row element timestamp change: from ${new Date(fromTimestamp)} (${route.preDepartureOffset}) to ${newPreDepartureOffset}, isDragging: ${isDragging}, routeIndex: ${routeIndex}`);
 
             // Update the offset
-            offsets[routeIndex].preDepartureOffset = newPreDepartureOffset;
+            route.preDepartureOffset = newPreDepartureOffset;
 
             //normalizeOffsets();
 
@@ -257,20 +250,19 @@
 
 
             // refresh the table with new offsets (handles placeholder generation internally)
-            rowsData = dataSource!.getRowsData(offsets, !showTrueWind); //
+            rowsData = dataSource!.getRowsData(!showTrueWind); //
         }
     }
 
 
     function normalizeOffsets() {
         // make sure that we don't have unecessary offset, we need min 6h
-        const min = Math.min(...offsets.map(i => i.preDepartureOffset));
+        const min = Math.min(...routeForecasts.map(rf => rf.route.preDepartureOffset));
         if (min < 6) return;
-        
-        offsets = offsets.map(offset => ({
-            ...offset,
-            preDepartureOffset: offset.preDepartureOffset - 6,
-        }));
+
+        routeForecasts.forEach(rf => {
+            rf.route.preDepartureOffset = rf.route.preDepartureOffset - 6;
+        });
     }
 
 

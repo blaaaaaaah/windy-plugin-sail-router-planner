@@ -27,6 +27,8 @@ export class RouteDefinition {
 	private _isVisible: boolean = true;
 	private _isSaved: boolean = false;
 	private _cachedLegs: RouteLeg[] | null = null;
+	private _preDepartureOffset: number = 6; // Hours before departure for forecast display
+	private _postArrivalOffset: number = 12; // Hours after arrival for forecast display
 
 	constructor(
 		id: string | null = null,
@@ -291,5 +293,20 @@ export class RouteDefinition {
 		this._cachedGeoName = null;
 	}
 
+	get preDepartureOffset(): number {
+		return this._preDepartureOffset;
+	}
+
+	set preDepartureOffset(hours: number) {
+		this._preDepartureOffset = hours;
+	}
+
+	get postArrivalOffset(): number {
+		return this._postArrivalOffset;
+	}
+
+	set postArrivalOffset(hours: number) {
+		this._postArrivalOffset = hours;
+	}
 
 }

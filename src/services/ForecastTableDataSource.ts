@@ -82,11 +82,11 @@ export class ForecastTableDataSource {
 	/**
 	 * Main method - converts RouteForecast to table rows
 	 */
-	getRowsData(offsets: { preDepartureOffset: number, postArrivalOffset: number }[], showApparent: boolean = false, ghostTimestamp: number | null = null): ForecastTableRowData[] {
+	getRowsData(showApparent: boolean = false, ghostTimestamp: number | null = null): ForecastTableRowData[] {
 		const isSingleRoute: boolean = this.routeForecasts.length === 1;
 
 		// Generate individual timelines for each route
-		const timelines = this.generateTimelines(this.routeForecasts, offsets, ghostTimestamp);
+		const timelines = this.generateTimelines(this.routeForecasts, ghostTimestamp);
 
 		// All timelines should have the same length since they share the same endTime
 		const timelineLength = timelines[0]?.length || 0;
@@ -163,7 +163,7 @@ export class ForecastTableDataSource {
 	/**
 	 * Generate individual timelines for each route with shared end time
 	 */
-	private generateTimelines(routeForecasts: RouteForecast[], offsets: { preDepartureOffset: number, postArrivalOffset: number }[], ghostTimestamp: number | null = null): number[][] {
+	private generateTimelines(routeForecasts: RouteForecast[], ghostTimestamp: number | null = null): number[][] {
 		const HOUR_MS = 60 * 60 * 1000;
 
 		// Calculate the maximum duration and latest end time needed across all routes
@@ -171,9 +171,8 @@ export class ForecastTableDataSource {
 		let globalEndTime = Number.MIN_VALUE;
 
 		routeForecasts.forEach((routeForecast, index) => {
-			const routeOffset = offsets[index] || { preDepartureOffset: 6, postArrivalOffset: 6 };
-			const preDepartureMs = routeOffset.preDepartureOffset * HOUR_MS;
-			const postArrivalMs = routeOffset.postArrivalOffset * HOUR_MS;
+			const preDepartureMs = routeForecast.route.preDepartureOffset * HOUR_MS;
+			const postArrivalMs = routeForecast.route.postArrivalOffset * HOUR_MS;
 
 			const routeStartTime = routeForecast.route.departureTime - preDepartureMs;
 			const routeEndTime = routeForecast.route.arrivalTime + postArrivalMs;
@@ -193,8 +192,7 @@ export class ForecastTableDataSource {
 
 		// Generate individual timelines for each route with the same number of hours
 		const timelines: number[][] = routeForecasts.map((routeForecast, index) => {
-			const routeOffset = offsets[index] || { preDepartureOffset: 6, postArrivalOffset: 6 };
-			const preDepartureMs = routeOffset.preDepartureOffset * HOUR_MS;
+			const preDepartureMs = routeForecast.route.preDepartureOffset * HOUR_MS;
 			const routeStartTime = routeForecast.route.departureTime - preDepartureMs;
 
 			// Generate timeline starting from this route's start time with maxDurationHours length

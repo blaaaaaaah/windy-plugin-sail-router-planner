@@ -400,7 +400,7 @@
                                                     color={cellsGroup.waypointData.color}
                                                     dropGhost={cellsGroup.waypointData.dropGhost}
                                                     on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
-
+                                                    canExpand={routeForecasts.length === 1 && !cellsGroup.waypointData.isLast}
                                                     draggable={cellsGroup.waypointData.isStart && !cellsGroup.waypointData.dropGhost}
                                                 />
                                                 {/if}
@@ -640,6 +640,10 @@
         flex: 1;
     }
 
+    .cell-group.current-hour {
+        background: #e6e6e6;
+    }
+
     .cell-group-right {
         display: flex;
         flex-direction: column;
@@ -668,11 +672,6 @@
 
         &:hover {
             background: #f8f9fa;
-        }
-
-        // Apply current-hour styling when containing a current-hour cell-group
-        &:has(.cell-group.current-hour) {
-            background: #e6e6e6;
         }
     }
 

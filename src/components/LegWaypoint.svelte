@@ -18,13 +18,14 @@
     export let color: string = '#3498db';
 
     export let draggable:boolean = false;
+    export let canExpand: boolean = true; // Whether leg waypoint can be expanded
 
     let isExpanded: boolean = false;
 
     const dispatch = createEventDispatcher();
 
     function handleClick() {
-        if (!isLast) {
+        if (canExpand) {
             isExpanded = !isExpanded;
         }
     }
@@ -37,7 +38,7 @@
     }
 
 
-    $: showExpandChevron = !isLast && !dropGhost;
+    $: showExpandChevron = !dropGhost && canExpand;
 </script>
 
 <div class="waypoint-row-container" draggable={draggable} data-timestamp={timestamp} data-drag-type="waypoint">
@@ -91,8 +92,8 @@
         </div>
     </div>
 
-    <!-- Expanded content - only for non-destination waypoints -->
-    {#if isExpanded && !isLast && leg}
+    <!-- Expanded content - only for expandable waypoints -->
+    {#if isExpanded && canExpand && leg}
         <div class="leg-detail-wrapper" style="--route-color: {color}; --route-color-rgb: {color.replace('#', '').match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '52, 152, 219'}">
             <!-- Coordinates and Course Row -->
             <div class="coordinate-row">

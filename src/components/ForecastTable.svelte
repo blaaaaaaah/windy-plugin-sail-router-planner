@@ -220,26 +220,58 @@
             }
         } else {
 
-            
-            if (newPreDepartureOffset < 0) {
+            // Apply drag limits when comparing multiple routes (only for dragging down)
+            if (routeForecasts.length > 1) {
+
+                // Find maximum offset+duration of other routes
+                let maxOffsetPlusDuration = Number.MIN_VALUE;
+
                 routeForecasts.forEach((rf, idx) => {
                     if (idx !== routeIndex) {
-                        rf.route.preDepartureOffset -= newPreDepartureOffset;
+                        const otherRouteDurationHours = rf.route.totalDuration / HOUR_MS;
+                        const offsetPlusDuration = rf.route.preDepartureOffset + otherRouteDurationHours + 3;
+                        maxOffsetPlusDuration = Math.max(maxOffsetPlusDuration, offsetPlusDuration);
                     }
                 });
+
+                if (maxOffsetPlusDuration !== Number.MIN_VALUE) {
+                    // Dragged route offset shouldn't be greater than max(otherRoute's offset+duration)
+                    newPreDepartureOffset = Math.min(maxOffsetPlusDuration, newPreDepartureOffset);
+                }
+            }
+
+            if (newPreDepartureOffset < 0) {
+                // When dragging up, check if we can shift other routes
+                const draggedRoute = route;
+                const draggedRouteDurationHours = draggedRoute.totalDuration / HOUR_MS;
+
+                // Find minimum offset of other routes
+                let minOtherOffset = Number.MAX_VALUE;
+                routeForecasts.forEach((rf, idx) => {
+                    if (idx !== routeIndex) {
+                        minOtherOffset = Math.min(minOtherOffset, rf.route.preDepartureOffset);
+                    }
+                });
+
+                // If dragged route duration - 6 >= min other offset
+                if (draggedRouteDurationHours + 3 >= minOtherOffset) {
+                    // Shift other routes to make room
+                    let offsetToSubtract = newPreDepartureOffset;
+                    routeForecasts.forEach((rf, idx) => {
+                        if (idx !== routeIndex) {
+                            rf.route.preDepartureOffset = Math.max(0, rf.route.preDepartureOffset - offsetToSubtract);
+                        }
+                    });              
+                }
                 newPreDepartureOffset = 0;
             }
 
-            // TODO: make sure that end of dragged route is not before-6 of earlierst offseted departure
-            // TODO: make sure that start of dragged route is not after+6 of latest offsteted end
 
-
-            console.log(`row element timestamp change: from ${new Date(fromTimestamp)} (${route.preDepartureOffset}) to ${newPreDepartureOffset}, isDragging: ${isDragging}, routeIndex: ${routeIndex}`);
+            console.log(`All route offsets:`, routeForecasts.map((rf, idx) => `Route ${idx}: pre=${rf.route.preDepartureOffset}h, post=${rf.route.postArrivalOffset}h`));
 
             // Update the offset
             route.preDepartureOffset = newPreDepartureOffset;
 
-            //normalizeOffsets();
 
             // if new departure time is after last arrival time, stop
             if (newPreDepartureOffset > 300 ) {

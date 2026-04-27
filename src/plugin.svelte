@@ -35,6 +35,7 @@
                 <ForecastTable
                     routeForecasts={displayedRouteForecasts}
                     showTrueWind={showTrueWind}
+                    currentMetric={currentMetric}
                     on:windModeChanged={handleWindModeChanged}
                     on:timeHover={handleTimeHover}
                     on:metricClick={handleMetricClick}
@@ -79,9 +80,13 @@
 
     // Store bound functions for proper cleanup
     let timestampHandler: ((timestamp: number) => void) | null = null;
+    let overlayHandler: ((overlay: string) => void) | null = null;
 
     // Wind data display mode
     let showTrueWind: boolean = true;
+
+    // Current metric overlay
+    let currentMetric: string = '';
 
     // Track the current route
     let highlightedRoute: RouteDefinition | null = null;
@@ -396,6 +401,15 @@
         };
         store.on('timestamp', timestampHandler);
 
+        // Initialize currentMetric with current overlay value
+        currentMetric = store.get('overlay');
+
+        // Handle overlay changes
+        overlayHandler = (overlay: string) => {
+            currentMetric = overlay;
+        };
+        store.on('overlay', overlayHandler);
+
         // Start forecast update timer (check every minute)
         forecastUpdateTimer = setInterval(checkForForecastUpdates, 60000);
 
@@ -409,6 +423,12 @@
         if (timestampHandler !== null) {
             store.off('timestamp', timestampHandler);
             timestampHandler = null;
+        }
+
+        // Clean up overlay subscription
+        if (overlayHandler !== null) {
+            store.off('overlay', overlayHandler);
+            overlayHandler = null;
         }
 
         // Clean up forecast update timer

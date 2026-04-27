@@ -17,6 +17,7 @@
 
     export let routeForecasts: RouteForecast[] = [];
     export let showTrueWind: boolean = true;
+    export let currentMetric: string = '';
 
     // Derived state from forecast
     $: isLoading = routeForecasts.length === 0 || routeForecasts.some(f => f.pointForecasts === null);
@@ -360,10 +361,10 @@
             <div class="table-header">
                 <div class="time-column">Time</div>
                 <div class="route-color-header"></div>
-                <div class="weather-column" on:click={() => onMetricClick('rain')}>Weather</div>
-                <div class="wind-column" on:click={() => onMetricClick('wind')}>Wind</div>
-                <div class="gusts-column" on:click={() => onMetricClick('gust')}>Gusts</div>
-                <div class="waves-column" on:click={() => onMetricClick('waves')}>Waves</div>
+                <div class="weather-column" class:active={currentMetric === 'rain'} on:click={() => onMetricClick('rain')}>Weather</div>
+                <div class="wind-column" class:active={currentMetric === 'wind'} on:click={() => onMetricClick('wind')}>Wind</div>
+                <div class="gusts-column" class:active={currentMetric === 'gust'} on:click={() => onMetricClick('gust')}>Gusts</div>
+                <div class="waves-column" class:active={currentMetric === 'waves'} on:click={() => onMetricClick('waves')}>Waves</div>
             </div>
 
             <!-- Vertical Data List -->
@@ -572,10 +573,16 @@
         cursor: pointer;
         border-radius: 4px;
         transition: background 0.2s ease;
+        margin: 0 2px;
 
-        &:hover {
+        &:hover,
+        &.active {
             background: rgba(0, 124, 186, 0.15);
             color: #007cba;
+        }
+
+        &.active {
+            cursor: default;
         }
     }
 
@@ -597,6 +604,7 @@
 
         .time-column {
             .time-column-base();
+            flex-grow: 0.5;
         }
 
         .route-color-header {

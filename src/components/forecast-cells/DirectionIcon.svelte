@@ -7,8 +7,8 @@
 	{#if windDirection != null}
 		<svg
 			class="wind-dir"
-			width="16"
-			height="20"
+			width="24"
+			height="30"
 			viewBox="0 0 20 27"
 			style="transform: translate(-50%, -50%) rotate({windDirection + 180}deg)"
 		>
@@ -20,8 +20,8 @@
 	{/if}
 	<svg
 		class="boat-icon"
-		width="16"
-		height="16"
+		width="24"
+		height="24"
 		viewBox="0 0 100 200"
 		style="transform: translate(-50%, -50%) rotate({boatCourse}deg)"
 	>
@@ -54,7 +54,7 @@
 		top: 50%;
 		left: 50%;
 		transform-origin: center;
-		transition: transform 0.3s ease;
+		//transition: transform 0.3s ease;
 	}
 
 	.wind-dir {

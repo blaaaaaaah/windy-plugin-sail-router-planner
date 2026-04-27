@@ -82,11 +82,39 @@ export class RouteEditorController {
 			this.setRouteVisibility(route, true);
 		}
 
+		// Auto-scroll to route if it's not visible on map
+		if (route && !this._isRouteVisibleOnMap(route)) {
+			this._scrollToRoute(route);
+		}
+
 		// Update all waypoint markers to reflect new active state
 		this._refreshAllWaypointMarkers();
 
 		this._updateMapHighlight();
 		this._onActiveRouteChanged(route);
+	}
+
+	private _isRouteVisibleOnMap(route: RouteDefinition): boolean {
+		if (route.waypoints.length === 0) return true;
+
+		const mapBounds = this._map.getBounds();
+
+		// Check if entire route is outside map bounds
+		for (const waypoint of route.waypoints) {
+			if (mapBounds.contains(waypoint)) {
+				return true; // At least one waypoint is visible
+			}
+		}
+
+		return false; // No waypoints are visible
+	}
+
+	private _scrollToRoute(route: RouteDefinition): void {
+		if (route.waypoints.length === 0) return;
+
+		// Pan to the start point of the route (first waypoint)
+		const startPoint = route.waypoints[0];
+		this._map.panTo(startPoint);
 	}
 
 	getAllRoutes(): RouteDefinition[] {

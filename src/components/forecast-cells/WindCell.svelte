@@ -57,6 +57,7 @@
 		font-weight: 500;
 		font-size: 12px;
 		color: #333;
+		margin-bottom: 4px;
 	}
 
 	.wind-text {

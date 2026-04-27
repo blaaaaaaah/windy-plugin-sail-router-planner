@@ -57,6 +57,7 @@
 	.wave-text {
 		font-size: 12px;
 		color: #999;
+		margin-bottom: 4px;
 	}
 
 	.wave-height {

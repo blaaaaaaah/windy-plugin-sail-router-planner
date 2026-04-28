@@ -9,7 +9,7 @@
     export let legStats: WeatherStats | null; // Leg statistics data
     export let leg: RouteLeg; // Leg data for distance, duration, speed
     export let color: string = '#3498db';
-    export let isSpeedEditable: boolean = true;
+    export let editable: boolean = true;
 
     const dispatch = createEventDispatcher();
 
@@ -27,27 +27,29 @@
         <div class="expanded-content">
             <!-- Row 1: Speed, Distance, Time -->
             <div class="leg-row">
+                {#if editable}
                 <div class="leg-item speed-input">
                     <label>AVG SPEED</label>
                     <div class="input-group">
-                        {#if isSpeedEditable}
-                            <input
-                                type="number"
-                                class="compact-input"
-                                value={leg.averageSpeed}
-                                min="0.5"
-                                max="50"
-                                step="0.5"
-                                on:change={handleSpeedUpdate}
-                            />
-                        {:else}
-                            <span class="value">{leg.averageSpeed.toFixed(1)}</span>
-                        {/if}
-                        <span class="unit">knts</span>
+                        <input
+                            type="number"
+                            class="compact-input"
+                            value={leg.averageSpeed}
+                            min="0.5"
+                            max="50"
+                            step="0.5"
+                            on:change={handleSpeedUpdate}
+                        /> <span class="unit">kt</span>
                     </div>
                 </div>
+                {:else}
                 <div class="leg-item">
-                    <label>DISTANCE</label>
+                    <label>AVG SPEED</label>
+                    <span class="value">{leg.averageSpeed.toFixed(1)}kt</span>
+                </div>
+                {/if}
+                <div class="leg-item">
+                    <label class="distance">DISTANCE</label>
                     <span class="value">{formatDistance(leg.distance)}</span>
                 </div>
                 <div class="leg-item">
@@ -123,15 +125,15 @@
             <!-- Row 6: Wind Direction Distribution -->
             <div class="leg-row">
                 <div class="leg-item">
-                    <label>UPWIND</label>
+                    <label>UP&shy;WIND</label>
                     <span class="value">{legStats ? `${legStats.percentUpwind.toFixed(0)}%` : '--'}</span>
                 </div>
                 <div class="leg-item">
-                    <label>REACHING</label>
+                    <label>REACH&shy;ING</label>
                     <span class="value">{legStats ? `${legStats.percentReaching.toFixed(0)}%` : '--'}</span>
                 </div>
                 <div class="leg-item">
-                    <label>DOWNWIND</label>
+                    <label>DOWN&shy;WIND</label>
                     <span class="value">{legStats ? `${legStats.percentDownwind.toFixed(0)}%` : '--'}</span>
                 </div>
             </div>
@@ -146,6 +148,7 @@
         margin: 0;
         overflow: hidden;
         transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+        container-type: inline-size;
 
         .expanded-content {
             display: flex;
@@ -218,9 +221,52 @@
             }
 
             .unit {
-                font-size: 10px;
+                font-size: 12px;
                 color: #666 !important;
-                font-weight: 500;
+                font-weight: 600;
+            }
+        }
+    }
+
+    /* Container query adjustments for narrow widths */
+    @container (max-width: 159px) {
+        .waypoint-expanded {
+            padding: 2px 6px;
+            
+            .leg-row {
+                gap: 4px;
+
+                label,
+                .unit,
+                .value {
+                    font-size: 9px;
+                    font-weight: 400;
+                }
+
+                .distance::after {
+                    content: "\00a0";
+                    display: block;
+                }
+                
+                .leg-item.speed-input {
+                    input {
+                        width: 20px;
+                        font-size: 9px;
+                    }
+
+                    input::-webkit-outer-spin-button,
+                    input::-webkit-inner-spin-button {
+                        -webkit-appearance: none;
+                        margin: 0;
+                    }
+
+                    .unit {
+                        font-size: 9px;
+                        font-weight: 400;
+                        
+                    }
+                }
+
             }
         }
     }

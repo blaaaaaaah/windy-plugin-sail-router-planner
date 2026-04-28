@@ -203,7 +203,7 @@ export function interpolateGreatCircle(start: LatLng, end: LatLng, progress: num
  * Format coordinates in degrees and decimal minutes format
  * Example: 37°47.123N, 122°25.456W
  */
-export function formatCoordinate(degrees: number, isLatitude: boolean): string {
+export function formatCoordinate(degrees: number, isLatitude: boolean, showSeconds: boolean = true): string {
 	const hemisphere = isLatitude
 		? (degrees >= 0 ? 'N' : 'S')
 		: (degrees >= 0 ? 'E' : 'W');
@@ -211,9 +211,14 @@ export function formatCoordinate(degrees: number, isLatitude: boolean): string {
 	const abs = Math.abs(degrees);
 	const deg = Math.floor(abs);
 	const minutes = (abs - deg) * 60;
-	const minutesFormatted = Math.floor(minutes).toString().padStart(2, '0') + (minutes % 1).toFixed(3).substring(1);
 
-	return `${deg.toString().padStart(2, '0')}°${minutesFormatted}${hemisphere}`;
+	if (showSeconds) {
+		const minutesFormatted = Math.floor(minutes).toString().padStart(2, '0') + (minutes % 1).toFixed(3).substring(1);
+		return `${deg.toString().padStart(2, '0')}°${minutesFormatted}${hemisphere}`;
+	} else {
+		const minutesRounded = Math.round(minutes).toString().padStart(2, '0');
+		return `${deg.toString().padStart(2, '0')}°${minutesRounded}'${hemisphere}`;
+	}
 }
 
 /**

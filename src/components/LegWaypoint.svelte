@@ -19,6 +19,7 @@
 
     export let draggable:boolean = false;
     export let canExpand: boolean = true; // Whether leg waypoint can be expanded
+    export let editable: boolean = true;
 
     let isExpanded: boolean = false;
 
@@ -99,9 +100,13 @@
             <div class="coordinate-row">
                 <div class="coord-item">
                     <label>FROM</label>
-                    <span class="coordinate">
-                        {formatCoordinate(leg.startPoint.lat, true)}<br/>
-                        {formatCoordinate(leg.startPoint.lng, false)}
+                    <span class="coordinate coordinate-full">
+                        {formatCoordinate(leg.startPoint.lat, true, true)}<br/>
+                        {formatCoordinate(leg.startPoint.lng, false, true)}
+                    </span>
+                    <span class="coordinate coordinate-compact">
+                        {formatCoordinate(leg.startPoint.lat, true, false)}<br/>
+                        {formatCoordinate(leg.startPoint.lng, false, false)}
                     </span>
                 </div>
                 <div class="coord-item">
@@ -110,9 +115,13 @@
                 </div>
                 <div class="coord-item">
                     <label>TO</label>
-                    <span class="coordinate">
-                        {formatCoordinate(leg.endPoint.lat, true)}<br/>
-                        {formatCoordinate(leg.endPoint.lng, false)}
+                    <span class="coordinate coordinate-full">
+                        {formatCoordinate(leg.endPoint.lat, true, true)}<br/>
+                        {formatCoordinate(leg.endPoint.lng, false, true)}
+                    </span>
+                    <span class="coordinate coordinate-compact">
+                        {formatCoordinate(leg.endPoint.lat, true, false)}<br/>
+                        {formatCoordinate(leg.endPoint.lng, false, false)}
                     </span>
                 </div>
             </div>
@@ -121,6 +130,7 @@
                 legStats={legStats}
                 {leg}
                 {color}
+                {editable}
                 on:speedUpdate={handleSpeedUpdate}
             />
         </div>
@@ -167,6 +177,10 @@
                     font-weight: 600;
                     text-align: center;
                     line-height: 1.2;
+                }
+
+                .coordinate-compact {
+                    display: none;
                 }
             }
         }
@@ -264,56 +278,79 @@
             }
         }
 
-        .expand-chevron {
-            display: none;
+        .leg-placeholder {
+            font-size: 10px;
+            color: #666;
+            font-style: italic;
         }
 
-            .leg-placeholder {
-                font-size: 10px;
-                color: #666;
-                font-style: italic;
+        /* Container query adjustments for narrow widths */
+  
+        .leg-detail-wrapper {
+            .coordinate-row {
+                gap: 4px;
+
+                .coord-item {
+                    label,
+                    .coordinate,
+                    .value {
+                        font-size: 9px;
+                        font-weight: 400;
+                    }
+
+                    .coordinate-full {
+                        display: none;
+                    }
+
+                    .coordinate-compact {
+                        display: inline;
+                    }
+                }
             }
         }
+        
 
-        .expand-chevron {
-            position: absolute;
-            right: 6px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 12px;
-            color: #666 !important;
-            transition: transform 0.2s ease;
-            pointer-events: none;
+    }
 
-            &.rotated {
-                transform: translateY(-50%) rotate(180deg);
-            }
+    .expand-chevron {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 12px;
+        color: #666 !important;
+        transition: transform 0.2s ease;
+        pointer-events: none;
+
+        &.rotated {
+            transform: translateY(-50%) rotate(180deg);
         }
+    }
 
-        .waypoint-number {
-            position: absolute;
-            left: -10px;
-            background: var(--route-color);
-            color: white;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            font-size: 11px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 1px 3px rgba(var(--route-color-rgb), 0.4);
-            border: 2px solid white;
-            flex-shrink: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 10;
+    .waypoint-number {
+        position: absolute;
+        left: -10px;
+        background: var(--route-color);
+        color: white;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        font-size: 11px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 3px rgba(var(--route-color-rgb), 0.4);
+        border: 2px solid white;
+        flex-shrink: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
 
-            &:hover {
-                transform: translateY(-50%) scale(1.1);
-                box-shadow: 0 2px 6px rgba(var(--route-color-rgb), 0.6);
-            }
+        &:hover {
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 2px 6px rgba(var(--route-color-rgb), 0.6);
         }
+    }
     
 </style>

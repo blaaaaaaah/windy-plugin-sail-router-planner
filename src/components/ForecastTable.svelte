@@ -401,7 +401,8 @@
                                                     color={cellsGroup.waypointData.color}
                                                     dropGhost={cellsGroup.waypointData.dropGhost}
                                                     on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
-                                                    canExpand={routeForecasts.length === 1 && !cellsGroup.waypointData.isLast}
+                                                    canExpand={!cellsGroup.waypointData.isLast}
+                                                    editable={true}
                                                     draggable={cellsGroup.waypointData.isStart && !cellsGroup.waypointData.dropGhost}
                                                 />
                                                 {/if}

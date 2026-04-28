@@ -192,12 +192,23 @@
             }
         }
 
+        /* Hide combined displays by default */
+        .leg-item.wind-combined,
+        .leg-item.gust-combined,
+        .leg-item.wave-combined,
+        .leg-item.period-combined {
+            display: none;
+        }
+
         .leg-item {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 4px;
+
+
+            
 
             label {
                 font-weight: 600;
@@ -252,13 +263,6 @@
         }
     }
 
-    /* Hide combined displays by default */
-    .wind-combined,
-    .gust-combined,
-    .wave-combined,
-    .period-combined {
-        display: none;
-    }
 
     /* Container query adjustments for narrow widths */
     @container (max-width: 159px) {

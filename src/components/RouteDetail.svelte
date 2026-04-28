@@ -177,7 +177,7 @@
                 legStats={routeStats}
                 leg={routeLeg}
                 routeColor="#3498db"
-                isSpeedEditable={false}
+                editable={false}
             />
         </div>
     {/if}

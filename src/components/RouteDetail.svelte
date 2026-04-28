@@ -446,7 +446,7 @@
                     .departure-input {
                         font-size: 8px;
                         padding: 1px 2px;
-                        //min-width: 70px;
+                        min-width: 70px;
                     }
 
                     .total-distance,
@@ -480,6 +480,11 @@
                     width: 100px;
                 }
 
+                .route-summary {
+                    .departure-input {
+                        min-width: unset;
+                    }
+                }
                 
             }
         }

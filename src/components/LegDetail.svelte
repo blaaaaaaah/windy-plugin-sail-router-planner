@@ -283,7 +283,7 @@
                 label,
                 .unit,
                 .value {
-                    font-size: 9px;
+                    font-size: 8px;
                     font-weight: 400;
                 }
 

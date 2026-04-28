@@ -19,6 +19,9 @@
     export let showTrueWind: boolean = true;
     export let currentMetric: string = '';
 
+    // Shared expanded state for all routes
+    let routesExpanded = false;
+
     // Derived state from forecast
     $: isLoading = routeForecasts.length === 0 || routeForecasts.some(f => f.pointForecasts === null);
 
@@ -349,14 +352,17 @@
         <!-- Table Content -->
         <section class="table-content">
             <!-- Route Summary -->
-            {#if routeForecasts.length == 1 && routeForecasts[0]?.route}
+            <div class="route-summary">
+            {#each routeForecasts as routeForecast}
                 <RouteDetail
-                    route={routeForecasts[0].route}
-                    routeStats={routeForecasts[0]?.routeStats || null}
+                    route={routeForecast.route}
+                    routeStats={routeForecast.routeStats || null}
+                    isExpanded={routesExpanded}
                     on:routeUpdated={handleRouteUpdated}
+                    on:toggleExpanded={() => { routesExpanded = !routesExpanded; }}
                 />
-            {/if}
-
+            {/each}
+            </div>
             <!-- Table Header -->
             <div class="table-header">
                 <div class="time-column">Time</div>
@@ -549,6 +555,12 @@
         display: flex;
         flex-direction: column;
         height: 100%;
+    }
+
+    .route-summary {
+        display: flex;
+        flex-direction: row;
+        gap: 0;
     }
 
     // Common column base styles

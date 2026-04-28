@@ -8,7 +8,7 @@
 
     export let route: RouteDefinition | null;
     export let routeStats: WeatherStats | null = null; // Overall route statistics (total distance, time, etc.)
-    let isExpanded: boolean = false;
+    export let isExpanded: boolean = false;
     let isEditingName: boolean = false;
     let editedName: string = '';
     let nameInputElement: HTMLInputElement;
@@ -16,7 +16,7 @@
     const dispatch = createEventDispatcher();
 
     function handleClick() {
-        isExpanded = !isExpanded;
+        dispatch('toggleExpanded');
     }
 
     function calculateAverageSpeed(): number {
@@ -55,10 +55,6 @@
         }
     }
 
-    function handleSaveClick() {
-        console.log('Save route clicked');
-        dispatch('saveRoute', { route });
-    }
 
     function handleColorCycle() {
         if (route) {
@@ -142,9 +138,13 @@
                         />
                     {:else}
                         {#if route?.name}
-                            <div class="route-name" on:click={startEditingName} title="Click to edit route name">{route.name}</div>
+                            <div class="route-name" on:click={startEditingName} title="Click to edit route name">
+                                <span>{route.name}</span>
+                            </div>
                         {:else}
-                            <div class="route-name"><i>Loading route name...</i></div>
+                            <div class="route-name">
+                                <span><i>Loading route name...</i></span>
+                            </div>
                         {/if}
                     {/if}
                 </div>
@@ -186,6 +186,9 @@
 <style lang="less">
     .route-row-container {
         position: relative;
+        container-type: inline-size;
+        flex: 1;
+        min-width: 0;
     }
 
     .route-detail-wrapper {
@@ -376,5 +379,109 @@
         color: #6c757d;
         font-size: 11px;
         font-style: italic;
+    }
+
+     /* Container query for narrow widths */
+    @container (max-width: 205px) {
+         
+
+        .route-row {
+
+            padding: 8px 6px;
+
+            .expand-chevron {
+                bottom: 2px;
+                right: 2px;
+            }
+
+            .expand-chevron.rotated {
+                bottom: 1px;
+            }
+
+            .route-info {
+                .route-name {
+                    width: 160px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 4px;
+
+                    /* Inner span will handle the text with line-clamp */
+                    span {
+                        display: -webkit-box;
+                        -webkit-line-clamp: 2;
+                        -webkit-box-orient: vertical;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        text-align: left;
+                        line-height: 15px;
+                    }
+                }
+
+                .route-name-input {
+                    max-width: 160px;
+                    width: 100%;
+                    height: 30px;
+                    font-size: 10px;
+                    padding: 1px 2px;
+                    box-sizing: border-box;
+                }
+
+                
+                .route-summary {
+                    flex-direction: row;
+                    gap: 4px;
+                    margin-right: 8px;
+
+                    .departure-time {
+                        font-size: 7px;
+                        gap: 2px;
+                        width: 100px;
+                    }
+
+                    .departure-label {
+                        display: none;
+                    }
+
+                    .departure-input {
+                        font-size: 8px;
+                        padding: 1px 2px;
+                        //min-width: 70px;
+                    }
+
+                    .total-distance,
+                    .total-duration {
+                        font-size: 9px;
+                        //flex: 0.8;
+                        text-align: center;
+                    }
+                }
+            }
+        }
+    }
+
+     /* Container query for narrow widths */
+    @container (max-width: 145px) {
+         
+
+        .route-row {
+
+            .expand-chevron {
+                bottom: -2px;
+                right: 5px;
+            }
+
+            .expand-chevron.rotated {
+                bottom: -4px;
+            }
+           
+            .route-info {
+                .route-name {
+                    width: 100px;
+                }
+
+                
+            }
+        }
     }
 </style>

@@ -285,7 +285,7 @@
         }
 
         /* Container query adjustments for narrow widths */
-  
+
         .leg-detail-wrapper {
             .coordinate-row {
                 gap: 4px;
@@ -308,8 +308,23 @@
                 }
             }
         }
-        
+    }
 
+    // Very narrow widths: hide FROM and TO coordinates
+    @container (max-width: 109px) {
+        .leg-detail-wrapper {
+            .coordinate-row {
+                .coord-item:first-child,
+                .coord-item:last-child {
+                    display: none;
+                }
+
+                .coord-item:nth-child(2) {
+                    width: 100%;
+                    text-align: center;
+                }
+            }
+        }
     }
 
     .expand-chevron {

@@ -346,7 +346,7 @@
             .gust-combined,
             .wave-combined,
             .period-combined {
-                display: flex;
+                display: flex !important;
             }
 
             .wind-separate,

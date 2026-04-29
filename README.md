@@ -51,7 +51,7 @@ Professional sailing route planning and weather forecasting plugin for Windy.com
 4. **Choose "Load plugin from URL"**
 5. **Paste this URL:**
    ```
-   https://windy-plugins.com/13935398/windy-plugin-sail-router-planner/0.5.0/plugin.min.js
+   https://windy-plugins.com/13935398/windy-plugin-sail-router-planner/0.9.0/plugin.min.js
    ```
 6. **Click "Load Plugin"**
 7. **Access the plugin** via the Plugins menu → "Sail Router Planner"

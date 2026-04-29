@@ -1,7 +1,9 @@
 bugs :
 
 When creating a line between FP and Australia the line goes around the world because of coordinate jump
-Start a new route with 1 waypoint, select an existing route : you have an orphan waypoint
+
+when 2 waypoints are really close together (share same hour), only the first shows
+
 
 AWA is sometimes 205P
 

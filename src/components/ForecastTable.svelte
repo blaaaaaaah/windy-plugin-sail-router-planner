@@ -302,16 +302,17 @@
         dispatch('windModeChanged', { showTrueWind: trueWind });
     }
 
-    // only works for first route
     function handleLegSpeedUpdate(event: any) {
-        if ( routeForecasts.length != 1 ) {
-            return; // Only support speed update for single route
+        const { legIndex, newSpeed, routeIndex } = event.detail;
+        console.log(`Updating route ${routeIndex} leg ${legIndex} speed to ${newSpeed}`);
+
+        // Validate route index
+        if (routeIndex < 0 || routeIndex >= routeForecasts.length) {
+            console.warn(`Invalid route index: ${routeIndex}`);
+            return;
         }
 
-        const { legIndex, newSpeed } = event.detail;
-        console.log(`Updating leg ${legIndex} speed to ${newSpeed}`);
-
-        const route = routeForecasts[0]?.route
+        const route = routeForecasts[routeIndex]?.route;
 
         if (route && legIndex >= 0 && legIndex < route.legs.length) {
             const speed = parseFloat(newSpeed);
@@ -396,7 +397,7 @@
                                                     arrivalTime={cellsGroup.waypointData.arrivalTime}
                                                     color={cellsGroup.waypointData.color}
                                                     dropGhost={cellsGroup.waypointData.dropGhost}
-                                                    on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: e.detail })}
+                                                    on:speedUpdate={(e) => handleLegSpeedUpdate({ detail: { ...e.detail, routeIndex: cellsGroup.routeIndex } })}
                                                     canExpand={!cellsGroup.waypointData.isLast}
                                                     editable={true}
                                                     draggable={cellsGroup.waypointData.isStart && !cellsGroup.waypointData.dropGhost}

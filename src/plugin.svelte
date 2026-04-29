@@ -213,6 +213,7 @@
 
     function handleCompareRoutes(event: any) {
         const { routes } = event.detail;
+        routeEditor!.setActiveRoute(null);
         showForecastsForRoutes(routes);
     }
 
@@ -376,8 +377,8 @@
         const routeIndex = displayedRouteForecasts.findIndex(rf => rf.route.id === route.id);
 
         if (routeIndex !== -1) {
-            // Create a duplicate of the route manually
-            const duplicatedRoute:RouteDefinition = route.duplicate();
+            // Create a duplicate of the route using built-in method
+            const duplicatedRoute = route.duplicate();
 
             // Load route to route editor and show forecasts
             if (routeEditor) {

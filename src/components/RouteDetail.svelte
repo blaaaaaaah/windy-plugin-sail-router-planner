@@ -179,7 +179,7 @@
 
     <!-- Expanded content - route-level statistics -->
     {#if isExpanded && routeLeg}
-        <div class="route-detail-wrapper">
+        <div class="route-detail-wrapper" on:click={handleClick}>
             <LegDetail
                 legStats={routeStats}
                 leg={routeLeg}
@@ -202,6 +202,7 @@
         border-left: 4px solid #dee2e6;
         border-bottom: 1px solid #dee2e6;
         background: #f8f9fa;
+        cursor: pointer;
     }
 
     .route-row {

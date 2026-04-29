@@ -75,6 +75,9 @@ export class RouteEditorController {
 	}
 
 	setActiveRoute(route: RouteDefinition | null): void {
+		// Clean up any incomplete routes (routes with fewer than 2 waypoints)
+		this._cleanupIncompleteRoutes();
+
 		this._activeRoute = route;
 
 		// Ensure active route is visible on the map
@@ -900,6 +903,23 @@ export class RouteEditorController {
 		this._routes.forEach(route => {
 			if ( route.isVisible )
 				this._updateRouteLine(route, this._activeRoute?.id === route.id);
+		});
+	}
+
+	private _cleanupIncompleteRoutes(): void {
+		// Find incomplete routes (routes with fewer than 2 waypoints)
+		const incompleteRoutes = this._routes.filter(route => route.waypoints.length < 2);
+
+		// Remove incomplete routes
+		incompleteRoutes.forEach(route => {
+			console.log('Cleaning up incomplete route with', route.waypoints.length, 'waypoint(s)');
+			this._removeRouteFromMap(route);
+
+			// Remove from routes array
+			const index = this._routes.findIndex(r => r.id === route.id);
+			if (index >= 0) {
+				this._routes.splice(index, 1);
+			}
 		});
 	}
 

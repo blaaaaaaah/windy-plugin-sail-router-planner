@@ -235,6 +235,47 @@ export class RouteDefinition {
 		return null;
 	}
 
+	duplicate():RouteDefinition {
+		// Handle duplicate naming: if name ends with (N), increment to (N+1)
+		let duplicatedName = null;
+		if (this._name) {
+			const match = this._name.match(/^(.+)\((\d+)\)$/);
+			if (match) {
+				// Name already has (N) format, increment N
+				const baseName = match[1];
+				const currentNumber = parseInt(match[2], 10);
+				duplicatedName = `${baseName}(${currentNumber + 1})`;
+			} else {
+				// First duplication, add (2)
+				duplicatedName = `${this._name}(2)`;
+			}
+		}
+
+		const duplicatedRoute = new RouteDefinition(
+			null, // new ID will be generated
+			duplicatedName,
+			null,
+			this.departureTime,
+			this._defaultSpeed
+		);
+
+		// Copy waypoints and leg speeds
+		this.waypoints.forEach((waypoint:LatLng, index:number) => {
+			duplicatedRoute.addWaypoint(waypoint);
+		});
+		this.legs.forEach((leg:RouteLeg, index:number) => {
+			duplicatedRoute.setLegSpeed(index, leg.averageSpeed)
+		});
+
+		// Copy other properties
+		duplicatedRoute.isVisible = this.isVisible;
+		duplicatedRoute.isSaved = false; // New route, not saved yet
+		duplicatedRoute.preDepartureOffset = this.preDepartureOffset;
+		duplicatedRoute.postArrivalOffset = this.postArrivalOffset;
+
+		return duplicatedRoute;
+	}
+
 	private _calculateLegs(): RouteLeg[] {
 		const legs: RouteLeg[] = [];
 

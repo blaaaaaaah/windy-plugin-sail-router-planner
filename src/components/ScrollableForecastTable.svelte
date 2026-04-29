@@ -111,7 +111,7 @@
 <style>
 	.data-table {
 		flex: 1;
-		overflow-x: visible;
+		overflow-x: hidden;
 		overflow-y: auto;
 		height: 100%;
 		&.vertical-scroll {

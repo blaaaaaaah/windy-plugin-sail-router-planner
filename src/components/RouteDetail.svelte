@@ -66,6 +66,12 @@
         }
     }
 
+    function handleDuplicate() {
+        if (route) {
+            dispatch('duplicateRoute', { route });
+        }
+    }
+
     function startEditingName() {
         if (route) {
             isEditingName = true;
@@ -147,6 +153,7 @@
                             </div>
                         {/if}
                     {/if}
+                    <div class="duplicate-icon" on:click|stopPropagation={handleDuplicate} title="Duplicate route">⧉</div>
                 </div>
                 <div class="route-summary" on:click={showExpandChevron ? handleClick : undefined}>
                     <div class="departure-time">
@@ -249,6 +256,26 @@
                 &:hover {
                     transform: scale(1.2);
                     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                }
+            }
+
+            .duplicate-icon {
+                width: 16px;
+                height: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                flex-shrink: 0;
+                font-size: 12px;
+                color: #6c757d;
+                border-radius: 3px;
+                transition: all 0.2s ease;
+
+                &:hover {
+                    background-color: rgba(0, 0, 0, 0.05);
+                    color: #495057;
+                    transform: scale(1.1);
                 }
             }
 
@@ -361,7 +388,7 @@
 
         .expand-chevron {
             position: absolute;
-            right: 6px;
+            right: 4px;
             bottom: 3px;
             font-size: 12px;
             color: #6c757d !important;
@@ -399,12 +426,17 @@
             }
 
             .route-info {
+                .route-name-row {
+                    gap: 0px;
+                }
+
                 .route-name {
                     width: 160px;
                     height: 30px;
                     display: flex;
                     align-items: center;
                     margin-bottom: 4px;
+                    margin-left: 2px;
 
                     /* Inner span will handle the text with line-clamp */
                     span {
@@ -484,6 +516,10 @@
                     .departure-input {
                         min-width: unset;
                     }
+                }
+
+                .duplicate-icon {
+                    display: none;
                 }
                 
             }

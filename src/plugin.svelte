@@ -41,6 +41,7 @@
                     on:metricClick={handleMetricClick}
                     on:routeUpdated={handleRouteUpdated}
                     on:toggleFavorite={handleToggleFavorite}
+                    on:duplicateRoute={handleDuplicateRoute}
                 />
             </div>
         </div>
@@ -267,8 +268,10 @@
             // Clear cached forecast since route properties changed
             cachedForecasts.delete(route.id);
 
-            showForecastsForRoutes(displayedRouteForecasts.map(f => f.route)); // Refresh forecasts for all currently displayed routes (handles both single and compare mode)
-
+            if ( displayedRouteForecasts.length )
+                showForecastsForRoutes(displayedRouteForecasts.map(f => f.route)); // Refresh forecasts for all currently displayed routes (handles both single and compare mode)
+            else 
+                showForecastsForRoutes([route]);
         } else {
             if ( route.isSaved ) {
                 routeStorage!.deleteRoute(route);
@@ -358,6 +361,35 @@
         // Update route display (day markers, distance labels, etc.) when route properties change
         if (routeEditor) {
             routeEditor.updateRoute(route);
+        }
+    }
+
+    function handleDuplicateRoute(event: any) {
+        // Don't duplicate if we already have 3 or more routes
+        if (displayedRouteForecasts.length >= 3) {
+            return;
+        }
+
+        const { route } = event.detail;
+
+        // Find the index of the route to duplicate
+        const routeIndex = displayedRouteForecasts.findIndex(rf => rf.route.id === route.id);
+
+        if (routeIndex !== -1) {
+            // Create a duplicate of the route manually
+            const duplicatedRoute:RouteDefinition = route.duplicate();
+
+            // Load route to route editor and show forecasts
+            if (routeEditor) {
+                routeEditor.loadRoute(duplicatedRoute);
+            }
+
+            // Insert the duplicated route at index + 1
+            const newRoutes = displayedRouteForecasts.map(rf => rf.route);
+            newRoutes.splice(routeIndex + 1, 0, duplicatedRoute);
+
+            routeEditor?.setActiveRoute(null);  // now going in compare mode
+            showForecastsForRoutes(newRoutes);
         }
     }
 

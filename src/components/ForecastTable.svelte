@@ -291,17 +291,6 @@
     }
 
 
-    function normalizeOffsets() {
-        // make sure that we don't have unecessary offset, we need min 6h
-        const min = Math.min(...routeForecasts.map(rf => rf.route.preDepartureOffset));
-        if (min < 6) return;
-
-        routeForecasts.forEach(rf => {
-            rf.route.preDepartureOffset = rf.route.preDepartureOffset - 6;
-        });
-    }
-
-
     // functions that will dispatch events
 
     function onMetricClick(metric: string) {
@@ -360,6 +349,7 @@
                     isExpanded={routesExpanded}
                     on:routeUpdated={handleRouteUpdated}
                     on:toggleExpanded={() => { routesExpanded = !routesExpanded; }}
+                    on:duplicateRoute
                 />
             {/each}
             </div>
